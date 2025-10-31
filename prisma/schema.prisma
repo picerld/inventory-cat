@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+enum ItemType {
+    RAW_MATERIAL
+    SEMI_FINISHED_GOOD
+    FINISHED_GOOD
+    PAINT_ACCESSORIES
+}
+
+model Role {
+    id          Int      @id @default(autoincrement())
+    name        String   @unique
+    description String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    User        User[]
+
+    @@index([name])
+}
+
+model Supplier {
+    id               String             @id @default(uuid())
+    name             String
+    description      String?
+    createdAt        DateTime           @default(now())
+    updatedAt        DateTime           @updatedAt
+    RawMaterial      RawMaterial[]
+    PaintAccessories PaintAccessories[]
+}
+
+model User {
+    id               String             @id @default(uuid())
+    name             String
+    roleId           Int
+    role             Role               @relation(fields: [roleId], references: [id])
+    createdAt        DateTime           @default(now())
+    updatedAt        DateTime           @updatedAt
+    RawMaterial      RawMaterial[]
+    SemiFinishedGood SemiFinishedGood[]
+    FinishedGood     FinishedGood[]
+    PaintAccessories PaintAccessories[]
+}
+
+model RawMaterial {
+    id                     String                   @id @default(uuid())
+    supplierId             String
+    supplier               Supplier                 @relation(fields: [supplierId], references: [id])
+    userId                 String
+    user                   User                     @relation(fields: [userId], references: [id])
+    qty                    Int
+    supplierPrice          Float
+    sellingPrice           Float
+    createdAt              DateTime                 @default(now())
+    updatedAt              DateTime                 @updatedAt
+    SemiFinishedGoodDetail SemiFinishedGoodDetail[]
+}
+
+model SemiFinishedGood {
+    id                     String                   @id @default(uuid())
+    userId                 String
+    user                   User                     @relation(fields: [userId], references: [id])
+    name                   String
+    SemiFinishedGoodDetail SemiFinishedGoodDetail[]
+    createdAt              DateTime                 @default(now())
+    updatedAt              DateTime                 @updatedAt
+}
+
+model SemiFinishedGoodDetail {
+    id                 String           @id @default(uuid())
+    semiFinishedGoodId String
+    semiFinishedGood   SemiFinishedGood @relation(fields: [semiFinishedGoodId], references: [id])
+    rawMaterialId      String
+    rawMaterial        RawMaterial      @relation(fields: [rawMaterialId], references: [id])
+    createdAt          DateTime         @default(now())
+    updatedAt          DateTime         @updatedAt
+}
+
+model FinishedGood {
+    id             String   @id @default(uuid())
+    productionCode String   @unique
+    userId         String
+    user           User     @relation(fields: [userId], references: [id])
+    name           String
+    dateProduced   DateTime @default(now())
+    batchNumber    String
+    quality        String
+    createdAt      DateTime @default(now())
+    updatedAt      DateTime @updatedAt
+}
+
+model PaintAccessories {
+    id            String   @id @default(uuid())
+    name          String
+    supplierId    String
+    supplier      Supplier @relation(fields: [supplierId], references: [id])
+    userId        String
+    user          User     @relation(fields: [userId], references: [id])
+    supplierPrice Float
+    sellingPrice  Float
+    qty           Int
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
+}
+
+model ReturnedItem {
+    id          String   @id @default(uuid())
+    itemType    ItemType
+    itemId      String
+    qty         Int
+    description String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+}
+
+model Selling {
+    id        String   @id @default(uuid())
+    qty       Int
+    itemType  ItemType
+    itemId    String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model Buying {
+    id        String   @id @default(uuid())
+    qty       Int
+    itemType  ItemType
+    itemId    String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
