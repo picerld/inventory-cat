@@ -1,4 +1,4 @@
-import { PaintBucket } from "lucide-react";
+import { PaintbrushVertical } from "lucide-react";
 import Link from "next/link";
 import { LoginForm } from "./components/LoginForm";
 import { HeadMetaData } from "~/components/meta/HeadMetaData";
@@ -15,8 +15,8 @@ export default function LoginPage() {
               href="#"
               className="group flex items-center gap-3 font-medium"
             >
-              <div className="relative flex size-12 items-center justify-center overflow-hidden rounded-2xl bg-linear-to-br from-teal-500 via-teal-600 to-cyan-600 shadow-lg ring-2 ring-teal-500/20 transition-all group-hover:scale-105 group-hover:shadow-xl">
-                <PaintBucket className="size-6 text-white drop-shadow-md" />
+              <div className="relative flex size-12 items-center justify-center overflow-hidden rounded-2xl bg-primary shadow-lg ring-2 transition-all group-hover:scale-105 group-hover:shadow-xl">
+                <PaintbrushVertical className="size-6 text-white drop-shadow-md" />
                 <div className="absolute inset-0 bg-linear-to-t from-black/10 to-transparent" />
               </div>
               <div className="flex flex-col">

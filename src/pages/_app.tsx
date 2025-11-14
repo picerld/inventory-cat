@@ -5,6 +5,7 @@ import { api } from "~/utils/api";
 import "~/styles/globals.css";
 import { ThemeProvider } from "~/components/ui/theme-provider";
 import { Toaster } from "~/components/ui/sonner";
+import { SidebarProvider } from "~/context/SidebarContext";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -17,14 +18,16 @@ const MyApp: AppType = ({ Component, pageProps }) => {
   return (
     <ThemeProvider
       attribute="class"
-      defaultTheme="dark"
+      defaultTheme="light"
       enableSystem
       disableTransitionOnChange
     >
-      <div className={poppins.className}>
-        <Component {...pageProps} />
-        <Toaster />
-      </div>
+      <SidebarProvider>
+        <div className={poppins.className}>
+          <Component {...pageProps} />
+          <Toaster />
+        </div>
+      </SidebarProvider>
     </ThemeProvider>
   );
 };

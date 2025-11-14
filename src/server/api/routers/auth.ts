@@ -30,7 +30,7 @@ export const authRouter = createTRPCRouter({
       if (!user || !(await bcrypt.compare(password!, user.password ?? ""))) {
         throw new TRPCError({
           code: "UNAUTHORIZED",
-          message: "Invalid username or password",
+          message: "Username atau password salah!",
         });
       }
 
@@ -44,5 +44,24 @@ export const authRouter = createTRPCRouter({
 
       const { password: _, ...userWithoutPassword } = user;
       return { token, user: userWithoutPassword };
+    }),
+
+  logout: publicProcedure
+    .input(z.object({ token: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      // Clear token in DB for the token provided by client
+      const user = await ctx.db.user.findFirst({
+        where: { token: input.token },
+      });
+      if (!user) {
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      }
+
+      await ctx.db.user.update({
+        where: { id: user.id },
+        data: { token: null, tokenExpiresAt: null },
+      });
+
+      return { success: true };
     }),
 });

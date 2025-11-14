@@ -17,6 +17,7 @@ import { trpc } from "~/utils/trpc";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Eye, EyeOff, User, Lock, Shield, Loader } from "lucide-react";
+import Cookies from "js-cookie";
 
 export function LoginForm({
   className,
@@ -27,15 +28,26 @@ export function LoginForm({
   const [showPassword, setShowPassword] = useState<boolean>(false);
 
   const { mutate: loginUser, isPending } = trpc.auth.login.useMutation({
-    onSuccess: () => {
-      toast.success("Login successful");
+    onSuccess: (data) => {
+      toast.success("Sukses!", {
+        description: "Mengarahkan ke halaman dashboard",
+      });
+
+      Cookies.set("auth.token", data.token, {
+        expires: 7,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+      });
 
       setTimeout(() => {
         router.push("/dashboard");
       }, 1000);
     },
     onError: (error) => {
-      toast.error(error.message);
+      toast.error("Oops!", {
+        description: error.message,
+      });
     },
   });
 
@@ -63,14 +75,14 @@ export function LoginForm({
     >
       <FieldGroup>
         <div className="mb-4 flex flex-col gap-3 text-center">
-          <div className="mx-auto mb-2 flex size-16 items-center justify-center rounded-2xl bg-linear-to-br from-teal-500 to-cyan-600 shadow-lg ring-4 ring-teal-500/10">
+          <div className="bg-primary mx-auto mb-2 flex size-16 items-center justify-center rounded-2xl shadow-lg">
             <Shield className="size-8 text-white" />
           </div>
-          <h1 className="text-primary bg-linear-to-r from-teal-600 to-cyan-600 bg-clip-text text-4xl font-black tracking-tight text-transparent">
-            Welcome back!
+          <h1 className="text-primary text-4xl font-extrabold tracking-tight">
+            Selamat Datang!
           </h1>
           <p className="text-muted-foreground text-base font-medium">
-            Sign in to access your admin dashboard
+            Sign in untuk mengakses dashboard
           </p>
         </div>
 
@@ -89,7 +101,7 @@ export function LoginForm({
                   <Input
                     type="text"
                     placeholder="Enter your username"
-                    className="h-12 rounded-xl border-2 pl-10 transition-all focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    className="h-12 rounded-xl border-2 pl-10"
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
                   />
@@ -107,30 +119,22 @@ export function LoginForm({
 
             return (
               <Field>
-                <div className="flex items-center justify-between">
-                  <FieldLabel className="text-sm font-semibold">
-                    Password
-                  </FieldLabel>
-                  <Link
-                    href="#"
-                    className="text-primary hover:text-primary/80 text-sm font-semibold underline-offset-4 transition-colors hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
+                <FieldLabel className="text-sm font-semibold">
+                  Password
+                </FieldLabel>
                 <div className="relative">
                   <Lock className="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transition-colors" />
                   <Input
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
-                    className="h-12 rounded-xl border-2 pr-10 pl-10 transition-all focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    className="h-12 rounded-xl border-2 px-10"
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2 transition-colors"
+                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer transition-colors"
                   >
                     {showPassword ? (
                       <EyeOff className="h-5 w-5" />
@@ -145,11 +149,20 @@ export function LoginForm({
           }}
         </form.Field>
 
+        <div className="flex items-center justify-end">
+          <Link
+            href="#"
+            className="text-primary hover:text-primary/80 text-sm font-semibold underline-offset-4 transition-colors hover:underline"
+          >
+            Forgot password?
+          </Link>
+        </div>
+
         <Field>
           <Button
             type="submit"
             disabled={isPending}
-            className="h-12 rounded-xl bg-linear-to-r from-teal-800 to-cyan-600 text-sm font-bold text-white shadow-lg shadow-teal-500/30 transition-all hover:shadow-xl hover:shadow-teal-500/40 disabled:opacity-50"
+            className="py-6 font-medium text-white"
           >
             {isPending ? (
               <Loader className="mr-2 h-4 w-4 animate-spin" />
@@ -164,7 +177,7 @@ export function LoginForm({
             <div className="border-muted w-full border-t-2" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="text-muted-foreground bg-background px-3 font-semibold">
+            <span className="text-muted-foreground bg-background px-3">
               Secure Login
             </span>
           </div>
@@ -174,7 +187,7 @@ export function LoginForm({
           Need help?{" "}
           <Link
             href="#"
-            className="font-semibold text-teal-600 underline-offset-4 transition-colors hover:text-teal-700 hover:underline"
+            className="text-primary font-semibold underline-offset-4 transition-colors hover:underline"
           >
             Contact support
           </Link>
