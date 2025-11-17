@@ -1,5 +1,5 @@
-import type { RawMaterial } from "./RawMaterial";
-import type { SemiFinishedGood } from "./SemiFinishedGood";
+import type { RawMaterial } from "./raw-material";
+import type { SemiFinishedGood } from "./semi-finished-good";
 
 export type SemiFinishedGoodDetail = {
     id: string;

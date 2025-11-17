@@ -76,7 +76,7 @@ export function LoginForm({
       <FieldGroup>
         <div className="mb-4 flex flex-col gap-3 text-center">
           <div className="bg-primary mx-auto mb-2 flex size-16 items-center justify-center rounded-2xl shadow-lg">
-            <Shield className="size-8 text-white" />
+            <Shield className="size-8 text-secondary" />
           </div>
           <h1 className="text-primary text-4xl font-extrabold tracking-tight">
             Selamat Datang!
@@ -162,7 +162,7 @@ export function LoginForm({
           <Button
             type="submit"
             disabled={isPending}
-            className="py-6 font-medium text-white"
+            className="py-6 font-medium"
           >
             {isPending ? (
               <Loader className="mr-2 h-4 w-4 animate-spin" />

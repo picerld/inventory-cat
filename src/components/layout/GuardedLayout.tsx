@@ -1,4 +1,10 @@
-import { Menu, PaintbrushVertical, User, Bell } from "lucide-react";
+import {
+  Menu,
+  PaintbrushVertical,
+  User,
+  Bell,
+  ChevronDown,
+} from "lucide-react";
 import { Button } from "../ui/button";
 import { ModeToggle } from "../ui/mode-toggle";
 import Link from "next/link";
@@ -24,11 +30,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import React from "react";
 import { skipToken } from "@tanstack/react-query";
-import GlobalSearch from "./GlobalSearch";
 import { LogoutButton } from "./LogoutButton";
 import type { INavItem } from "./NavItemComponent";
 import NavItemComponent from "./NavItemComponent";
 import { useSidebar } from "~/context/SidebarContext";
+import { GlobalSearch } from "./GlobalSearch";
 
 export default function GuardedLayout({
   children,
@@ -105,10 +111,8 @@ export default function GuardedLayout({
   return (
     <div className="bg-background min-h-screen">
       <div className="flex min-h-screen">
-        {/* Enhanced Navbar */}
         <div className="bg-background/95 supports-[backdrop-filter]:bg-background/60 fixed top-0 right-0 left-0 z-50 border-b backdrop-blur">
           <div className="flex h-16 items-center justify-between gap-4 px-4 md:px-6">
-            {/* Left Section */}
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <Sheet>
                 <SheetTrigger asChild>
@@ -178,7 +182,7 @@ export default function GuardedLayout({
 
             <div className="flex shrink-0 items-center gap-3">
               <div className="lg:hidden">
-                <GlobalSearch />
+                {/* <GlobalSearch /> */}
               </div>
 
               <ModeToggle />
@@ -310,7 +314,7 @@ export default function GuardedLayout({
         </div>
 
         <div className="bg-background fixed top-16 left-0 hidden h-[calc(100vh-4rem)] w-64 overflow-y-auto border-r lg:block">
-          <nav className="flex h-full flex-col py-4">
+          <nav className="flex h-full flex-col pt-4">
             <div className="text-muted-foreground mb-2 px-5 text-xs font-semibold tracking-wider uppercase">
               Menu
             </div>
@@ -336,16 +340,52 @@ export default function GuardedLayout({
               />
             ))}
 
-            <div className="text-muted-foreground mt-auto border-t px-5 pt-4 text-sm">
-              {user ? user.name : "Unknown"}
+            <div className="mt-auto border-t">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="hover:bg-muted h-auto w-full justify-start gap-3 p-3"
+                  >
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src="" alt={user?.name} />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                        {user ? getUserInitials(user.name) : "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-1 flex-col items-start overflow-hidden text-left">
+                      <p className="truncate text-sm font-medium">
+                        {user ? user.name : "Unknown"}
+                      </p>
+                      <p className="text-muted-foreground truncate text-xs">
+                        {user?.username || "user@example.com"}
+                      </p>
+                    </div>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem className="cursor-pointer">
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Bell className="mr-2 h-4 w-4" />
+                    Notifications
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <LogoutButton />
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </nav>
         </div>
 
-        {/* Main Content - unchanged */}
         <div className="min-h-screen flex-1 pt-16 lg:ml-64">
           <div className="min-h-[calc(100vh-4rem)] w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-            {children}
+            <div className="bg-card rounded-lg border p-6">{children}</div>
           </div>
           <footer className="mt-auto border-t py-6">
             <p className="text-muted-foreground text-center text-sm">

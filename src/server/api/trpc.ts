@@ -12,7 +12,7 @@ import superjson from "superjson";
 import { ZodError } from "zod";
 import { parse } from "cookie";
 import { db } from "~/server/db";
-import type { User } from "~/types/User";
+import type { User } from "~/types/user";
 
 /**
  * 1. CONTEXT

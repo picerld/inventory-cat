@@ -16,7 +16,7 @@ export default function LoginPage() {
               className="group flex items-center gap-3 font-medium"
             >
               <div className="relative flex size-12 items-center justify-center overflow-hidden rounded-2xl bg-primary shadow-lg ring-2 transition-all group-hover:scale-105 group-hover:shadow-xl">
-                <PaintbrushVertical className="size-6 text-white drop-shadow-md" />
+                <PaintbrushVertical className="size-6 text-secondary drop-shadow-md" />
                 <div className="absolute inset-0 bg-linear-to-t from-black/10 to-transparent" />
               </div>
               <div className="flex flex-col">
