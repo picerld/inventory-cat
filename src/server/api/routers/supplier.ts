@@ -32,6 +32,9 @@ export const supplierRouter = createTRPCRouter({
         skip: (page - 1) * perPage,
         take: perPage,
         where,
+        include: {
+          RawMaterial: true,
+        },
         orderBy: { createdAt: "desc" },
       });
 

@@ -5,6 +5,13 @@ import { DataTableColumnHeader } from "~/components/datatable/data-table-column-
 import { LongText } from "~/components/ui/long-text";
 import type { Supplier } from "~/types/supplier";
 import { DataTableRowActions } from "./data-table-row-action";
+import { Badge } from "~/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 
 export const suppliersColumns: ColumnDef<Supplier>[] = [
   {
@@ -47,6 +54,45 @@ export const suppliersColumns: ColumnDef<Supplier>[] = [
         "ps-0.5 max-md:sticky start-6 @4xl/content:table-cell @4xl/content:drop-shadow-none",
       ),
     },
+  },
+  {
+    accessorKey: "RawMaterials",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Bahan Baku" />
+    ),
+    cell: ({ row }) => {
+      const details = row.original.RawMaterial;
+      const materialCount = details?.length ?? 0;
+
+      if (materialCount === 0) {
+        return (
+          <div className="text-muted-foreground ps-2">Tidak ada bahan</div>
+        );
+      }
+
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="secondary" className="cursor-pointer text-xs">
+                {materialCount} Bahan
+              </Badge>
+            </TooltipTrigger>
+
+            <TooltipContent side="top" className="max-w-xs">
+              <div className="mb-1 text-sm font-medium">Daftar Bahan:</div>
+
+              <ul className="space-y-1 text-xs">
+                {details?.map((material) => (
+                  <li key={material.id}>• {material.name}</li>
+                ))}
+              </ul>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    },
+    enableSorting: false,
   },
   {
     accessorKey: "description",
