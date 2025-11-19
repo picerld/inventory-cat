@@ -38,7 +38,7 @@ const NavItemComponent: React.FC<{
       <div
         className={`flex items-center justify-between px-3 py-2.5 mx-2 my-0.5 rounded-md text-sm cursor-pointer transition-colors group ${
           item.active
-            ? "bg-sidebar-accent text-accent-foreground font-semibold"
+            ? "bg-sidebar-accent font-semibold"
             : "text-foreground hover:text-foreground hover:bg-accent font-medium"
         }`}
         onClick={() => toggleExpanded(item.name)}
@@ -57,7 +57,7 @@ const NavItemComponent: React.FC<{
               <div
                 className={`flex items-center px-3 py-2 mx-2 my-0.5 rounded-md text-sm transition-colors ${
                   child.active
-                    ? "bg-sidebar-accent text-primary-foreground font-semibold"
+                    ? "bg-sidebar-accent font-semibold"
                     : "text-foreground hover:text-foreground hover:bg-accent/50 font-medium"
                 }`}
               >

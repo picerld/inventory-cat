@@ -7,6 +7,7 @@ export type SemiFinishedGoodDetail = {
     semiFinishedGood: SemiFinishedGood;
     rawMaterialId: string;
     rawMaterial: RawMaterial;
+    qty: number;
     createdAt: Date;
     updatedAt: Date;
 }

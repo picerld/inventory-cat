@@ -32,7 +32,7 @@ export const supplierRouter = createTRPCRouter({
         skip: (page - 1) * perPage,
         take: perPage,
         where,
-        orderBy: { id: "desc" },
+        orderBy: { createdAt: "desc" },
       });
 
       return {
@@ -111,6 +111,12 @@ export const supplierRouter = createTRPCRouter({
         }
         throw error;
       }
+    }),
+
+  deleteMany: protectedProcedure
+    .input(z.object({ ids: z.array(z.string()) }))
+    .mutation(({ ctx, input }) => {
+      return ctx.db.supplier.deleteMany({ where: { id: { in: input.ids } } });
     }),
 
   update: protectedProcedure

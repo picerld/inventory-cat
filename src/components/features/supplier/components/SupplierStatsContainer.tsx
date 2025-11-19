@@ -12,44 +12,26 @@ const SupplierStatsContainer = () => {
   const statsData = [
     {
       id: 1,
-      title: "Total Suppliers",
+      title: "Total Supplier",
       value: data?.totalSuppliers ?? 0,
       change: `+${data?.growth}%`,
       changeType: data!.growth >= 0 ? "positive" : "negative",
       icon: Users,
-      description: "Active suppliers",
+      description: "Supplier Aktif",
     },
     {
       id: 2,
-      title: "This Year",
+      title: `Tahun Ini (${new Date().getFullYear()})`,
       value: data?.thisYearSuppliers ?? 0,
       change: "+0%",
       changeType: "positive",
       icon: Package,
-      description: "Added this year",
-    },
-    {
-      id: 3,
-      title: "Performance Rate",
-      value: "94.2%",
-      change: "+2.4%",
-      changeType: "positive",
-      icon: TrendingUp,
-      description: "On-time delivery",
-    },
-    {
-      id: 4,
-      title: "Pending Issues",
-      value: "12",
-      change: "-3",
-      changeType: "negative",
-      icon: AlertCircle,
-      description: "Require attention",
+      description: "Ditambahkan Tahun Ini",
     },
   ];
 
   return (
-    <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="my-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-2">
       {statsData.map((stat) => {
         const Icon = stat.icon;
         const isPositive = stat.changeType === "positive";

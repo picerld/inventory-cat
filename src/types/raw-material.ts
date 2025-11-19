@@ -6,6 +6,7 @@ export type RawMaterial = {
     supplierId: string;
     supplier: Supplier;
     userId: string;
+    name: string;
     user: User;
     qty: number;
     supplierPrice: number;

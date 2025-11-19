@@ -47,7 +47,7 @@ export default function GuardedLayout({
 
   const token = Cookies.get("auth.token");
 
-  const { data: user, isLoading } = trpc.auth.authMe.useQuery(
+  const { data: user } = trpc.auth.authMe.useQuery(
     token ? { token } : skipToken,
     {
       retry: false,
@@ -60,18 +60,54 @@ export default function GuardedLayout({
     { name: "Dashboard", href: "/dashboard", active: false },
     { name: "Supplier", href: "/suppliers", active: false },
     {
-      name: "Dokumen",
-      href: "/documents",
+      name: "Barang",
+      href: "/items",
       active: false,
       children: [
-        { name: "Serah Terima", href: "/documents/receiver", active: false },
-        { name: "Laporan (Word)", href: "/documents/report", active: false },
+        { name: "Bahan Baku", href: "/items/raw-materials", active: false },
+        {
+          name: "Barang Setengah Jadi",
+          href: "/items/semi-finished",
+          active: false,
+        },
+        { name: "Barang Jadi", href: "/items/finished", active: false },
       ],
     },
-    { name: "Barang", href: "/items", active: false },
-    { name: "Kategori", href: "/categories", active: false },
-    { name: "Lokasi", href: "/locations", active: false },
-    { name: "Akun", href: "/users", active: false },
+    { name: "Aksesoris Cat", href: "/accessories", active: false },
+    {
+      name: "Pembelian",
+      href: "/purchases",
+      active: false,
+      children: [
+        {
+          name: "Pembelian Bahan Baku",
+          href: "/purchases/raw-material",
+          active: false,
+        },
+        {
+          name: "Pembelian Aksesoris Cat",
+          href: "/purchases/accessories",
+          active: false,
+        },
+      ],
+    },
+    {
+      name: "Penjualan",
+      href: "/sales",
+      active: false,
+      children: [
+        {
+          name: "Penjualan Bahan Jadi",
+          href: "/sales/finished",
+          active: false,
+        },
+        {
+          name: "Penjualan Aksesoris Cat",
+          href: "/sales/accessories",
+          active: false,
+        },
+      ],
+    },
   ];
 
   const updatedNavItem = navItem.map((item) => ({
@@ -82,14 +118,6 @@ export default function GuardedLayout({
       active: pathName === child.href || pathName.includes(child.href),
     })),
   }));
-
-  const group1 = updatedNavItem.filter((item) =>
-    ["Akun", "Kategori", "Lokasi"].includes(item.name),
-  );
-
-  const group2 = updatedNavItem.filter((item) =>
-    ["Supplier", "Dashboard", "Statistik", "Dokumen"].includes(item.name),
-  );
 
   React.useEffect(() => {
     const parentsToExpand = updatedNavItem
@@ -130,21 +158,7 @@ export default function GuardedLayout({
                     <div className="text-muted-foreground mb-4 px-3 text-xs font-semibold tracking-wider uppercase">
                       Menu
                     </div>
-                    {group2.map((item) => (
-                      <NavItemComponent
-                        key={item.name}
-                        item={item}
-                        isMobile={true}
-                        expandedItems={expandedItems}
-                        toggleExpanded={toggleExpanded}
-                      />
-                    ))}
-
-                    <div className="text-muted-foreground mt-6 mb-4 px-3 text-xs font-semibold tracking-wider uppercase">
-                      Data Master
-                    </div>
-
-                    {group1.map((item) => (
+                    {updatedNavItem.map((item) => (
                       <NavItemComponent
                         key={item.name}
                         item={item}
@@ -181,9 +195,7 @@ export default function GuardedLayout({
             </div>
 
             <div className="flex shrink-0 items-center gap-3">
-              <div className="lg:hidden">
-                {/* <GlobalSearch /> */}
-              </div>
+              <div className="lg:hidden">{/* <GlobalSearch /> */}</div>
 
               <ModeToggle />
 
@@ -318,20 +330,7 @@ export default function GuardedLayout({
             <div className="text-muted-foreground mb-2 px-5 text-xs font-semibold tracking-wider uppercase">
               Menu
             </div>
-            {group2.map((item) => (
-              <NavItemComponent
-                key={item.name}
-                item={item}
-                expandedItems={expandedItems}
-                toggleExpanded={toggleExpanded}
-              />
-            ))}
-
-            <div className="text-muted-foreground mt-6 mb-2 px-5 text-xs font-semibold tracking-wider uppercase">
-              Data Master
-            </div>
-
-            {group1.map((item) => (
+            {updatedNavItem.map((item) => (
               <NavItemComponent
                 key={item.name}
                 item={item}

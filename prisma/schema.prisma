@@ -48,6 +48,7 @@ model RawMaterial {
     supplier               Supplier                 @relation(fields: [supplierId], references: [id])
     userId                 String
     user                   User                     @relation(fields: [userId], references: [id])
+    name                   String
     qty                    Int
     supplierPrice          Float
     sellingPrice           Float
@@ -72,6 +73,7 @@ model SemiFinishedGoodDetail {
     semiFinishedGood   SemiFinishedGood @relation(fields: [semiFinishedGoodId], references: [id])
     rawMaterialId      String
     rawMaterial        RawMaterial      @relation(fields: [rawMaterialId], references: [id])
+    qty                Int
     createdAt          DateTime         @default(now())
     updatedAt          DateTime         @updatedAt
 }
