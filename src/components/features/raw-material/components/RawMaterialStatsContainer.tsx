@@ -240,7 +240,7 @@ export const RawMaterialStatsContainer = () => {
         })}
       </div>
 
-      <div className="mt-2 flex justify-center">
+      <div className="mt-2 mb-5 flex justify-center">
         <button
           onClick={() => setShowAll(!showAll)}
           className="text-primary cursor-pointer text-sm font-medium underline underline-offset-2"

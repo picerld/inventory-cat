@@ -9,6 +9,7 @@ export const semiFinishedGoodFormSchema = z.object({
     })
     .min(1, "Nama Barang Setengah Jadi harus lebih dari 1 karakter")
     .max(50, "Nama Barang Setengah Jadi harus kurang dari 50 karakter"),
+  qty: z.number().min(1, "Kuantitas minimal 1"),
   materials: z
     .array(
       z.object({

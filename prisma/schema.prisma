@@ -10,11 +10,22 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
+// CATEGORY USER [PT, PERSONAL]
+
 enum ItemType {
     RAW_MATERIAL
     SEMI_FINISHED_GOOD
     FINISHED_GOOD
     PAINT_ACCESSORIES
+}
+
+model PaintGrade {
+    id           String        @id @default(uuid())
+    name         String
+    description  String?
+    createdAt    DateTime      @default(now())
+    updatedAt    DateTime      @updatedAt
+    rawMaterials RawMaterial[]
 }
 
 model Supplier {
@@ -48,6 +59,8 @@ model RawMaterial {
     supplier               Supplier                 @relation(fields: [supplierId], references: [id])
     userId                 String
     user                   User                     @relation(fields: [userId], references: [id])
+    paintGradeId           String
+    paintGrade             PaintGrade               @relation(fields: [paintGradeId], references: [id])
     name                   String
     qty                    Int
     supplierPrice          Float
@@ -55,6 +68,7 @@ model RawMaterial {
     createdAt              DateTime                 @default(now())
     updatedAt              DateTime                 @updatedAt
     SemiFinishedGoodDetail SemiFinishedGoodDetail[]
+    finishedGoodDetails    FinishedGoodDetail[]
 }
 
 model SemiFinishedGood {
@@ -62,6 +76,7 @@ model SemiFinishedGood {
     userId                 String
     user                   User                     @relation(fields: [userId], references: [id])
     name                   String
+    qty                    Int
     SemiFinishedGoodDetail SemiFinishedGoodDetail[]
     createdAt              DateTime                 @default(now())
     updatedAt              DateTime                 @updatedAt
@@ -79,16 +94,29 @@ model SemiFinishedGoodDetail {
 }
 
 model FinishedGood {
-    id             String   @id @default(uuid())
-    productionCode String   @unique
-    userId         String
-    user           User     @relation(fields: [userId], references: [id])
-    name           String
-    dateProduced   DateTime @default(now())
-    batchNumber    String
-    quality        String
-    createdAt      DateTime @default(now())
-    updatedAt      DateTime @updatedAt
+    id                  String               @id @default(uuid())
+    productionCode      String               @unique
+    userId              String
+    user                User                 @relation(fields: [userId], references: [id])
+    name                String
+    qty                 Int
+    batchNumber         String
+    quality             String // BAGUS, ETC
+    dateProduced        DateTime             @default(now())
+    createdAt           DateTime             @default(now())
+    updatedAt           DateTime             @updatedAt
+    finishedGoodDetails FinishedGoodDetail[]
+}
+
+model FinishedGoodDetail {
+    id             String       @id @default(uuid())
+    finishedGoodId String
+    finishedGood   FinishedGood @relation(fields: [finishedGoodId], references: [id])
+    rawMaterialId  String
+    rawMaterial    RawMaterial  @relation(fields: [rawMaterialId], references: [id])
+    qty            Int
+    createdAt      DateTime
+    updatedAt      DateTime
 }
 
 model PaintAccessories {

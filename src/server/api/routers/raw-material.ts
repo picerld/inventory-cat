@@ -2,7 +2,7 @@ import z from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
-import { rawMaterialFormSchema } from "~/components/features/raw-material/components/form/raw-material";
+import { rawMaterialFormSchema } from "~/components/features/raw-material/form/raw-material";
 
 export const rawMaterialRouter = createTRPCRouter({
   getPaginated: protectedProcedure
@@ -37,6 +37,7 @@ export const rawMaterialRouter = createTRPCRouter({
         include: {
           supplier: true,
           user: true,
+          paintGrade: true,
         },
         orderBy: { createdAt: "desc" },
       });
@@ -153,7 +154,12 @@ export const rawMaterialRouter = createTRPCRouter({
   }),
 
   getAll: protectedProcedure.query(({ ctx }) => {
-    return ctx.db.rawMaterial.findMany();
+    return ctx.db.rawMaterial.findMany({
+      include: {
+        supplier: true,
+        paintGrade: true,
+      }
+    });
   }),
 
   getCount: protectedProcedure.query(({ ctx }) => {
@@ -171,6 +177,7 @@ export const rawMaterialRouter = createTRPCRouter({
     .mutation(({ ctx, input }) => {
       return ctx.db.rawMaterial.create({
         data: {
+          paintGradeId: input.paintGradeId,
           supplierId: input.supplierId,
           userId: input.userId,
           name: input.name,
@@ -217,6 +224,7 @@ export const rawMaterialRouter = createTRPCRouter({
       return ctx.db.rawMaterial.update({
         where: { id: input.id },
         data: {
+          paintGradeId: input.paintGradeId,
           supplierId: input.supplierId,
           userId: input.userId,
           name: input.name,

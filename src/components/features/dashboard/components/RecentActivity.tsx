@@ -28,7 +28,7 @@ const RecentActivity = () => {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <Card className="lg:col-span-2">
         <CardHeader>
-          <CardTitle>Recent Orders</CardTitle>
+          <CardTitle>Penjualan Terbaru</CardTitle>
           <CardDescription>Latest transactions from your customers</CardDescription>
         </CardHeader>
         <CardContent>
@@ -61,8 +61,8 @@ const RecentActivity = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Quick Stats</CardTitle>
-          <CardDescription>Key metrics at a glance</CardDescription>
+          <CardTitle>Statistik Penjualan</CardTitle>
+          <CardDescription>Overview of your sales</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-3 p-3 border rounded-lg">

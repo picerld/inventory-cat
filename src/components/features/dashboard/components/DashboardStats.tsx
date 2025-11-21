@@ -1,4 +1,4 @@
-import { TrendingUp, ShoppingCart, Users, DollarSign } from "lucide-react";
+import { TrendingUp, ShoppingCart, Users, DollarSign, Truck } from "lucide-react";
 import { StatsCard } from "~/components/elements/StatsCard";
 
 const statsData = [
@@ -13,7 +13,7 @@ const statsData = [
   },
   {
     id: 2,
-    title: "Orders",
+    title: "Penjualan",
     value: "2,345",
     change: "+15.3%",
     changeType: "positive",
@@ -22,11 +22,11 @@ const statsData = [
   },
   {
     id: 3,
-    title: "Customers",
+    title: "Pembelian",
     value: "1,234",
     change: "+12.5%",
     changeType: "positive",
-    icon: Users,
+    icon: Truck,
     description: "from last month",
   },
   {

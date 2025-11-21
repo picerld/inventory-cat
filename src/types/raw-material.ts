@@ -1,3 +1,4 @@
+import type { PaintGrade } from "./pain-grade";
 import type { Supplier } from "./supplier";
 import type { User } from "./user";
 
@@ -6,8 +7,10 @@ export type RawMaterial = {
     supplierId: string;
     supplier: Supplier;
     userId: string;
-    name: string;
     user: User;
+    paintGradeId: string;
+    paintGrade: PaintGrade;
+    name: string;
     qty: number;
     supplierPrice: number;
     sellingPrice: number;

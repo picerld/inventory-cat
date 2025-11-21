@@ -5,6 +5,7 @@ export type SemiFinishedGood = {
   id: string;
   userId: string;
   name: string;
+  qty: number;
   SemiFinishedGoodDetail: SemiFinishedGoodDetail[];
   user: User;
   createdAt: Date;

@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import useDialogState from '~/hooks/use-dialog-state'
-import type { RawMaterialFormSchema } from '../form/raw-material'
+import type { RawMaterialFormSchema } from '../../form/raw-material'
 
-type RawMaterialDialogType = 'add' | 'edit' | 'delete'
+type RawMaterialDialogType = 'add' | 'edit' | 'delete' | 'detail'
 
 type RawMaterialContextType = {
   open: RawMaterialDialogType | null

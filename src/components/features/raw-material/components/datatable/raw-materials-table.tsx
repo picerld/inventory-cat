@@ -47,7 +47,7 @@ import {
   EmptyTitle,
 } from "~/components/ui/empty";
 
-import { ArrowUpRightIcon, Folder, Plus, UserCheck } from "lucide-react";
+import { ArrowUpRightIcon, CircleStar, Folder, Plus, UserCheck } from "lucide-react";
 import { Button } from "~/components/ui/button";
 
 import { useRawMaterials } from "./raw-materials-provider";
@@ -72,6 +72,11 @@ export function RawMaterialsTable() {
       }
 
       if (k === "userId") {
+        if (v === "" || v === "all") return [k, undefined];
+        return [k, v.split(",")];
+      }
+
+      if (k === "paintGradeId") {
         if (v === "" || v === "all") return [k, undefined];
         return [k, v.split(",")];
       }
@@ -134,6 +139,7 @@ export function RawMaterialsTable() {
       { columnId: "name", searchKey: "name", type: "string" },
       { columnId: "supplierId", searchKey: "supplierId", type: "array" },
       { columnId: "userId", searchKey: "userId", type: "array" },
+      { columnId: "paintGradeId", searchKey: "paintGradeId", type: "array" },
     ],
   });
 
@@ -141,6 +147,7 @@ export function RawMaterialsTable() {
 
   const { data: suppliers } = trpc.supplier.getAll.useQuery();
   const { data: users } = trpc.user.getAll.useQuery();
+  const { data: grades } = trpc.paintGrade.getAll.useQuery();
 
   const { data, isLoading } = trpc.rawMaterial.getPaginated.useQuery(
     {
@@ -255,6 +262,15 @@ export function RawMaterialsTable() {
               label: user.name,
               value: user.id,
               icon: UserCheck,
+            })),
+          },
+          {
+            columnId: "paintGradeId",
+            title: "Grade",
+            options: grades?.map((grade) => ({
+              label: grade.name,
+              value: grade.id,
+              icon: CircleStar,
             })),
           },
         ]}

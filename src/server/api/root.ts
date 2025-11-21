@@ -4,6 +4,8 @@ import { supplierRouter } from "./routers/supplier";
 import { rawMaterialRouter } from "./routers/raw-material";
 import { userRouter } from "./routers/user";
 import { semiFinishedGoodRouter } from "./routers/semi-finished-good";
+import { gradeRouter } from "./routers/grade";
+import { finishedGoodRouter } from "./routers/finished-good";
 
 /**
  * This is the primary router for your server.
@@ -16,6 +18,8 @@ export const appRouter = createTRPCRouter({
   supplier: supplierRouter,
   rawMaterial: rawMaterialRouter,
   semiFinishedGood: semiFinishedGoodRouter,
+  finishedGood: finishedGoodRouter,
+  paintGrade: gradeRouter,
 });
 
 // export type definition of API

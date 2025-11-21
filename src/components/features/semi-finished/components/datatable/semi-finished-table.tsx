@@ -196,10 +196,10 @@ export function SemiFinishedGoodsTable() {
           <EmptyMedia variant="icon">
             <Folder />
           </EmptyMedia>
-          <EmptyTitle>Belum Ada Bahan Baku</EmptyTitle>
+          <EmptyTitle>Belum Ada Barang Setengah Jadi</EmptyTitle>
           <EmptyDescription>
-            Belum ada bahan baku yang terdata. Silakan tambahkan bahan baku
-            terlebih dahulu.
+            Belum ada barang setengah jadi yang terdata. Silakan tambahkan bahan
+            baku terlebih dahulu.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>

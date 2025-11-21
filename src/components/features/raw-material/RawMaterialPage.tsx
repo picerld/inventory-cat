@@ -5,6 +5,8 @@ import { RawMaterialsDialogs } from "./components/datatable/raw-materials-dialog
 import { RawMaterialsTable } from "./components/datatable/raw-materials-table";
 import { RawMaterialsProvider } from "./components/datatable/raw-materials-provider";
 import { RawMaterialStatsContainer } from "./components/RawMaterialStatsContainer";
+import { Button } from "~/components/ui/button";
+import { ChartNoAxesCombined } from "lucide-react";
 
 export default function RawMaterialPage() {
   return (
@@ -14,7 +16,11 @@ export default function RawMaterialPage() {
         <Header
           title="Bahan Baku"
           subtitle="Manage your Bahan Baku network and track performance"
-        ></Header>
+        >
+          <Button size={"icon-lg"} variant={"outline"}>
+            <ChartNoAxesCombined className="size-6" />
+          </Button>
+        </Header>
 
         <RawMaterialStatsContainer />
 

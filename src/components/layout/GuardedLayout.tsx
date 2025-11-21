@@ -64,6 +64,7 @@ export default function GuardedLayout({
       href: "/items",
       active: false,
       children: [
+        { name: "Grade", href: "/items/grades", active: false },
         { name: "Bahan Baku", href: "/items/raw-materials", active: false },
         {
           name: "Barang Setengah Jadi",

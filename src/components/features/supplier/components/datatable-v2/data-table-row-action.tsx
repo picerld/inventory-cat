@@ -1,6 +1,6 @@
-import { type Row } from '@tanstack/react-table'
-import { GripVertical, Trash2, UserPen } from 'lucide-react'
-import { Button } from '~/components/ui/button'
+import { type Row } from "@tanstack/react-table";
+import { GripVertical, Info, Trash2, UserPen } from "lucide-react";
+import { Button } from "~/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,33 +8,45 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
-} from '~/components/ui/dropdown-menu'
-import type { Supplier } from '~/types/supplier'
-import { useSuppliers } from './supplier-provider'
+} from "~/components/ui/dropdown-menu";
+import type { Supplier } from "~/types/supplier";
+import { useSuppliers } from "./supplier-provider";
 
 type DataTableRowActionsProps = {
-  row: Row<Supplier>
-}
+  row: Row<Supplier>;
+};
 
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
-  const { setOpen, setCurrentRow } = useSuppliers()
+  const { setOpen, setCurrentRow } = useSuppliers();
   return (
     <>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
-            variant='ghost'
-            className='data-[state=open]:bg-muted flex h-8 w-8 p-0'
+            variant="ghost"
+            className="data-[state=open]:bg-muted flex h-8 w-8 p-0"
           >
-            <GripVertical className='h-4 w-4' />
-            <span className='sr-only'>Open menu</span>
+            <GripVertical className="h-4 w-4" />
+            <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align='end' className='w-[160px]'>
+        <DropdownMenuContent align="end" className="w-[160px]">
           <DropdownMenuItem
             onClick={() => {
-              setCurrentRow(row.original)
-              setOpen('edit')
+              setCurrentRow(row.original);
+              setOpen("detail");
+            }}
+          >
+            Detail
+            <DropdownMenuShortcut>
+              <Info size={16} />
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => {
+              setCurrentRow(row.original);
+              setOpen("edit");
             }}
           >
             Edit
@@ -42,13 +54,12 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
               <UserPen size={16} />
             </DropdownMenuShortcut>
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => {
-              setCurrentRow(row.original)
-              setOpen('delete')
+              setCurrentRow(row.original);
+              setOpen("delete");
             }}
-            className='text-red-500!'
+            className="text-red-500!"
           >
             Delete
             <DropdownMenuShortcut>
@@ -58,5 +69,5 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         </DropdownMenuContent>
       </DropdownMenu>
     </>
-  )
+  );
 }

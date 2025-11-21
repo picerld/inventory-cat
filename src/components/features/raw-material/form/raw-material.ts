@@ -6,6 +6,9 @@ export const rawMaterialFormSchema = z.object({
     message: "Supplier harus dipilih!",
   }).min(1, "Supplier harus dipilih!"),
   userId: z.string(),
+  paintGradeId: z.string({
+    message: "Grade harus dipilih!",
+  }),
   name: z
     .string({
       message: "Nama Bahan Baku harus diisi!",

@@ -22,7 +22,7 @@ import { IsRequired } from "~/components/ui/is-required";
 import { Loader } from "lucide-react";
 import { useEffect } from "react";
 import type { RawMaterial } from "~/types/raw-material";
-import { rawMaterialFormSchema } from "../form/raw-material";
+import { rawMaterialFormSchema } from "../../form/raw-material";
 import { formatPrice } from "~/lib/utils";
 import Cookies from "js-cookie";
 import {
@@ -61,6 +61,7 @@ export function RawMaterialsActionDialog({
   });
 
   const { data: suppliers } = trpc.supplier.getAll.useQuery();
+  const { data: grades } = trpc.paintGrade.getAll.useQuery();
 
   const { mutate: createRawMaterial, isPending: isPendingCreate } =
     trpc.rawMaterial.create.useMutation({
@@ -111,6 +112,7 @@ export function RawMaterialsActionDialog({
   const form = useForm({
     defaultValues: {
       userId: user?.id ?? "",
+      paintGradeId: "",
       supplierId: "",
       name: "",
       qty: 0,
@@ -136,6 +138,7 @@ export function RawMaterialsActionDialog({
       form.setFieldValue("supplierPrice", currentRow.supplierPrice);
       form.setFieldValue("sellingPrice", currentRow.sellingPrice);
       form.setFieldValue("supplierId", currentRow.supplierId);
+      form.setFieldValue("paintGradeId", currentRow.paintGradeId);
     } else {
       form.reset();
     }
@@ -233,6 +236,40 @@ export function RawMaterialsActionDialog({
               }}
             </form.Field>
 
+            <form.Field name="paintGradeId">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+
+                return (
+                  <Field>
+                    <FieldLabel className="text-base">
+                      Pilih Grade <IsRequired />
+                    </FieldLabel>
+                    <Select
+                      value={field.state.value}
+                      onValueChange={field.handleChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih grade" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {grades?.map((grade) => (
+                          <SelectItem key={grade.id} value={grade.id}>
+                            {grade.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
+                  </Field>
+                );
+              }}
+            </form.Field>
+
             <form.Field name="qty">
               {(field) => {
                 const isInvalid =
@@ -314,7 +351,7 @@ export function RawMaterialsActionDialog({
                 return (
                   <Field>
                     <FieldLabel className="text-base">
-                      Harga Supplier <IsRequired />
+                      Harga Jual <IsRequired />
                     </FieldLabel>
 
                     <Input

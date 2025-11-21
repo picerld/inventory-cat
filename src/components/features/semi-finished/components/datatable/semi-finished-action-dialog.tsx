@@ -40,7 +40,7 @@ import {
 } from "~/components/ui/popover";
 import { Check } from "lucide-react";
 import { cn } from "~/lib/utils";
-import { semiFinishedGoodFormSchema } from "~/components/features/semi-finished/components/form/semi-finished";
+import { semiFinishedGoodFormSchema } from "~/components/features/semi-finished/form/semi-finished";
 import type { RawMaterial } from "~/types/raw-material";
 import { MaterialQtyDialog } from "../create/MaterialQtyDialog";
 import { MaterialQtyCard } from "../create/MaterialQtyCard";
@@ -124,6 +124,7 @@ export function SemiFinishedGoodsActionDialog({
     defaultValues: {
       userId: user?.id ?? "",
       name: "",
+      qty: 0,
       materials: [] as { rawMaterialId: string; qty: number }[],
     },
     validators: { onSubmit: semiFinishedGoodFormSchema },
@@ -139,6 +140,7 @@ export function SemiFinishedGoodsActionDialog({
   useEffect(() => {
     if (isEdit && currentRow) {
       form.setFieldValue("name", currentRow.name);
+      form.setFieldValue("qty", currentRow.qty);
 
       form.setFieldValue(
         "materials",
@@ -210,10 +212,38 @@ export function SemiFinishedGoodsActionDialog({
                       Nama Barang Setengah Jadi <IsRequired />
                     </FieldLabel>
                     <Input
-                      placeholder="Benang Katun Premium"
+                      placeholder="Warna Red Green Blue"
                       className="h-12 rounded-xl border-2"
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
+                    />
+
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
+                  </Field>
+                );
+              }}
+            </form.Field>
+
+            <form.Field name="qty">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+
+                return (
+                  <Field>
+                    <FieldLabel className="text-base">
+                      Kuantiti <IsRequired />
+                    </FieldLabel>
+                    <Input
+                      placeholder="0"
+                      className="h-12 rounded-xl border-2"
+                      value={field.state.value}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, "");
+                        field.handleChange(Number(value));
+                      }}
                     />
 
                     {isInvalid && (

@@ -1,3 +1,4 @@
+import type { FinishedGoodDetail } from "./finished-good-detail";
 import type { User } from "./user";
 
 export type FinishedGood = {
@@ -6,9 +7,11 @@ export type FinishedGood = {
     userId: string;
     user: User;
     name: string;
-    dateProduced: Date;
+    qty: number;
     batchNumber: string;
     quality: string;
+    finishedGoodDetails: FinishedGoodDetail[];
+    dateProduced: Date;
     createdAt: Date;
     updatedAt: Date;
 }

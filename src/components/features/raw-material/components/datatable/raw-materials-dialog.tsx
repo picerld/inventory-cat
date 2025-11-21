@@ -1,6 +1,7 @@
 import { RawMaterialsActionDialog } from "./raw-materials-action-dialog";
 import { RawMaterialsDeleteDialog } from "./raw-materials-delete-dialog";
 import { useRawMaterials } from "./raw-materials-provider";
+import { RawMaterialsDetailsDialog } from "./row-materials-details-dialog";
 
 export function RawMaterialsDialogs() {
   const { open, setOpen, currentRow, setCurrentRow } = useRawMaterials();
@@ -19,6 +20,20 @@ export function RawMaterialsDialogs() {
 
       {currentRow && (
         <>
+          <RawMaterialsDetailsDialog
+            key={`raw-material-edit-${currentRow.id}`}
+            open={open === "detail"}
+            onOpenChange={(state) => {
+              if (!state) {
+                setOpen(null);
+                setTimeout(() => {
+                  setCurrentRow(null);
+                }, 300);
+              }
+            }}
+            currentRow={currentRow}
+          />
+          
           <RawMaterialsActionDialog
             key={`raw-material-edit-${currentRow.id}`}
             open={open === "edit"}

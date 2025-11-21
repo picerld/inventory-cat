@@ -23,3 +23,13 @@ export const toRupiah = (value: number) => {
   }).format(value);
 };
 
+export function generateRandomCode(prefix: string, length = 4) {
+  const randomNumber = Math.floor(
+    Math.random() * Math.pow(10, length)
+  )
+    .toString()
+    .padStart(length, "0");
+
+  return `${prefix}${randomNumber}`;
+}
+

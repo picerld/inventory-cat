@@ -2,7 +2,7 @@ import z from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
-import { semiFinishedGoodFormSchema } from "~/components/features/semi-finished/components/form/semi-finished";
+import { semiFinishedGoodFormSchema } from "~/components/features/semi-finished/form/semi-finished";
 
 export const semiFinishedGoodRouter = createTRPCRouter({
   getPaginated: protectedProcedure
@@ -174,6 +174,7 @@ export const semiFinishedGoodRouter = createTRPCRouter({
           data: {
             userId: input.userId,
             name: input.name,
+            qty: input.qty,
             SemiFinishedGoodDetail: {
               create: input.materials.map((material) => ({
                 rawMaterialId: material.rawMaterialId,

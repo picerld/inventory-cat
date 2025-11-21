@@ -11,8 +11,6 @@ import type { SemiFinishedGood } from "~/types/semi-finished-good";
 import { Badge } from "~/components/ui/badge";
 import { formatPrice, toRupiah } from "~/lib/utils";
 import { Package, User, Calendar, Hash } from "lucide-react";
-import { useSemiFinishedGoods } from "./semi-finished-provider";
-import { Button } from "~/components/ui/button";
 
 type SemiFinishedGoodDetailsDialogProps = {
   currentRow: SemiFinishedGood | null;
@@ -26,8 +24,6 @@ export function SemiFinishedGoodDetailsDialog({
   onOpenChange,
 }: SemiFinishedGoodDetailsDialogProps) {
   if (!currentRow) return null;
-
-  const { setOpen } = useSemiFinishedGoods();
 
   const details = currentRow.SemiFinishedGoodDetail ?? [];
   const totalMaterials = details.length;
@@ -172,15 +168,6 @@ export function SemiFinishedGoodDetailsDialog({
               </div>
             </div>
           )}
-
-          <Button
-            size={"lg"}
-            variant="destructive"
-            className="w-full"
-            onClick={() => setOpen("delete")}
-          >
-            Hapus Data
-          </Button>
         </div>
       </DialogContent>
     </Dialog>

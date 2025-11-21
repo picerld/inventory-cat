@@ -6,6 +6,7 @@ import { LongText } from "~/components/ui/long-text";
 import { DataTableRowActions } from "./data-table-row-action";
 import type { RawMaterial } from "~/types/raw-material";
 import { toRupiah } from "../../../../../lib/utils";
+import { Badge } from "~/components/ui/badge";
 
 export const rawMaterialsColumns: ColumnDef<RawMaterial>[] = [
   {
@@ -58,6 +59,19 @@ export const rawMaterialsColumns: ColumnDef<RawMaterial>[] = [
       <div className="w-fit ps-2 text-nowrap">
         {row.original.supplier?.name}
       </div>
+    ),
+    filterFn: (row, columnId, filterValue: string[]) => {
+      return filterValue.includes(row.getValue(columnId) as string);
+    },
+    enableSorting: false,
+  },
+  {
+    accessorKey: "paintGradeId",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Grade" />
+    ),
+    cell: ({ row }) => (
+      <Badge variant={"outline"}>{row.original.paintGrade?.name}</Badge>
     ),
     filterFn: (row, columnId, filterValue: string[]) => {
       return filterValue.includes(row.getValue(columnId) as string);

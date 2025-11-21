@@ -22,10 +22,10 @@ const revenueData = [
 ];
 
 const categoryData = [
-  { name: "Electronics", value: 35, fill: "hsl(var(--primary))" },
-  { name: "Fashion", value: 25, fill: "hsl(var(--primary) / 0.8)" },
-  { name: "Food", value: 20, fill: "hsl(var(--primary) / 0.6)" },
-  { name: "Others", value: 20, fill: "hsl(var(--primary) / 0.4)" },
+  { name: "Putih", value: 35, fill: "hsl(var(--primary))" },
+  { name: "Hitam", value: 25, fill: "hsl(var(--primary) / 0.8)" },
+  { name: "Merah", value: 20, fill: "hsl(var(--primary) / 0.6)" },
+  { name: "Hijau", value: 20, fill: "hsl(var(--primary) / 0.4)" },
 ];
 
 const revenueChartConfig = {
@@ -37,7 +37,7 @@ const revenueChartConfig = {
 
 const ordersChartConfig = {
   orders: {
-    label: "Orders",
+    label: "Penjualan",
     color: "hsl(var(--primary))",
   },
 };
@@ -115,9 +115,9 @@ const DashboardCharts = () => {
       {/* Pie Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Sales by Category</CardTitle>
+          <CardTitle>Penjualan Bahan</CardTitle>
           <CardDescription>
-            Distribution across categories
+            Penjualan bahan terbesar
           </CardDescription>
         </CardHeader>
         <CardContent>
