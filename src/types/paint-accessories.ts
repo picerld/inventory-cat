@@ -1,4 +1,4 @@
-import type { Supplier } from "./supplier";
+import type { Supplier } from "./Supplier";
 import type { User } from "./user";
 
 export type PainAccessories = {

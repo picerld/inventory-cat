@@ -51,6 +51,7 @@ model User {
     SemiFinishedGood SemiFinishedGood[]
     FinishedGood     FinishedGood[]
     PaintAccessories PaintAccessories[]
+    returnedItems    ReturnedItem[]
 }
 
 model RawMaterial {
@@ -107,6 +108,7 @@ model FinishedGood {
     createdAt           DateTime             @default(now())
     updatedAt           DateTime             @updatedAt
     finishedGoodDetails FinishedGoodDetail[]
+    returnedItems       ReturnedItem[]
 }
 
 model FinishedGoodDetail {
@@ -135,13 +137,17 @@ model PaintAccessories {
 }
 
 model ReturnedItem {
-    id          String   @id @default(uuid())
-    itemType    ItemType
-    itemId      String
-    qty         Int
-    description String?
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
+    id             String       @id @default(uuid())
+    // itemType    ItemType
+    userId         String
+    user           User         @relation(fields: [userId], references: [id])
+    finishedGoodId String
+    finishedGood   FinishedGood @relation(fields: [finishedGoodId], references: [id])
+    qty            Int
+    from           String
+    description    String?
+    createdAt      DateTime     @default(now())
+    updatedAt      DateTime     @updatedAt
 }
 
 model Selling {

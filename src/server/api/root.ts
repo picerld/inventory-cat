@@ -7,6 +7,7 @@ import { semiFinishedGoodRouter } from "./routers/semi-finished-good";
 import { gradeRouter } from "./routers/grade";
 import { finishedGoodRouter } from "./routers/finished-good";
 import { accessoriesRouter } from "./routers/accessories";
+import { returnGoodRouter } from "./routers/return-good";
 
 /**
  * This is the primary router for your server.
@@ -22,6 +23,7 @@ export const appRouter = createTRPCRouter({
   finishedGood: finishedGoodRouter,
   paintGrade: gradeRouter,
   accessories: accessoriesRouter,
+  returnGood: returnGoodRouter,
 });
 
 // export type definition of API

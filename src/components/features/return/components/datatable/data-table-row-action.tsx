@@ -9,18 +9,15 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import type { FinishedGood } from "~/types/finished-good";
-import { useFinishedGoods } from "./finished-provider";
-import { useRouter } from "next/navigation";
+import type { ReturnGood } from "~/types/return-good";
+import { useReturnedGoods } from "./returned-provider";
 
 type DataTableRowActionsProps = {
-  row: Row<FinishedGood>;
+  row: Row<ReturnGood>;
 };
 
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
-  const router = useRouter();
-
-  const { setOpen, setCurrentRow } = useFinishedGoods();
+  const { setOpen, setCurrentRow } = useReturnedGoods();
   return (
     <>
       <DropdownMenu modal={false}>
@@ -48,10 +45,8 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => {
-              // setCurrentRow(row.original);
-              // setOpen("edit");
-
-              router.push(`/items/finished/edit/${row.original.id}`);
+              setCurrentRow(row.original);
+              setOpen("edit");
             }}
           >
             Edit

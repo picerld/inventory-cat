@@ -229,73 +229,75 @@ export function RawMaterialsActionDialog({
               }}
             </form.Field>
 
-            <form.Field name="supplierId">
-              {(field) => {
-                const isInvalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid;
+            <div className="grid grid-cols-2 gap-5">
+              <form.Field name="supplierId">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
 
-                return (
-                  <Field>
-                    <FieldLabel className="text-base">
-                      Pilih Supplier <IsRequired />
-                    </FieldLabel>
-                    <Select
-                      value={field.state.value}
-                      onValueChange={field.handleChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih supplier" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {suppliers?.map((supplier) => (
-                          <SelectItem key={supplier.id} value={supplier.id}>
-                            {supplier.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  return (
+                    <Field>
+                      <FieldLabel className="text-base">
+                        Pilih Supplier <IsRequired />
+                      </FieldLabel>
+                      <Select
+                        value={field.state.value}
+                        onValueChange={field.handleChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih supplier" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers?.map((supplier) => (
+                            <SelectItem key={supplier.id} value={supplier.id}>
+                              {supplier.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-                    {isInvalid && (
-                      <FieldError errors={field.state.meta.errors} />
-                    )}
-                  </Field>
-                );
-              }}
-            </form.Field>
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  );
+                }}
+              </form.Field>
 
-            <form.Field name="paintGradeId">
-              {(field) => {
-                const isInvalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid;
+              <form.Field name="paintGradeId">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
 
-                return (
-                  <Field>
-                    <FieldLabel className="text-base">
-                      Pilih Grade <IsRequired />
-                    </FieldLabel>
-                    <Select
-                      value={field.state.value}
-                      onValueChange={field.handleChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih grade" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {grades?.map((grade) => (
-                          <SelectItem key={grade.id} value={grade.id}>
-                            {grade.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  return (
+                    <Field>
+                      <FieldLabel className="text-base">
+                        Pilih Grade <IsRequired />
+                      </FieldLabel>
+                      <Select
+                        value={field.state.value}
+                        onValueChange={field.handleChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih grade" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {grades?.map((grade) => (
+                            <SelectItem key={grade.id} value={grade.id}>
+                              {grade.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-                    {isInvalid && (
-                      <FieldError errors={field.state.meta.errors} />
-                    )}
-                  </Field>
-                );
-              }}
-            </form.Field>
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+            </div>
 
             <form.Field name="qty">
               {(field) => {
@@ -325,89 +327,91 @@ export function RawMaterialsActionDialog({
               }}
             </form.Field>
 
-            <form.Field name="supplierPrice">
-              {(field) => {
-                const isInvalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid;
+            <div className="grid grid-cols-2 gap-5">
+              <form.Field name="supplierPrice">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
 
-                const raw = field.state.value ?? 0;
-                const formatted = `Rp${formatPrice(raw)}`;
+                  const raw = field.state.value ?? 0;
+                  const formatted = `Rp${formatPrice(raw)}`;
 
-                return (
-                  <Field>
-                    <FieldLabel className="text-base">
-                      Harga Supplier <IsRequired />
-                    </FieldLabel>
+                  return (
+                    <Field>
+                      <FieldLabel className="text-base">
+                        Harga Supplier <IsRequired />
+                      </FieldLabel>
 
-                    <Input
-                      placeholder="Rp0"
-                      className="h-12 rounded-xl border-2"
-                      value={formatted}
-                      onChange={(e) => {
-                        let val = e.target.value;
+                      <Input
+                        placeholder="Rp0"
+                        className="h-12 rounded-xl border-2"
+                        value={formatted}
+                        onChange={(e) => {
+                          let val = e.target.value;
 
-                        val = val.replace(/^Rp\s?/, "");
+                          val = val.replace(/^Rp\s?/, "");
 
-                        const numeric = val.replace(/\D/g, "");
+                          const numeric = val.replace(/\D/g, "");
 
-                        field.handleChange(Number(numeric));
-                      }}
-                      onFocus={(e) => {
-                        if (!e.target.value.startsWith("Rp")) {
-                          e.target.value = "Rp" + e.target.value;
-                        }
-                      }}
-                    />
+                          field.handleChange(Number(numeric));
+                        }}
+                        onFocus={(e) => {
+                          if (!e.target.value.startsWith("Rp")) {
+                            e.target.value = "Rp" + e.target.value;
+                          }
+                        }}
+                      />
 
-                    {isInvalid && (
-                      <FieldError errors={field.state.meta.errors} />
-                    )}
-                  </Field>
-                );
-              }}
-            </form.Field>
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  );
+                }}
+              </form.Field>
 
-            <form.Field name="sellingPrice">
-              {(field) => {
-                const isInvalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid;
+              <form.Field name="sellingPrice">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
 
-                const raw = field.state.value ?? 0;
-                const formatted = `Rp${formatPrice(raw)}`;
+                  const raw = field.state.value ?? 0;
+                  const formatted = `Rp${formatPrice(raw)}`;
 
-                return (
-                  <Field>
-                    <FieldLabel className="text-base">
-                      Harga Jual <IsRequired />
-                    </FieldLabel>
+                  return (
+                    <Field>
+                      <FieldLabel className="text-base">
+                        Harga Jual <IsRequired />
+                      </FieldLabel>
 
-                    <Input
-                      placeholder="Rp0"
-                      className="h-12 rounded-xl border-2"
-                      value={formatted}
-                      onChange={(e) => {
-                        let val = e.target.value;
+                      <Input
+                        placeholder="Rp0"
+                        className="h-12 rounded-xl border-2"
+                        value={formatted}
+                        onChange={(e) => {
+                          let val = e.target.value;
 
-                        val = val.replace(/^Rp\s?/, "");
+                          val = val.replace(/^Rp\s?/, "");
 
-                        const numeric = val.replace(/\D/g, "");
+                          const numeric = val.replace(/\D/g, "");
 
-                        field.handleChange(Number(numeric));
-                      }}
-                      onFocus={(e) => {
-                        if (!e.target.value.startsWith("Rp")) {
-                          e.target.value = "Rp" + e.target.value;
-                        }
-                      }}
-                    />
+                          field.handleChange(Number(numeric));
+                        }}
+                        onFocus={(e) => {
+                          if (!e.target.value.startsWith("Rp")) {
+                            e.target.value = "Rp" + e.target.value;
+                          }
+                        }}
+                      />
 
-                    {isInvalid && (
-                      <FieldError errors={field.state.meta.errors} />
-                    )}
-                  </Field>
-                );
-              }}
-            </form.Field>
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+            </div>
           </FieldGroup>
 
           <SheetFooter>

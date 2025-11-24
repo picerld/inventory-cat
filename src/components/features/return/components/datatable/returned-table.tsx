@@ -12,7 +12,6 @@ import {
   getFacetedRowModel,
   getFacetedUniqueValues,
   useReactTable,
-  type ColumnFiltersState,
 } from "@tanstack/react-table";
 
 import { cn } from "~/lib/utils";
@@ -27,17 +26,14 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-
 import { DataTablePagination } from "~/components/datatable/data-table-pagination";
 import { DataTableToolbar } from "~/components/datatable/data-table-toolbar";
 import { DataTableBulkActions } from "./data-table-bulk-action";
-
-import { finishedGoodsColumns as columns } from "./finished-column";
+import { returnGoodsColumns as columns } from "./returned-column";
 import { OnLoadItem } from "~/components/dialog/OnLoadItem";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { NavigateFn } from "~/hooks/use-table-url-state";
-
 import {
   Empty,
   EmptyContent,
@@ -46,14 +42,13 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "~/components/ui/empty";
-import { ArrowUpRightIcon, Folder, Plus, UserCheck } from "lucide-react";
-import { Button, buttonVariants } from "~/components/ui/button";
-import { useFinishedGoods } from "./finished-provider";
-import type { FinishedGood } from "~/types/finished-good";
-import Link from "next/link";
+import { ArrowUpRightIcon, Folder, Plus } from "lucide-react";
+import { Button } from "~/components/ui/button";
+import { useReturnedGoods } from "./returned-provider";
+import type { ReturnGood } from "~/types/return-good";
 
-export function FinishedGoodsTable() {
-  const { setOpen } = useFinishedGoods();
+export function ReturnedGoodsTable() {
+  const { setOpen } = useReturnedGoods();
 
   const [rowSelection, setRowSelection] = useState({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -65,39 +60,35 @@ export function FinishedGoodsTable() {
 
   const searchObj = useMemo<Record<string, unknown>>(() => {
     const entries = Array.from(searchParams?.entries() ?? []).map(([k, v]) => {
-      if (k === "supplierId") {
-        if (v === "" || v === "all") return [k, undefined];
-        return [k, v.split(",")];
-      }
-
-      if (k === "userId") {
-        if (v === "" || v === "all") return [k, undefined];
-        return [k, v.split(",")];
-      }
-
       const n = Number(v);
       return [k, !isNaN(n) && String(n) === v ? n : v];
     });
-
     return Object.fromEntries(entries);
   }, [searchParams]);
 
   const navigate: NavigateFn = ({ search, replace }) => {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
 
-    if (typeof search === "function") {
-      const prev = Object.fromEntries(params.entries());
-      const next = search(prev);
-      const nextParams = new URLSearchParams();
-
-      Object.entries(next).forEach(([k, v]) => {
-        if (v !== undefined && v !== null) nextParams.set(k, String(v));
-      });
+    const applyNavigate = (nextParams: URLSearchParams) => {
+      if (nextParams.toString() === params.toString()) {
+        return;
+      }
 
       replace
         ? router.replace(`${pathName}?${nextParams.toString()}`)
         : router.push(`${pathName}?${nextParams.toString()}`);
-      return;
+    };
+
+    if (typeof search === "function") {
+      const prev = Object.fromEntries(params.entries());
+      const next = search(prev);
+
+      const nextParams = new URLSearchParams();
+      Object.entries(next).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) nextParams.set(k, String(v));
+      });
+
+      return applyNavigate(nextParams);
     }
 
     if (typeof search === "object" && search !== null) {
@@ -106,15 +97,10 @@ export function FinishedGoodsTable() {
         if (v !== undefined && v !== null) nextParams.set(k, String(v));
       });
 
-      replace
-        ? router.replace(`${pathName}?${nextParams.toString()}`)
-        : router.push(`${pathName}?${nextParams.toString()}`);
-      return;
+      return applyNavigate(nextParams);
     }
 
-    replace
-      ? router.replace(`${pathName}?${params.toString()}`)
-      : router.push(`${pathName}?${params.toString()}`);
+    return applyNavigate(params);
   };
 
   const {
@@ -129,17 +115,12 @@ export function FinishedGoodsTable() {
     navigate,
     pagination: { defaultPage: 1, defaultPageSize: 5 },
     globalFilter: { enabled: true, key: "search", trim: true },
-    columnFilters: [
-      { columnId: "name", searchKey: "name", type: "string" },
-      { columnId: "userId", searchKey: "userId", type: "array" },
-    ],
+    columnFilters: [{ columnId: "finishedGoodId", searchKey: "finishedGoodId", type: "string" }],
   });
 
   const searchTerm = typeof globalFilter === "string" ? globalFilter : "";
 
-  const { data: users } = trpc.user.getAll.useQuery();
-
-  const { data, isLoading } = trpc.finishedGood.getPaginated.useQuery(
+  const { data, isLoading } = trpc.returnGood.getPaginated.useQuery(
     {
       page: pagination.pageIndex + 1,
       perPage: pagination.pageSize,
@@ -155,9 +136,10 @@ export function FinishedGoodsTable() {
     if (data) ensurePageInRange(data.meta.lastPage);
   }, [data, ensurePageInRange]);
 
-  const tableData: FinishedGood[] =
+  const tableData: ReturnGood[] =
     data?.data.map((item) => ({
       ...item,
+      description: item.description ?? undefined,
       createdAt: new Date(item.createdAt),
       updatedAt: new Date(item.updatedAt),
     })) ?? [];
@@ -197,23 +179,20 @@ export function FinishedGoodsTable() {
           <EmptyMedia variant="icon">
             <Folder />
           </EmptyMedia>
-          <EmptyTitle>Belum Ada Barang Jadi</EmptyTitle>
+          <EmptyTitle>Belum Ada Barang Retur</EmptyTitle>
           <EmptyDescription>
-            Belum ada barang jadi yang terdata. Silakan tambahkan bahan baku
+            Belum ada barang yang diretur. Silakan tambahkan supplier
             terlebih dahulu.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <div className="flex gap-2">
-            <Link href="/items/finished/create">
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Tambah Data
-              </Button>
-            </Link>
+            <Button onClick={() => setOpen("add")}>
+              <Plus className="mr-2 h-4 w-4" />
+              Catat Barang Retur
+            </Button>
           </div>
         </EmptyContent>
-
         <Button
           variant="link"
           asChild
@@ -232,17 +211,14 @@ export function FinishedGoodsTable() {
     <div className={cn("flex flex-1 flex-col gap-4")}>
       <DataTableToolbar
         table={table}
-        searchKey="name"
-        searchPlaceholder="Cari barang jadi..."
+        searchKey="finishedGoodId"
+        searchPlaceholder="Cari barang..."
       />
 
-      <Link
-        href="/items/finished/create"
-        className={buttonVariants({ variant: "default", size: "lg" })}
-      >
+      <Button onClick={() => setOpen("add")} size="lg">
         <Plus className="h-4 w-4" />
-        Tambah Data
-      </Link>
+        Catat Barang Retur
+      </Button>
 
       <div className="overflow-hidden rounded-md border">
         <Table>

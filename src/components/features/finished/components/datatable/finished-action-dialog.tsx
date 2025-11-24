@@ -401,7 +401,7 @@ export function FinishedGoodsActionDialog({
                     <div className="grid grid-cols-7 gap-2">
                       <Input
                         placeholder="B0001"
-                        className="h-12 rounded-xl border-2 col-span-6"
+                        className="col-span-6 h-12 rounded-xl border-2"
                         value={field.state.value}
                         onChange={(e) => field.handleChange(e.target.value)}
                       />
