@@ -1,13 +1,6 @@
 "use client";
 
 import { Button } from "~/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { trpc } from "~/utils/trpc";
@@ -21,8 +14,6 @@ import {
 import { IsRequired } from "~/components/ui/is-required";
 import { Loader } from "lucide-react";
 import { useEffect } from "react";
-import type { RawMaterial } from "~/types/raw-material";
-import { rawMaterialFormSchema } from "../../form/raw-material";
 import { formatPrice } from "~/lib/utils";
 import Cookies from "js-cookie";
 import {
@@ -41,18 +32,20 @@ import {
   SheetHeader,
   SheetTitle,
 } from "~/components/ui/sheet";
+import type { PainAccessories } from "~/types/paint-accessories";
+import { accessoriesFormSchema } from "../../form/accessories";
 
-type RawMaterialActionDialogProps = {
-  currentRow?: RawMaterial;
+type AccessoriesActionDialogProps = {
+  currentRow?: PainAccessories;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
-export function RawMaterialsActionDialog({
+export function AccessoriesActionDialog({
   currentRow,
   open,
   onOpenChange,
-}: RawMaterialActionDialogProps) {
+}: AccessoriesActionDialogProps) {
   const isEdit = !!currentRow;
   const utils = trpc.useUtils();
 
@@ -61,17 +54,16 @@ export function RawMaterialsActionDialog({
   });
 
   const { data: suppliers } = trpc.supplier.getAll.useQuery();
-  const { data: grades } = trpc.paintGrade.getAll.useQuery();
 
-  const { mutate: createRawMaterial, isPending: isPendingCreate } =
-    trpc.rawMaterial.create.useMutation({
+  const { mutate: createAcessories, isPending: isPendingCreate } =
+    trpc.accessories.create.useMutation({
       onSuccess: () => {
         toast.success("Berhasil!!", {
-          description: "Bahan Baku berhasil ditambahkan",
+          description: "Aksesoris berhasil ditambahkan",
         });
 
-        utils.rawMaterial.getPaginated.invalidate();
-        utils.rawMaterial.getStats.invalidate();
+        utils.accessories.getPaginated.invalidate();
+        utils.accessories.getStats.invalidate();
 
         form.reset();
         onOpenChange(false);
@@ -86,15 +78,15 @@ export function RawMaterialsActionDialog({
       },
     });
 
-  const { mutate: updateRawMaterial, isPending: isPendingUpdate } =
-    trpc.rawMaterial.update.useMutation({
+  const { mutate: updateAccessories, isPending: isPendingUpdate } =
+    trpc.accessories.update.useMutation({
       onSuccess: () => {
         toast.success("Berhasil!!", {
-          description: "Bahan Baku berhasil diperbarui!",
+          description: "Aksesoris berhasil diperbarui!",
         });
 
-        utils.rawMaterial.getPaginated.invalidate();
-        utils.rawMaterial.getStats.invalidate();
+        utils.accessories.getPaginated.invalidate();
+        utils.accessories.getStats.invalidate();
 
         form.reset();
         onOpenChange(false);
@@ -112,20 +104,18 @@ export function RawMaterialsActionDialog({
   const form = useForm({
     defaultValues: {
       userId: user?.id ?? "",
-      paintGradeId: "",
       supplierId: "",
       name: "",
       qty: 0,
-      materialType: "",
       supplierPrice: 0,
       sellingPrice: 0,
     },
-    validators: { onSubmit: rawMaterialFormSchema },
+    validators: { onSubmit: accessoriesFormSchema },
     onSubmit: ({ value }) => {
       if (isEdit && currentRow) {
-        updateRawMaterial({ id: currentRow.id, ...value });
+        updateAccessories({ id: currentRow.id, ...value });
       } else {
-        createRawMaterial(value);
+        createAcessories(value);
       }
 
       utils.supplier.getStats.invalidate();
@@ -139,8 +129,6 @@ export function RawMaterialsActionDialog({
       form.setFieldValue("supplierPrice", currentRow.supplierPrice);
       form.setFieldValue("sellingPrice", currentRow.sellingPrice);
       form.setFieldValue("supplierId", currentRow.supplierId);
-      form.setFieldValue("paintGradeId", currentRow.paintGradeId);
-      form.setFieldValue("materialType", currentRow.materialType);
     } else {
       form.reset();
     }
@@ -169,12 +157,12 @@ export function RawMaterialsActionDialog({
         >
           <SheetHeader className="px-0">
             <SheetTitle className="text-2xl font-bold">
-              {isEdit ? "Edit Bahan Baku" : "Tambah Bahan Baku Baru"}
+              {isEdit ? "Edit Aksesoris" : "Tambah Aksesoris Baru"}
             </SheetTitle>
             <SheetDescription className="text-muted-foreground text-[0.93rem]">
               {isEdit
-                ? "Perbarui bahan baku di sini."
-                : "Tambahkan bahan baku baru di sini."}
+                ? "Perbarui aksesoris di sini."
+                : "Tambahkan aksesoris baru di sini."}
             </SheetDescription>
           </SheetHeader>
 
@@ -187,35 +175,10 @@ export function RawMaterialsActionDialog({
                 return (
                   <Field>
                     <FieldLabel className="text-base">
-                      Nama Bahan Baku <IsRequired />
+                      Nama Aksesoris <IsRequired />
                     </FieldLabel>
                     <Input
-                      placeholder="Warna Indigo"
-                      className="h-12 rounded-xl border-2"
-                      value={field.state.value}
-                      onChange={(e) => field.handleChange(e.target.value)}
-                    />
-
-                    {isInvalid && (
-                      <FieldError errors={field.state.meta.errors} />
-                    )}
-                  </Field>
-                );
-              }}
-            </form.Field>
-
-            <form.Field name="materialType">
-              {(field) => {
-                const isInvalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid;
-
-                return (
-                  <Field>
-                    <FieldLabel className="text-base">
-                      Jenis Barang <IsRequired />
-                    </FieldLabel>
-                    <Input
-                      placeholder="LEM, PIGMENT, dll."
+                      placeholder="Roller, Kuas, Selotip, dll."
                       className="h-12 rounded-xl border-2"
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
@@ -250,40 +213,6 @@ export function RawMaterialsActionDialog({
                         {suppliers?.map((supplier) => (
                           <SelectItem key={supplier.id} value={supplier.id}>
                             {supplier.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    {isInvalid && (
-                      <FieldError errors={field.state.meta.errors} />
-                    )}
-                  </Field>
-                );
-              }}
-            </form.Field>
-
-            <form.Field name="paintGradeId">
-              {(field) => {
-                const isInvalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid;
-
-                return (
-                  <Field>
-                    <FieldLabel className="text-base">
-                      Pilih Grade <IsRequired />
-                    </FieldLabel>
-                    <Select
-                      value={field.state.value}
-                      onValueChange={field.handleChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih grade" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {grades?.map((grade) => (
-                          <SelectItem key={grade.id} value={grade.id}>
-                            {grade.name}
                           </SelectItem>
                         ))}
                       </SelectContent>

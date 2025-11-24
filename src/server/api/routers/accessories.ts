@@ -2,9 +2,9 @@ import z from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
-import { rawMaterialFormSchema } from "~/components/features/raw-material/form/raw-material";
+import { accessoriesFormSchema } from "~/components/features/accessories/form/accessories";
 
-export const rawMaterialRouter = createTRPCRouter({
+export const accessoriesRouter = createTRPCRouter({
   getPaginated: protectedProcedure
     .input(
       z.object({
@@ -16,7 +16,7 @@ export const rawMaterialRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const { page, perPage, search } = input;
 
-      const where: Prisma.RawMaterialWhereInput = {
+      const where: Prisma.PaintAccessoriesWhereInput = {
         ...(search
           ? {
               name: {
@@ -27,17 +27,16 @@ export const rawMaterialRouter = createTRPCRouter({
           : {}),
       };
 
-      const totalItems = await ctx.db.rawMaterial.count({ where });
+      const totalItems = await ctx.db.paintAccessories.count({ where });
       const lastPage = Math.ceil(totalItems / perPage);
 
-      const data = await ctx.db.rawMaterial.findMany({
+      const data = await ctx.db.paintAccessories.findMany({
         skip: (page - 1) * perPage,
         take: perPage,
         where,
         include: {
           supplier: true,
           user: true,
-          paintGrade: true,
         },
         orderBy: { createdAt: "desc" },
       });
@@ -54,9 +53,9 @@ export const rawMaterialRouter = createTRPCRouter({
     }),
 
   getStats: protectedProcedure.query(async ({ ctx }) => {
-    const totalRawMaterials = await ctx.db.rawMaterial.count();
+    const totalAccessories = await ctx.db.paintAccessories.count();
 
-    const thisYearRawMaterials = await ctx.db.rawMaterial.count({
+    const thisYearAccessories = await ctx.db.paintAccessories.count({
       where: {
         createdAt: {
           gte: new Date(new Date().getFullYear(), 0, 1),
@@ -64,13 +63,13 @@ export const rawMaterialRouter = createTRPCRouter({
       },
     });
 
-    const totalQty = await ctx.db.rawMaterial.aggregate({
+    const totalQty = await ctx.db.paintAccessories.aggregate({
       _sum: {
         qty: true,
       },
     });
 
-    const lowStockCount = await ctx.db.rawMaterial.count({
+    const lowStockCount = await ctx.db.paintAccessories.count({
       where: {
         qty: {
           lt: 10,
@@ -78,7 +77,7 @@ export const rawMaterialRouter = createTRPCRouter({
       },
     });
 
-    const inventoryValue = await ctx.db.rawMaterial.findMany({
+    const inventoryValue = await ctx.db.paintAccessories.findMany({
       select: {
         qty: true,
         supplierPrice: true,
@@ -95,7 +94,7 @@ export const rawMaterialRouter = createTRPCRouter({
       0,
     );
 
-    const rawMaterialsWithProfit = await ctx.db.rawMaterial.findMany({
+    const rawAccessoriesWithProfit = await ctx.db.paintAccessories.findMany({
       select: {
         qty: true,
         supplierPrice: true,
@@ -103,24 +102,24 @@ export const rawMaterialRouter = createTRPCRouter({
       },
     });
 
-    const totalPotentialProfit = rawMaterialsWithProfit.reduce(
+    const totalPotentialProfit = rawAccessoriesWithProfit.reduce(
       (sum, item) => sum + item.qty * (item.sellingPrice - item.supplierPrice),
       0,
     );
 
-    const avgSupplierPrice = await ctx.db.rawMaterial.aggregate({
+    const avgSupplierPrice = await ctx.db.paintAccessories.aggregate({
       _avg: {
         supplierPrice: true,
       },
     });
 
-    const avgSellingPrice = await ctx.db.rawMaterial.aggregate({
+    const avgSellingPrice = await ctx.db.paintAccessories.aggregate({
       _avg: {
         sellingPrice: true,
       },
     });
 
-    const thisMonthRawMaterials = await ctx.db.rawMaterial.count({
+    const thisMonthAccessories = await ctx.db.paintAccessories.count({
       where: {
         createdAt: {
           gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
@@ -128,20 +127,20 @@ export const rawMaterialRouter = createTRPCRouter({
       },
     });
 
-    const supplierCount = await ctx.db.rawMaterial.groupBy({
+    const supplierCount = await ctx.db.paintAccessories.groupBy({
       by: ["supplierId"],
       _count: true,
     });
 
     const growth =
-      totalRawMaterials === 0
+      totalAccessories === 0
         ? 0
-        : ((thisYearRawMaterials / totalRawMaterials) * 100).toFixed(1);
+        : ((thisYearAccessories / totalAccessories) * 100).toFixed(1);
 
     return {
-      totalRawMaterials,
-      thisYearRawMaterials,
-      thisMonthRawMaterials,
+      totalAccessories,
+      thisYearAccessories,
+      thisMonthAccessories,
       growth: Number(growth),
       totalQty: totalQty._sum.qty ?? 0,
       lowStockCount,
@@ -154,35 +153,32 @@ export const rawMaterialRouter = createTRPCRouter({
   }),
 
   getAll: protectedProcedure.query(({ ctx }) => {
-    return ctx.db.rawMaterial.findMany({
+    return ctx.db.paintAccessories.findMany({
       include: {
         supplier: true,
-        paintGrade: true,
       }
     });
   }),
 
   getCount: protectedProcedure.query(({ ctx }) => {
-    return ctx.db.rawMaterial.count();
+    return ctx.db.paintAccessories.count();
   }),
 
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(({ ctx, input }) => {
-      return ctx.db.rawMaterial.findUnique({ where: { id: input.id } });
+      return ctx.db.paintAccessories.findUnique({ where: { id: input.id } });
     }),
 
   create: protectedProcedure
-    .input(rawMaterialFormSchema)
+    .input(accessoriesFormSchema)
     .mutation(({ ctx, input }) => {
-      return ctx.db.rawMaterial.create({
+      return ctx.db.paintAccessories.create({
         data: {
-          paintGradeId: input.paintGradeId,
           supplierId: input.supplierId,
           userId: input.userId,
           name: input.name,
           qty: input.qty,
-          materialType: input.materialType,
           supplierPrice: input.supplierPrice,
           sellingPrice: input.sellingPrice,
         },
@@ -193,7 +189,7 @@ export const rawMaterialRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       try {
-        return await ctx.db.rawMaterial.delete({
+        return await ctx.db.paintAccessories.delete({
           where: { id: input.id },
         });
       } catch (error) {
@@ -204,7 +200,7 @@ export const rawMaterialRouter = createTRPCRouter({
           throw new TRPCError({
             code: "BAD_REQUEST",
             message:
-              "Tidak dapat menghapus bahan baku karena terdapat item di dalamnya!",
+              "Tidak dapat menghapus aksesoris karena terdapat item di dalamnya!",
           });
         }
         throw error;
@@ -214,23 +210,21 @@ export const rawMaterialRouter = createTRPCRouter({
   deleteMany: protectedProcedure
     .input(z.object({ ids: z.array(z.string()) }))
     .mutation(({ ctx, input }) => {
-      return ctx.db.rawMaterial.deleteMany({
+      return ctx.db.paintAccessories.deleteMany({
         where: { id: { in: input.ids } },
       });
     }),
 
   update: protectedProcedure
-    .input(rawMaterialFormSchema)
+    .input(accessoriesFormSchema)
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.rawMaterial.update({
+      return ctx.db.paintAccessories.update({
         where: { id: input.id },
         data: {
-          paintGradeId: input.paintGradeId,
           supplierId: input.supplierId,
           userId: input.userId,
           name: input.name,
           qty: input.qty,
-          materialType: input.materialType,
           supplierPrice: input.supplierPrice,
           sellingPrice: input.sellingPrice,
         },

@@ -35,76 +35,6 @@ export const finishedGoodsColumns: ColumnDef<FinishedGood>[] = [
     enableSorting: false,
   },
   {
-    accessorKey: "name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Nama Barang" />
-    ),
-    cell: ({ row }) => (
-      <LongText className="ps-3">{row.getValue("name")}</LongText>
-    ),
-    meta: {
-      className: cn(
-        "drop-shadow-[0_1px_2px_rgb(0_0_0_/_0.1)] dark:drop-shadow-[0_1px_2px_rgb(255_255_255_/_0.1)]",
-        "ps-0.5 max-md:sticky start-6 @4xl/content:table-cell @4xl/content:drop-shadow-none",
-      ),
-    },
-  },
-  {
-    accessorKey: "batchNumber",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Nomor Batch" />
-    ),
-    cell: ({ row }) => (
-      <div className="w-fit ps-2 text-nowrap">
-        {row.original.batchNumber ?? "-"}
-      </div>
-    ),
-    filterFn: (row, columnId, filterValue: string[]) => {
-      return filterValue.includes(row.getValue(columnId) as string);
-    },
-    enableSorting: false,
-  },
-  {
-    accessorKey: "productionCode",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Kode Produksi" />
-    ),
-    cell: ({ row }) => (
-      <div className="w-fit ps-2 text-nowrap">
-        {row.original.productionCode ?? "-"}
-      </div>
-    ),
-    filterFn: (row, columnId, filterValue: string[]) => {
-      return filterValue.includes(row.getValue(columnId) as string);
-    },
-    enableSorting: false,
-  },
-  {
-    accessorKey: "materials",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Bahan Baku" />
-    ),
-    cell: ({ row }) => {
-      const details = row.original.finishedGoodDetails;
-      const materialCount = details?.length ?? 0;
-
-      if (materialCount === 0) {
-        return (
-          <div className="text-muted-foreground ps-2">Tidak ada bahan</div>
-        );
-      }
-
-      return (
-        <div className="flex items-center gap-2 ps-2">
-          <Badge variant="secondary" className="text-xs">
-            {materialCount} Bahan
-          </Badge>
-        </div>
-      );
-    },
-    enableSorting: false,
-  },
-  {
     accessorKey: "quality",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Kualitas" />
@@ -121,20 +51,90 @@ export const finishedGoodsColumns: ColumnDef<FinishedGood>[] = [
     enableSorting: false,
   },
   {
-    accessorKey: "userId",
+    accessorKey: "name",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Admin" />
+      <DataTableColumnHeader column={column} title="Nama Barang" />
     ),
     cell: ({ row }) => (
-      <div className="w-fit ps-2 text-nowrap">
-        {row.original.user?.name ?? "-"}
-      </div>
+      <LongText className="ps-3">{row.getValue("name")}</LongText>
     ),
-    filterFn: (row, columnId, filterValue: string[]) => {
-      return filterValue.includes(row.getValue(columnId) as string);
+    meta: {
+      className: cn(
+        "drop-shadow-[0_1px_2px_rgb(0_0_0_/_0.1)] dark:drop-shadow-[0_1px_2px_rgb(255_255_255_/_0.1)]",
+        "ps-0.5 max-md:sticky start-6 @4xl/content:table-cell @4xl/content:drop-shadow-none",
+      ),
     },
-    enableSorting: false,
   },
+  {
+    accessorKey: "qty",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Kuantiti" />
+    ),
+    cell: ({ row }) => (
+      <LongText className="ps-3">{row.getValue("qty")}</LongText>
+    ),
+    meta: {
+      className: cn(
+        "drop-shadow-[0_1px_2px_rgb(0_0_0_/_0.1)] dark:drop-shadow-[0_1px_2px_rgb(255_255_255_/_0.1)]",
+        "ps-0.5 max-md:sticky start-6 @4xl/content:table-cell @4xl/content:drop-shadow-none",
+      ),
+    },
+  },
+  // {
+  //   accessorKey: "batchNumber",
+  //   header: ({ column }) => (
+  //     <DataTableColumnHeader column={column} title="Nomor Batch" />
+  //   ),
+  //   cell: ({ row }) => (
+  //     <div className="w-fit ps-2 text-nowrap">
+  //       {row.original.batchNumber ?? "-"}
+  //     </div>
+  //   ),
+  //   filterFn: (row, columnId, filterValue: string[]) => {
+  //     return filterValue.includes(row.getValue(columnId) as string);
+  //   },
+  //   enableSorting: false,
+  // },
+  // {
+  //   accessorKey: "productionCode",
+  //   header: ({ column }) => (
+  //     <DataTableColumnHeader column={column} title="Kode Produksi" />
+  //   ),
+  //   cell: ({ row }) => (
+  //     <div className="w-fit ps-2 text-nowrap">
+  //       {row.original.productionCode ?? "-"}
+  //     </div>
+  //   ),
+  //   filterFn: (row, columnId, filterValue: string[]) => {
+  //     return filterValue.includes(row.getValue(columnId) as string);
+  //   },
+  //   enableSorting: false,
+  // },
+  // {
+  //   accessorKey: "materials",
+  //   header: ({ column }) => (
+  //     <DataTableColumnHeader column={column} title="Bahan Baku" />
+  //   ),
+  //   cell: ({ row }) => {
+  //     const details = row.original.finishedGoodDetails;
+  //     const materialCount = details?.length ?? 0;
+
+  //     if (materialCount === 0) {
+  //       return (
+  //         <div className="text-muted-foreground ps-2">Tidak ada bahan</div>
+  //       );
+  //     }
+
+  //     return (
+  //       <div className="flex items-center gap-2 ps-2">
+  //         <Badge variant="secondary" className="text-xs">
+  //           {materialCount} Bahan
+  //         </Badge>
+  //       </div>
+  //     );
+  //   },
+  //   enableSorting: false,
+  // },
   {
     accessorKey: "dateProduced",
     header: ({ column }) => (

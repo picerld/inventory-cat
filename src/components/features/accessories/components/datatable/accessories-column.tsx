@@ -4,11 +4,11 @@ import { Checkbox } from "~/components/ui/checkbox";
 import { DataTableColumnHeader } from "~/components/datatable/data-table-column-header";
 import { LongText } from "~/components/ui/long-text";
 import { DataTableRowActions } from "./data-table-row-action";
-import type { RawMaterial } from "~/types/raw-material";
 import { toRupiah } from "../../../../../lib/utils";
 import { Badge } from "~/components/ui/badge";
+import type { PainAccessories } from "~/types/paint-accessories";
 
-export const rawMaterialsColumns: ColumnDef<RawMaterial>[] = [
+export const accessoriesColumns: ColumnDef<PainAccessories>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -44,19 +44,6 @@ export const rawMaterialsColumns: ColumnDef<RawMaterial>[] = [
       <div className="w-fit ps-2 text-nowrap">
         {row.original.supplier?.name}
       </div>
-    ),
-    filterFn: (row, columnId, filterValue: string[]) => {
-      return filterValue.includes(row.getValue(columnId) as string);
-    },
-    enableSorting: false,
-  },
-  {
-    accessorKey: "materialType",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Jenis Barang" />
-    ),
-    cell: ({ row }) => (
-      <div className="w-fit ps-2 text-nowrap">{row.original.materialType}</div>
     ),
     filterFn: (row, columnId, filterValue: string[]) => {
       return filterValue.includes(row.getValue(columnId) as string);

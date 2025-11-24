@@ -63,6 +63,7 @@ model RawMaterial {
     paintGrade             PaintGrade               @relation(fields: [paintGradeId], references: [id])
     name                   String
     qty                    Int
+    materialType           String // LEM, THINNER, DLL
     supplierPrice          Float
     sellingPrice           Float
     createdAt              DateTime                 @default(now())

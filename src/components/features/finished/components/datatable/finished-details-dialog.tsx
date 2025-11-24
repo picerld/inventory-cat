@@ -7,10 +7,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
-import type { SemiFinishedGood } from "~/types/semi-finished-good";
 import { Badge } from "~/components/ui/badge";
-import { formatPrice, toRupiah } from "~/lib/utils";
-import { Package, User, Calendar, Hash } from "lucide-react";
+import { toRupiah } from "~/lib/utils";
+import {
+  Package,
+  User,
+  Calendar,
+  Hash,
+  FileText,
+  Award,
+  CalendarClock,
+} from "lucide-react";
 import type { FinishedGood } from "~/types/finished-good";
 
 type FinishedGoodDetailsDialogProps = {
@@ -48,7 +55,7 @@ export function FinishedGoodDetailsDialog({
             </h3>
 
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-              <div className="flex gap-3 border border-dashed p-6 rounded-lg items-center">
+              <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
                 <Package className="mt-0.5 h-5 w-5" />
                 <div>
                   <p className="text-muted-foreground text-sm">Nama Barang</p>
@@ -56,7 +63,60 @@ export function FinishedGoodDetailsDialog({
                 </div>
               </div>
 
-              <div className="flex gap-3 border border-dashed p-6 rounded-lg items-center">
+              <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
+                <Award className="mt-0.5 h-5 w-5" />
+                <div>
+                  <p className="text-muted-foreground text-sm">Kualitas</p>
+                  <Badge variant="success">{currentRow.quality}</Badge>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
+                <Package className="mt-0.5 h-5 w-5" />
+                <div>
+                  <p className="text-muted-foreground text-sm">
+                    Jumlah Produksi
+                  </p>
+                  <p className="font-medium">{currentRow.qty} Barang</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
+                <CalendarClock className="mt-0.5 h-5 w-5" />
+                <div>
+                  <p className="text-muted-foreground text-sm">
+                    Tanggal Produksi
+                  </p>
+                  <p className="font-medium">
+                    {new Date(currentRow.dateProduced).toLocaleDateString(
+                      "id-ID",
+                      {
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric",
+                      },
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
+                <FileText className="mt-0.5 h-5 w-5" />
+                <div>
+                  <p className="text-muted-foreground text-sm">Kode Produksi</p>
+                  <p className="font-medium">{currentRow.productionCode}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
+                <Hash className="mt-0.5 h-5 w-5" />
+                <div>
+                  <p className="text-muted-foreground text-sm">Nomor Batch</p>
+                  <p className="font-medium">{currentRow.batchNumber}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
                 <User className="mt-0.5 h-5 w-5" />
                 <div>
                   <p className="text-muted-foreground text-sm">Dibuat Oleh</p>
@@ -64,11 +124,11 @@ export function FinishedGoodDetailsDialog({
                 </div>
               </div>
 
-              <div className="flex gap-3 border border-dashed p-6 rounded-lg items-center">
+              <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
                 <Calendar className="mt-0.5 h-5 w-5" />
                 <div>
                   <p className="text-muted-foreground text-sm">
-                    Tanggal Dibuat
+                    Tanggal Input Data
                   </p>
                   <p className="font-medium">
                     {new Date(currentRow.createdAt).toLocaleDateString(
@@ -82,23 +142,16 @@ export function FinishedGoodDetailsDialog({
                   </p>
                 </div>
               </div>
-
-              <div className="flex gap-3 border border-dashed p-6 rounded-lg items-center">
-                <Hash className="mt-0.5 h-5 w-5" />
-                <div>
-                  <p className="text-muted-foreground text-sm">
-                    Total Bahan Baku
-                  </p>
-                  <p className="font-medium">{totalMaterials} Bahan</p>
-                </div>
-              </div>
             </div>
           </div>
 
           <div className="space-y-4">
-            <h3 className="border-b pb-2 text-lg font-semibold">
-              Daftar Bahan Baku
-            </h3>
+            <div className="flex items-center justify-between border-b pb-2">
+              <h3 className="text-lg font-semibold">Daftar Bahan Baku</h3>
+              <Badge variant="outline" className="text-sm">
+                {totalMaterials} Bahan
+              </Badge>
+            </div>
 
             {details.length === 0 ? (
               <div className="text-muted-foreground py-8 text-center">
@@ -137,7 +190,7 @@ export function FinishedGoodDetailsDialog({
                         {toRupiah(detail.rawMaterial.sellingPrice)}
                       </p>
                       <p className="text-muted-foreground mt-1 text-xs">
-                        Total: Rp
+                        Total:{" "}
                         {toRupiah(detail.rawMaterial.sellingPrice * detail.qty)}
                       </p>
                     </div>
@@ -161,7 +214,8 @@ export function FinishedGoodDetailsDialog({
                 <p className="text-xl font-bold">
                   {toRupiah(
                     details.reduce(
-                      (sum, detail) => sum + detail.rawMaterial.sellingPrice,
+                      (sum, detail) =>
+                        sum + detail.rawMaterial.sellingPrice * detail.qty,
                       0,
                     ),
                   )}

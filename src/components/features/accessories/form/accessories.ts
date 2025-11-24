@@ -1,26 +1,20 @@
 import z from "zod";
 
-export const rawMaterialFormSchema = z.object({
+export const accessoriesFormSchema = z.object({
   id: z.string().optional(),
   supplierId: z.string({
     message: "Supplier harus dipilih!",
   }).min(1, "Supplier harus dipilih!"),
   userId: z.string(),
-  paintGradeId: z.string({
-    message: "Grade harus dipilih!",
-  }),
   name: z
     .string({
-      message: "Nama Bahan Baku harus diisi!",
+      message: "Nama Aksesoris harus diisi!",
     })
-    .min(1, "Bahan Baku harus lebih dari 1 karakter")
-    .max(50, "Bahan Baku harus kurang dari 50 karakter"),
+    .min(1, "Nama Aksesoris harus lebih dari 1 karakter")
+    .max(50, "Nama Aksesoris harus kurang dari 50 karakter"),
   qty: z.number({
     message: "Kuantiti harus diisi!",
   }).min(1, "Kuantiti harus diisi"),
-  materialType: z.string({
-    message: "Jenis barang baku harus diisi!",
-  }).min(1, "Jenis barang baku harus diisi!"),
   supplierPrice: z.number({
     message: "Harga dari supplier harus diisi!",
   }).min(1, "Harga dari supplier tidak boleh nol!"),
@@ -29,4 +23,4 @@ export const rawMaterialFormSchema = z.object({
   }).min(1, "Harga jual tidak boleh nol!"),
 });
 
-export type RawMaterialFormSchema = z.infer<typeof rawMaterialFormSchema>;
+export type AccessoriesFormSchema = z.infer<typeof accessoriesFormSchema>;

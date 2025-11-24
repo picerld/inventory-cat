@@ -12,6 +12,7 @@ export type RawMaterial = {
     paintGrade: PaintGrade;
     name: string;
     qty: number;
+    materialType: string; // LEM, THINNER, DLL
     supplierPrice: number;
     sellingPrice: number;
     createdAt: Date;

@@ -72,9 +72,10 @@ export default function GuardedLayout({
           active: false,
         },
         { name: "Barang Jadi", href: "/items/finished", active: false },
+        { name: "Aksesoris Cat", href: "/items/accessories", active: false },
+        { name: "Barang Return", href: "/items/returns", active: false },
       ],
     },
-    { name: "Aksesoris Cat", href: "/accessories", active: false },
     {
       name: "Pembelian",
       href: "/purchases",

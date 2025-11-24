@@ -13,12 +13,15 @@ export const OnLoadItem = ({ isLoading }: { isLoading: boolean }) => {
       <AlertDialogContent className="sm:max-w-[425px]">
         <AlertDialogHeader className="flex items-center">
           {isLoading ? (
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary">
+            <div className="bg-primary mb-4 flex h-14 w-14 animate-bounce items-center justify-center rounded-full">
               <Info className="text-secondary size-8" strokeWidth={2.5} />
             </div>
           ) : (
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary">
-              <CircleCheck className="text-secondary size-8" strokeWidth={2.5} />
+            <div className="bg-primary mb-4 flex h-14 w-14 items-center justify-center rounded-full">
+              <CircleCheck
+                className="text-secondary size-8"
+                strokeWidth={2.5}
+              />
             </div>
           )}
 
