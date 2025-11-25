@@ -114,10 +114,10 @@ export default function GuardedLayout({
 
   const updatedNavItem = navItem.map((item) => ({
     ...item,
-    active: pathName === item.href || pathName.includes(item.href),
+    active: pathName === item.href || pathName?.includes(item.href),
     children: item.children?.map((child: INavItem) => ({
       ...child,
-      active: pathName === child.href || pathName.includes(child.href),
+      active: pathName === child.href || pathName?.includes(child.href),
     })),
   }));
 

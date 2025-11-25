@@ -40,13 +40,13 @@ import {
 import { Check } from "lucide-react";
 import { cn, generateRandomCode } from "~/lib/utils";
 import type { RawMaterial } from "~/types/raw-material";
-import { MaterialQtyDialog } from "../../create/MaterialQtyDialog";
 import { MaterialQtyCard } from "../../create/MaterialQtyCard";
 import type { FinishedGood } from "~/types/finished-good";
 import { finishedGoodFormSchema } from "../../form/finished-good";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { Calendar } from "~/components/ui/calendar";
+import { MaterialQtyModal } from "../../create/MaterialQtyModal";
 
 type FinishedGoodsActionDialogProps = {
   currentRow?: FinishedGood;
@@ -70,11 +70,10 @@ export function FinishedGoodsActionDialog({
 
   const [openCombobox, setOpenCombobox] = useState(false);
 
-  const [qtyNotification, setQtyNotification] = useState<{
-    name: string;
-    oldQty: number;
-    newQty: number;
+  const [qtyModalOpen, setQtyModalOpen] = useState<{
     material: RawMaterial;
+    currentQty: number;
+    rawMaterialId: string;
   } | null>(null);
 
   const { data: user } = trpc.auth.authMe.useQuery({
@@ -170,12 +169,6 @@ export function FinishedGoodsActionDialog({
       form.reset();
     }
   }, [isEdit, currentRow]);
-
-  useEffect(() => {
-    if (!qtyNotification) return;
-    const timer = setTimeout(() => setQtyNotification(null), 1200);
-    return () => clearTimeout(timer);
-  }, [qtyNotification]);
 
   useEffect(() => {
     if (user?.id) {
@@ -463,22 +456,11 @@ export function FinishedGoodsActionDialog({
                     return;
                   }
 
-                  const oldQty =
-                    materials.find((m) => m.rawMaterialId === rawMaterialId)
-                      ?.qty ?? 1;
-
                   const newMaterials = materials.map((m) =>
                     m.rawMaterialId === rawMaterialId ? { ...m, qty } : m,
                   );
 
                   field.handleChange(newMaterials);
-
-                  setQtyNotification({
-                    name: material.name,
-                    oldQty,
-                    newQty: qty,
-                    material,
-                  });
                 };
 
                 return (
@@ -592,8 +574,16 @@ export function FinishedGoodsActionDialog({
           </SheetFooter>
         </form>
 
-        {qtyNotification && (
-          <MaterialQtyDialog qtyNotification={qtyNotification} />
+        {qtyModalOpen && (
+          <MaterialQtyModal
+            material={qtyModalOpen.material}
+            currentQty={qtyModalOpen.currentQty}
+            onConfirm={(qty) => {
+              updateQty(qtyModalOpen.rawMaterialId, qty);
+              setQtyModalOpen(null);
+            }}
+            onClose={() => setQtyModalOpen(null)}
+          />
         )}
       </SheetContent>
     </Sheet>

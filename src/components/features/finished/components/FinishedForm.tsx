@@ -16,15 +16,6 @@ import { CalendarIcon, Loader, Wand } from "lucide-react";
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "~/components/ui/sheet";
-import {
   Command,
   CommandEmpty,
   CommandGroup,
@@ -44,9 +35,9 @@ import type { FinishedGood } from "~/types/finished-good";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { Calendar } from "~/components/ui/calendar";
-import { MaterialQtyDialog } from "../create/MaterialQtyDialog";
 import { finishedGoodFormSchema } from "../form/finished-good";
 import { MaterialQtyCard } from "../create/MaterialQtyCard";
+import { MaterialQtyModal } from "../create/MaterialQtyModal";
 
 type FinishedFormProps = {
   mode: "create" | "edit";
@@ -64,11 +55,11 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
 
   const [openCombobox, setOpenCombobox] = useState(false);
 
-  const [qtyNotification, setQtyNotification] = useState<{
-    name: string;
-    oldQty: number;
-    newQty: number;
+  // Changed from qtyNotification to qtyModalOpen
+  const [qtyModalOpen, setQtyModalOpen] = useState<{
     material: RawMaterial;
+    currentQty: number;
+    rawMaterialId: string;
   } | null>(null);
 
   const { data: user } = trpc.auth.authMe.useQuery({
@@ -164,11 +155,7 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
     }
   }, [mode, initialData]);
 
-  useEffect(() => {
-    if (!qtyNotification) return;
-    const timer = setTimeout(() => setQtyNotification(null), 1200);
-    return () => clearTimeout(timer);
-  }, [qtyNotification]);
+  // Removed the auto-dismiss useEffect for qtyNotification
 
   useEffect(() => {
     if (user?.id) {
@@ -337,8 +324,8 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
 
                       <Button
                         type="button"
-                        variant={"outline"}
-                        size={"icon-lg"}
+                        variant="outline"
+                        size="icon-lg"
                         className="py-5"
                         onClick={() =>
                           field.handleChange(generateRandomCode("P"))
@@ -367,19 +354,19 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                       Nomor Batch <IsRequired />
                     </FieldLabel>
 
-                    <div className="flex gap-2">
+                    <div className="grid grid-cols-7 gap-2">
                       <Input
                         placeholder="B0001"
-                        className="h-12 w-5/6 rounded-xl border-2"
+                        className="col-span-6 h-12 rounded-xl border-2"
                         value={field.state.value}
                         onChange={(e) => field.handleChange(e.target.value)}
                       />
 
                       <Button
                         type="button"
-                        variant={"outline"}
-                        size={"icon-lg"}
-                        className="w-1/6 py-5"
+                        variant="outline"
+                        size="icon-lg"
+                        className="py-5"
                         onClick={() =>
                           field.handleChange(generateRandomCode("B"))
                         }
@@ -413,6 +400,7 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                 );
               };
 
+              // Updated updateQty function - simplified without notification
               const updateQty = (rawMaterialId: string, qty: number) => {
                 const material = rawMaterials?.find(
                   (rm) => rm.id === rawMaterialId,
@@ -433,22 +421,11 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                   return;
                 }
 
-                const oldQty =
-                  materials.find((m) => m.rawMaterialId === rawMaterialId)
-                    ?.qty ?? 1;
-
                 const newMaterials = materials.map((m) =>
                   m.rawMaterialId === rawMaterialId ? { ...m, qty } : m,
                 );
 
                 field.handleChange(newMaterials);
-
-                setQtyNotification({
-                  name: material.name,
-                  oldQty,
-                  newQty: qty,
-                  material,
-                });
               };
 
               return (
@@ -473,7 +450,7 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                       </Button>
                     </PopoverTrigger>
 
-                    <PopoverContent className="w-[400px] p-0">
+                    <PopoverContent className="w-full p-0">
                       <Command>
                         <CommandInput placeholder="Cari bahan baku..." />
                         <CommandList>
@@ -522,7 +499,13 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                           material={material as RawMaterial}
                           m={m}
                           materials={materials}
-                          updateQty={updateQty}
+                          onOpenModal={() => {
+                            setQtyModalOpen({
+                              material: material as RawMaterial,
+                              currentQty: m.qty,
+                              rawMaterialId: m.rawMaterialId,
+                            });
+                          }}
                           removeMaterial={removeMaterial}
                         />
                       );
@@ -549,8 +532,43 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
         </Button>
       </form>
 
-      {qtyNotification && (
-        <MaterialQtyDialog qtyNotification={qtyNotification} />
+      {qtyModalOpen && (
+        <MaterialQtyModal
+          material={qtyModalOpen.material}
+          currentQty={qtyModalOpen.currentQty}
+          onConfirm={(qty: number) => {
+            const materials = form.getFieldValue("materials");
+            const material = rawMaterials?.find(
+              (rm) => rm.id === qtyModalOpen.rawMaterialId,
+            );
+
+            if (!material) return;
+
+            if (qty <= 0) {
+              toast.error("Jumlah tidak boleh 0!", {
+                description: "Minimal jumlah bahan baku adalah 1.",
+              });
+              return;
+            }
+
+            if (qty > material.qty) {
+              toast.error("Stok tidak mencukupi!", {
+                description: `Stok tersedia hanya ${material.qty} unit.`,
+              });
+              return;
+            }
+
+            const newMaterials = materials.map((m) =>
+              m.rawMaterialId === qtyModalOpen.rawMaterialId
+                ? { ...m, qty }
+                : m,
+            );
+
+            form.setFieldValue("materials", newMaterials);
+            setQtyModalOpen(null);
+          }}
+          onClose={() => setQtyModalOpen(null)}
+        />
       )}
     </div>
   );

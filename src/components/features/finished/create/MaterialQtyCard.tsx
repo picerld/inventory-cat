@@ -1,87 +1,85 @@
-import { X } from "lucide-react";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
 import type { RawMaterial } from "~/types/raw-material";
+import { X, Edit3 } from "lucide-react";
+import { Button } from "~/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
+
+type MaterialQtyCardProps = {
+  material: RawMaterial;
+  m: { rawMaterialId: string; qty: number };
+  materials: { rawMaterialId: string; qty: number }[];
+  onOpenModal: () => void;
+  removeMaterial: (id: string) => void;
+};
 
 export const MaterialQtyCard = ({
   material,
   m,
-  materials,
-  updateQty,
+  onOpenModal,
   removeMaterial,
-}: {
-  material: RawMaterial | undefined;
-  m: { rawMaterialId: string; qty: number };
-  materials: { rawMaterialId: string; qty: number }[];
-  updateQty: (rawMaterialId: string, qty: number) => void;
-  removeMaterial: (rawMaterialId: string) => void;
-}) => {
+}: MaterialQtyCardProps) => {
   if (!material) return null;
 
-  const maxStock = material.qty;
+  const remainingStock = material.qty - m.qty;
+  const isLowStock = remainingStock < 10;
 
   return (
-    <div className="flex items-center justify-between rounded-xl border p-4 shadow-sm">
-      <div className="font-medium">{material.name}</div>
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <CardTitle className="truncate text-base">
+              {material.name}
+            </CardTitle>
+            <CardDescription className="mt-1">
+              {material.paintGrade.name} · {material.supplier.name}
+            </CardDescription>
+          </div>
 
-      <div className="flex items-center gap-2">
-        <div className="bg-muted/40 flex items-center gap-1 rounded-lg border px-2 py-1">
           <Button
+            variant={"outline"}
+            size={"icon-sm"}
             type="button"
-            size="icon"
-            variant="ghost"
-            className="h-6 w-6"
-            onClick={() => {
-              const current = m.qty;
-              const next = Math.max(1, current - 1);
-              updateQty(m.rawMaterialId, next);
-            }}
+            onClick={() => removeMaterial(m.rawMaterialId)}
           >
-            –
+            <X className="size-4" />
           </Button>
+        </div>
+      </CardHeader>
 
-          <Input
-            type="number"
-            min={1}
-            max={maxStock}
-            value={m.qty}
-            onChange={(e) => {
-              let value = Number(e.target.value);
-
-              if (isNaN(value)) return;
-
-              if (value < 1) value = 1;
-
-              if (value > maxStock) value = maxStock;
-
-              updateQty(m.rawMaterialId, value);
-            }}
-            className="bg-muted/40 w-12 border-none text-center shadow-none"
-          />
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold">{m.qty}</span>
+            <span className="text-muted-foreground text-xs">
+              barang digunakan
+            </span>
+          </div>
 
           <Button
             type="button"
-            size="icon"
-            variant="ghost"
-            className="h-6 w-6"
-            onClick={() => {
-              const current = m.qty;
-              const next = Math.min(maxStock, current + 1);
-              updateQty(m.rawMaterialId, next);
-            }}
+            variant="outline"
+            size="sm"
+            onClick={onOpenModal}
+            className="gap-2"
           >
-            +
+            <Edit3 className="h-3.5 w-3.5" />
+            Ubah
           </Button>
         </div>
 
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={() => removeMaterial(m.rawMaterialId)}
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">
+            Stok tersedia: <span className="font-medium">{material.qty}</span>
+          </span>
+          <span>Sisa: {remainingStock}</span>
+        </div>
+      </CardContent>
+    </Card>
   );
 };

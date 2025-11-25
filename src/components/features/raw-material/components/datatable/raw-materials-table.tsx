@@ -138,8 +138,8 @@ export function RawMaterialsTable() {
     columnFilters: [
       { columnId: "name", searchKey: "name", type: "string" },
       { columnId: "supplierId", searchKey: "supplierId", type: "array" },
-      { columnId: "userId", searchKey: "userId", type: "array" },
-      { columnId: "paintGradeId", searchKey: "paintGradeId", type: "array" },
+      // { columnId: "userId", searchKey: "userId", type: "array" },
+      // { columnId: "paintGradeId", searchKey: "paintGradeId", type: "array" },
     ],
   });
 
@@ -255,24 +255,24 @@ export function RawMaterialsTable() {
               value: supplier.id,
             })),
           },
-          {
-            columnId: "userId",
-            title: "Pengguna",
-            options: users?.map((user) => ({
-              label: user.name,
-              value: user.id,
-              icon: UserCheck,
-            })),
-          },
-          {
-            columnId: "paintGradeId",
-            title: "Grade",
-            options: grades?.map((grade) => ({
-              label: grade.name,
-              value: grade.id,
-              icon: CircleStar,
-            })),
-          },
+          // {
+          //   columnId: "userId",
+          //   title: "Pengguna",
+          //   options: users?.map((user) => ({
+          //     label: user.name,
+          //     value: user.id,
+          //     icon: UserCheck,
+          //   })),
+          // },
+          // {
+          //   columnId: "paintGradeId",
+          //   title: "Grade",
+          //   options: grades?.map((grade) => ({
+          //     label: grade.name,
+          //     value: grade.id,
+          //     icon: CircleStar,
+          //   })),
+          // },
         ]}
       />
 
