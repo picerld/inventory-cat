@@ -356,7 +356,9 @@ export function SemiFinishedGoodsActionDialog({
                                             : "opacity-0",
                                         )}
                                       />
-                                      {material.name}
+                                      {material.name} (
+                                      {material.paintGrade.name}) (
+                                      {material.supplier.name})
                                     </CommandItem>
                                   );
                                 })}
