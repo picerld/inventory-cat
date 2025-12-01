@@ -9,8 +9,8 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import type { Supplier } from "~/types/supplier";
 import { useSuppliers } from "./supplier-provider";
+import type { Supplier } from "~/types/supplier";
 
 type DataTableRowActionsProps = {
   row: Row<Supplier>;
@@ -18,7 +18,7 @@ type DataTableRowActionsProps = {
 
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { setOpen, setCurrentRow } = useSuppliers();
-  return (
+  return (   
     <>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
