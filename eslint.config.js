@@ -30,7 +30,7 @@ export default tseslint.config(
       "@typescript-eslint/no-redundant-type-constituents": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
       "@typescript-eslint/no-explicit-any": "warn",
-      " @typescript-eslint/no-floating-promises": "warn",
+      "@typescript-eslint/no-floating-promises": "warn",
       // end
       // "@typescript-eslint/consistent-type-imports": [
       //   "warn",
