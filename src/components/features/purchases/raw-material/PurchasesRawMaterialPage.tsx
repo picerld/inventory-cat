@@ -17,6 +17,7 @@ export default function PurchasesRawMaterialPage() {
           </Button>
         </Header>
 
+        Pembelian Bahan Baku
       </GuardedLayout>
   );
 }
