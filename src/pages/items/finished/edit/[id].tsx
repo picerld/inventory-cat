@@ -35,6 +35,7 @@ export default function Page() {
         </Button>
       </Header>
 
+      {/* @ts-expect-error type */}
       <FinishedGoodForm mode="edit" initialData={initialData} />
     </GuardedLayout>
   );

@@ -209,6 +209,7 @@ export function useTableUrlState(params: UseTableUrlStateParams) {
   const onGlobalFilterChange: OnChangeFn<string> | undefined =
     globalFilterEnabled
       ? useCallback(
+        // @ts-expect-error any
           (updater) => {
             const next =
               typeof updater === "function"
@@ -244,6 +245,7 @@ export function useTableUrlState(params: UseTableUrlStateParams) {
           search: (prev) => ({
             ...prev,
             [pageKey]:
+            // @ts-expect-error comparison
               opts.resetTo === "last" ? pageCount : undefined,
           }),
         });

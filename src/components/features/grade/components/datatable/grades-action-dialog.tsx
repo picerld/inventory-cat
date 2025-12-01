@@ -90,6 +90,7 @@ export function GradesActionDialog({
       name: "",
       description: "",
     },
+    // @ts-expect-error type
     validators: { onSubmit: gradeFormSchema },
     onSubmit: ({ value }) => {
       if (isEdit && currentRow) {

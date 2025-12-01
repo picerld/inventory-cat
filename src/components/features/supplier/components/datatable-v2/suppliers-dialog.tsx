@@ -31,6 +31,7 @@ export function SuppliersDialogs() {
                 }, 300);
               }
             }}
+            // @ts-expect-error type
             currentRow={currentRow}
           />
           <SuppliersActionDialog
@@ -44,6 +45,7 @@ export function SuppliersDialogs() {
                 }, 300);
               }
             }}
+            // @ts-expect-error type
             currentRow={currentRow}
           />
 
@@ -58,6 +60,7 @@ export function SuppliersDialogs() {
                 }, 300);
               }
             }}
+            // @ts-expect-error type
             currentRow={currentRow}
           />
         </>

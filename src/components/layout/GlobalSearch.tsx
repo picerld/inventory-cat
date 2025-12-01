@@ -2,12 +2,19 @@
 
 import * as React from "react";
 import {
+  Badge,
+  Box,
   Calculator,
   Calendar,
   CreditCard,
+  Cuboid,
+  LayoutDashboard,
+  Paintbrush,
+  Palette,
   Search,
   Settings,
   Smile,
+  Truck,
   User,
 } from "lucide-react";
 
@@ -22,8 +29,42 @@ import {
   CommandShortcut,
 } from "~/components/ui/command";
 import { Button } from "../ui/button";
+import Link from "next/link";
 
 export function GlobalSearch() {
+  const navItems = [
+    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Supplier", href: "/suppliers", icon: Truck },
+    {
+      name: "Barang",
+      child: [
+        { name: "Grade", href: "/items/grades", icon: Badge },
+        { name: "Bahan Baku", href: "/items/raw-materials", icon: Palette },
+        {
+          name: "Barang Setengah Jadi",
+          href: "/items/semi-finished",
+          icon: Cuboid,
+        },
+        { name: "Barang Jadi", href: "/items/finished", icon: Box },
+        { name: "Aksesoris Cat", href: "/items/accessories", icon: Paintbrush },
+      ],
+    },
+    {
+      name: "Pembelian",
+      child: [
+        { name: "Pembelian Bahan Baku", href: "/purchases/raw-materials" },
+        { name: "Pembelian Aksesoris", href: "/purchases/accessories" },
+      ],
+    },
+    {
+      name: "Penjualan",
+      child: [
+        { name: "Penjualan Barang Jadi", href: "/sales/finished-goods" },
+        { name: "Penjualan Aksesoris", href: "/sales/accessories" },
+      ],
+    },
+  ];
+
   const [open, setOpen] = React.useState(false);
 
   React.useEffect(() => {
@@ -45,7 +86,7 @@ export function GlobalSearch() {
         className="hidden w-full justify-between sm:flex"
         onClick={() => setOpen(true)}
       >
-        <div className="flex items-center gap-1 text-muted-foreground">
+        <div className="text-muted-foreground flex items-center gap-1">
           <Search className="mr-1 h-4 w-4" />
           Search
         </div>
@@ -60,44 +101,38 @@ export function GlobalSearch() {
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
 
-          <CommandGroup heading="Suggestions">
-            <CommandItem onSelect={() => setOpen(false)}>
-              <Calendar />
-              <span>Calendar</span>
-            </CommandItem>
+          {navItems.map((item) => {
+            const ParentIcon = item.icon;
 
-            <CommandItem onSelect={() => setOpen(false)}>
-              <Smile />
-              <span>Search Emoji</span>
-            </CommandItem>
+            return item.child ? (
+              <div key={item.name}>
+                <CommandGroup heading={item.name}>
+                  {item.child.map((child) => {
+                    // @ts-expect-error Type 'string | undefined' is not assignable to type 'JSX.Element | undefined'. (ICON)
+                    const ChildIcon = child.icon;
 
-            <CommandItem onSelect={() => setOpen(false)}>
-              <Calculator />
-              <span>Calculator</span>
-            </CommandItem>
-          </CommandGroup>
+                    return (
+                      <CommandItem key={child.name} asChild>
+                        <Link href={child.href} className="cursor-pointer">
+                          {ChildIcon && <ChildIcon className="mr-2 h-4 w-4" />}
+                          {child.name}
+                        </Link>
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
 
-          <CommandSeparator />
-
-          <CommandGroup heading="Settings">
-            <CommandItem onSelect={() => setOpen(false)}>
-              <User />
-              <span>Profile</span>
-              <CommandShortcut>⌘P</CommandShortcut>
-            </CommandItem>
-
-            <CommandItem onSelect={() => setOpen(false)}>
-              <CreditCard />
-              <span>Billing</span>
-              <CommandShortcut>⌘B</CommandShortcut>
-            </CommandItem>
-
-            <CommandItem onSelect={() => setOpen(false)}>
-              <Settings />
-              <span>Settings</span>
-              <CommandShortcut>⌘S</CommandShortcut>
-            </CommandItem>
-          </CommandGroup>
+                <CommandSeparator />
+              </div>
+            ) : (
+              <CommandItem key={item.name} asChild>
+                <Link href={item.href} className="cursor-pointer">
+                  {ParentIcon && <ParentIcon className="mr-2 h-4 w-4" />}
+                  {item.name}
+                </Link>
+              </CommandItem>
+            );
+          })}
         </CommandList>
       </CommandDialog>
     </>

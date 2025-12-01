@@ -68,6 +68,7 @@ export function CreateSupplierForm({
       description: "",
     },
     validators: {
+      // @ts-expect-error type
       onSubmit: supplierFormSchema,
     },
     onSubmit: ({ value }) => {

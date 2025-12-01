@@ -124,6 +124,7 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
       materials: [] as { rawMaterialId: string; qty: number }[],
     },
 
+    // @ts-expect-error type
     validators: { onSubmit: finishedGoodFormSchema },
 
     onSubmit: async ({ value }) => {

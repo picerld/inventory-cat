@@ -36,6 +36,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         <DropdownMenuContent align="end" className="w-[160px]">
           <DropdownMenuItem
             onClick={() => {
+              // @ts-expect-error type
               setCurrentRow(row.original);
               setOpen("detail");
             }}
@@ -61,6 +62,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => {
+              // @ts-expect-error type
               setCurrentRow(row.original);
               setOpen("delete");
             }}

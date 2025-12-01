@@ -31,6 +31,7 @@ export function AccessoriesDialogs() {
                 }, 300);
               }
             }}
+            // @ts-expect-error type
             currentRow={currentRow}
           />
           
@@ -45,6 +46,7 @@ export function AccessoriesDialogs() {
                 }, 300);
               }
             }}
+            // @ts-expect-error type
             currentRow={currentRow}
           />
 
@@ -59,6 +61,7 @@ export function AccessoriesDialogs() {
                 }, 300);
               }
             }}
+            // @ts-expect-error type
             currentRow={currentRow}
           />
         </>

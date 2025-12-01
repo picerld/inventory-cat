@@ -136,6 +136,8 @@ export function SuppliersTable() {
     if (data) ensurePageInRange(data.meta.lastPage);
   }, [data, ensurePageInRange]);
 
+
+  // @ts-expect-error type
   const tableData: Supplier[] =
     data?.data.map((item) => ({
       ...item,

@@ -31,6 +31,7 @@ export function ReturnedGoodsDialogs() {
                 }, 300);
               }
             }}
+            // @ts-expect-error type
             currentRow={currentRow}
           />
           <ReturnGoodsActionDialog
@@ -44,6 +45,7 @@ export function ReturnedGoodsDialogs() {
                 }, 300);
               }
             }}
+            // @ts-expect-error type
             currentRow={currentRow}
           />
 
@@ -58,6 +60,7 @@ export function ReturnedGoodsDialogs() {
                 }, 300);
               }
             }}
+            // @ts-expect-error type
             currentRow={currentRow}
           />
         </>

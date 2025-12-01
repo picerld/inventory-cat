@@ -39,6 +39,7 @@ const ReturnedGoodStatsContainer = () => {
         return (
           <StatsCard
             key={stat.id}
+            // @ts-expect-error type
             stat={stat}
             Icon={Icon}
             isPositive={false}

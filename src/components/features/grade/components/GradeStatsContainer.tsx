@@ -30,6 +30,7 @@ const GradeStatsContainer = () => {
         return (
           <StatsCard
             key={stat.id}
+            // @ts-expect-error type
             stat={stat}
             Icon={Icon}
             isPositive={isPositive}

@@ -15,6 +15,7 @@ export const trpcClientOptions = {
     
     if (error.data?.code === "UNAUTHORIZED" && error.message === "Token expired") {
       toast.error("Your session has expired. Please log in again.");
+      
       window.location.href = "/login";
     }
   },

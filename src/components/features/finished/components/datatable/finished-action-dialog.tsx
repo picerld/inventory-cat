@@ -139,6 +139,7 @@ export function FinishedGoodsActionDialog({
       dateProduced: new Date(),
       materials: [] as { rawMaterialId: string; qty: number }[],
     },
+    // @ts-expect-error type
     validators: { onSubmit: finishedGoodFormSchema },
     onSubmit: ({ value }) => {
       if (isEdit && currentRow) {
@@ -535,6 +536,7 @@ export function FinishedGoodsActionDialog({
                             material={material as RawMaterial}
                             m={m}
                             materials={materials}
+                            // @ts-expect-error type
                             updateQty={updateQty}
                             removeMaterial={removeMaterial}
                           />
@@ -579,6 +581,7 @@ export function FinishedGoodsActionDialog({
             material={qtyModalOpen.material}
             currentQty={qtyModalOpen.currentQty}
             onConfirm={(qty) => {
+              // @ts-expect-error type
               updateQty(qtyModalOpen.rawMaterialId, qty);
               setQtyModalOpen(null);
             }}

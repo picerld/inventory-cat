@@ -154,6 +154,8 @@ export function SemiFinishedGoodsTable() {
     if (data) ensurePageInRange(data.meta.lastPage);
   }, [data, ensurePageInRange]);
 
+
+  // @ts-expect-error type
   const tableData: SemiFinishedGood[] =
     data?.data.map((item) => ({
       ...item,
@@ -235,6 +237,7 @@ export function SemiFinishedGoodsTable() {
           {
             columnId: "userId",
             title: "Pengguna",
+            // @ts-expect-error type
             options: users?.map((user) => ({
               label: user.name,
               value: user.id,

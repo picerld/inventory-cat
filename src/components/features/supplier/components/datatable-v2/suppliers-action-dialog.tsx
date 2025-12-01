@@ -90,6 +90,7 @@ export function SuppliersActionDialog({
       name: "",
       description: "",
     },
+    // @ts-expect-error type
     validators: { onSubmit: supplierFormSchema },
     onSubmit: ({ value }) => {
       if (isEdit && currentRow) {

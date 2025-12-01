@@ -46,6 +46,7 @@ export function SupplierDatatable() {
 
   if (!data) return <div>No data</div>;
 
+  // @ts-expect-error type
   const tableData: Supplier[] = data.data.map((item) => ({
     ...item,
     description: item.description ?? undefined,

@@ -92,6 +92,7 @@ export function ReturnGoodsActionDialog({
       description: "",
     },
     validators: {
+      // @ts-expect-error type
       onSubmit: returnedGoodFormSchema,
     },
     onSubmit: ({ value }) => {

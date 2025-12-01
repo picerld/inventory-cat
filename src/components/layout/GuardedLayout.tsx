@@ -83,7 +83,7 @@ export default function GuardedLayout({
       children: [
         {
           name: "Pembelian Bahan Baku",
-          href: "/purchases/raw-material",
+          href: "/purchases/raw-materials",
           active: false,
         },
         {
@@ -181,7 +181,7 @@ export default function GuardedLayout({
 
               <Link
                 href="/"
-                className="group group flex shrink-0 items-center gap-2"
+                className="group group sm:flex hidden shrink-0 items-center gap-2"
               >
                 <div className="bg-primary rounded-lg p-2 transition-all group-hover:scale-110 group-hover:shadow-lg">
                   <PaintbrushVertical className="text-primary-foreground h-5 w-5" />

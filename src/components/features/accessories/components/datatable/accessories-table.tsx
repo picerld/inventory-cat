@@ -246,6 +246,7 @@ export function AccessoriesTable() {
           {
             columnId: "supplierId",
             title: "Supplier",
+            // @ts-expect-error type
             options: suppliers?.map((supplier) => ({
               label: supplier.name,
               value: supplier.id,

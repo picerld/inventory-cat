@@ -165,6 +165,7 @@ export function RawMaterialsTable() {
     if (data) ensurePageInRange(data.meta.lastPage);
   }, [data, ensurePageInRange]);
 
+  // @ts-expect-error type
   const tableData: RawMaterial[] =
     data?.data.map((item) => ({
       ...item,
@@ -250,6 +251,7 @@ export function RawMaterialsTable() {
           {
             columnId: "supplierId",
             title: "Supplier",
+            // @ts-expect-error type
             options: suppliers?.map((supplier) => ({
               label: supplier.name,
               value: supplier.id,

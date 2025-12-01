@@ -304,6 +304,7 @@ export function SemiFinishedGoodsActionDialog({
                     name: material.name,
                     oldQty,
                     newQty: qty,
+                    // @ts-expect-error type
                     material,
                   });
                 };

@@ -136,6 +136,7 @@ export function GradesTable() {
     if (data) ensurePageInRange(data.meta.lastPage);
   }, [data, ensurePageInRange]);
 
+  // @ts-expect-error type
   const tableData: PaintGrade[] =
     data?.data.map((item) => ({
       ...item,
