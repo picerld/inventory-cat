@@ -20,7 +20,7 @@ export const FinishedGoodStatsContainer = () => {
 
   const [showAll, setShowAll] = useState<boolean>(false);
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return <div>Loading...</div>;  
 
   const statsData = [
     {
