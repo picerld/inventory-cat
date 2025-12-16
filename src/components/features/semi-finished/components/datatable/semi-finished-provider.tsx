@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import useDialogState from "~/hooks/use-dialog-state";
 import type { SemiFinishedGoodFormSchema } from "../../form/semi-finished";
 
-type SemiFinishedGoodDialogType = "add" | "edit" | "delete" | "detail";
+type SemiFinishedGoodDialogType = "add" | "edit" | "delete" | "detail" | "qr";
 
 type SemiFinishedGoodContextType = {
   open: SemiFinishedGoodDialogType | null;

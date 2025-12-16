@@ -1,4 +1,3 @@
-import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 import { authRouter } from "./routers/auth";
 import { supplierRouter } from "./routers/supplier";
 import { rawMaterialRouter } from "./routers/raw-material";
@@ -8,6 +7,8 @@ import { gradeRouter } from "./routers/grade";
 import { finishedGoodRouter } from "./routers/finished-good";
 import { accessoriesRouter } from "./routers/accessories";
 import { returnGoodRouter } from "./routers/return-good";
+import { createCallerFactory, createTRPCRouter } from "./trpc";
+import { dashboardRouter } from "~/server/api/routers/dashboard";
 
 /**
  * This is the primary router for your server.
@@ -17,6 +18,7 @@ import { returnGoodRouter } from "./routers/return-good";
 export const appRouter = createTRPCRouter({
   auth: authRouter,
   user: userRouter,
+  dashboard: dashboardRouter,
   supplier: supplierRouter,
   rawMaterial: rawMaterialRouter,
   semiFinishedGood: semiFinishedGoodRouter,

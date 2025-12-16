@@ -2,6 +2,7 @@ import { SemiFinishedGoodsActionDialog } from "./semi-finished-action-dialog";
 import { SemiFinishedGoodsDeleteDialog } from "./semi-finished-delete-dialog";
 import { SemiFinishedGoodDetailsDialog } from "./semi-finished-details-dialog";
 import { useSemiFinishedGoods } from "./semi-finished-provider";
+import { SemiFinishedQrCodeModal } from "~/components/features/semi-finished/components/SemiFinishedQrCodeModal";
 
 export function SemiFinishedGoodsDialogs() {
   const { open, setOpen, currentRow, setCurrentRow } = useSemiFinishedGoods();
@@ -20,6 +21,21 @@ export function SemiFinishedGoodsDialogs() {
 
       {currentRow && (
         <>
+          <SemiFinishedQrCodeModal
+            key={`semi-finished-detail-qr-${currentRow.id}`}
+            open={open === "qr"}
+            onOpenChange={(state) => {
+              if (!state) {
+                setOpen(null);
+                setTimeout(() => {
+                  setCurrentRow(null);
+                }, 300);
+              }
+            }}
+            // @ts-expect-error type
+            currentRow={currentRow}
+          />
+
           <SemiFinishedGoodDetailsDialog
             key={`semi-finished-detail-${currentRow.id}`}
             open={open === "detail"}

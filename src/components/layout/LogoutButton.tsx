@@ -1,17 +1,6 @@
 "use client";
 
-import { CirclePower, Info, Loader } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "../ui/alert-dialog";
+import { CirclePower, Loader } from "lucide-react";
 import { Button } from "../ui/button";
 import { useRouter } from "next/navigation";
 import { trpc } from "~/utils/trpc";
@@ -20,8 +9,6 @@ import Cookies from "js-cookie";
 
 export const LogoutButton = () => {
   const router = useRouter();
-
-  const token = Cookies.get("auth.token");
 
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess() {
@@ -40,18 +27,12 @@ export const LogoutButton = () => {
   });
 
   function handleLogout() {
-    if (!token) {
-      toast.error("Tidak ada token, gagal logout");
-      return;
-    }
-
-    Cookies.remove("auth.token");
-
-    logoutMutation.mutate({ token });
+    logoutMutation.mutate();
   }
+
   return (
     <Button
-      variant={"default"}
+      variant="default"
       onClick={handleLogout}
       disabled={logoutMutation.isPending}
       className="w-full"
@@ -68,6 +49,9 @@ export const LogoutButton = () => {
         </p>
       )}
     </Button>
+  );
+};
+
     // <AlertDialog>
     //   <AlertDialogTrigger asChild>
     //   </AlertDialogTrigger>
@@ -95,5 +79,3 @@ export const LogoutButton = () => {
     //     </AlertDialogFooter>
     //   </AlertDialogContent>
     // </AlertDialog>
-  );
-};

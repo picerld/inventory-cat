@@ -10,7 +10,6 @@ import { ModeToggle } from "../ui/mode-toggle";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { trpc } from "~/utils/trpc";
-import Cookies from "js-cookie";
 import {
   Sheet,
   SheetContent,
@@ -29,7 +28,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import React from "react";
-import { skipToken } from "@tanstack/react-query";
 import { LogoutButton } from "./LogoutButton";
 import type { INavItem } from "./NavItemComponent";
 import NavItemComponent from "./NavItemComponent";
@@ -45,16 +43,9 @@ export default function GuardedLayout({
 
   const { expandedItems, toggleExpanded, setExpanded } = useSidebar();
 
-  const token = Cookies.get("auth.token");
-
-  const { data: user } = trpc.auth.authMe.useQuery(
-    token ? { token } : skipToken,
-    {
-      retry: false,
-      enabled: !!token,
-      refetchOnWindowFocus: false,
-    },
-  );
+  const { data: user } = trpc.auth.authMe.useQuery(undefined, {
+    enabled: true,
+  });
 
   const navItem: INavItem[] = [
     { name: "Dashboard", href: "/dashboard", active: false },
@@ -181,7 +172,7 @@ export default function GuardedLayout({
 
               <Link
                 href="/"
-                className="group group sm:flex hidden shrink-0 items-center gap-2"
+                className="group group hidden shrink-0 items-center gap-2 sm:flex"
               >
                 <div className="bg-primary rounded-lg p-2 transition-all group-hover:scale-110 group-hover:shadow-lg">
                   <PaintbrushVertical className="text-primary-foreground h-5 w-5" />
@@ -304,7 +295,7 @@ export default function GuardedLayout({
                         {user ? user.name : "Unknown"}
                       </p>
                       <p className="text-muted-foreground text-xs leading-none">
-                        {user?.username || "user@example.com"}
+                        {user?.username ?? "user@example.com"}
                       </p>
                     </div>
                   </DropdownMenuLabel>
@@ -359,7 +350,7 @@ export default function GuardedLayout({
                         {user ? user.name : "Unknown"}
                       </p>
                       <p className="text-muted-foreground truncate text-xs">
-                        {user?.username || "user@example.com"}
+                        {user?.username ?? "user@example.com"}
                       </p>
                     </div>
                     <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />

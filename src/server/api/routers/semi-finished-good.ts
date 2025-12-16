@@ -105,7 +105,7 @@ export const semiFinishedGoodRouter = createTRPCRouter({
     semiFinishedGoodsWithDetails.forEach((sfg) => {
       sfg.SemiFinishedGoodDetail.forEach((detail) => {
         rawMaterialUsage[detail.rawMaterialId] =
-          (rawMaterialUsage[detail.rawMaterialId] || 0) + 1;
+          (rawMaterialUsage[detail.rawMaterialId] ?? 0) + 1;
       });
     });
 
@@ -145,6 +145,54 @@ export const semiFinishedGoodRouter = createTRPCRouter({
       },
     });
   }),
+
+  getQRData: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const item = await ctx.db.semiFinishedGood.findUnique({
+        where: { id: input.id },
+        include: {
+          user: true,
+          SemiFinishedGoodDetail: {
+            include: {
+              rawMaterial: true,
+            },
+          },
+        },
+      });
+
+      if (!item) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Barang setengah jadi tidak ditemukan",
+        });
+      }
+
+      const qrData = {
+        id: item.id,
+        name: item.name,
+        qty: item.qty,
+        type: "SEMI_FINISHED_GOOD",
+        createdAt: item.createdAt.toISOString(),
+        userId: item.userId,
+      };
+
+      // const baseUrl =
+      //   process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+      //     ? `https://${process.env.VERCEL_URL}`
+      //     : "http://localhost:3000";
+
+      const baseUrl = "http://localhost:3000"; // FOR DEV ONLY
+
+      const previewLink = `${baseUrl}/qr/semi-finished/${item.id}`;
+
+      return {
+        item,
+        // qrValue: JSON.stringify(qrData),
+        qrValue: previewLink,
+        previewLink,
+      };
+    }),
 
   getCount: protectedProcedure.query(({ ctx }) => {
     return ctx.db.semiFinishedGood.count();

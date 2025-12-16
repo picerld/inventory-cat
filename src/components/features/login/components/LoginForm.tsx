@@ -33,7 +33,7 @@ export function LoginForm({
         description: "Mengarahkan ke halaman dashboard",
       });
 
-      Cookies.set("auth.token", data.token, {
+      Cookies.set("auth.token", data.token.token, {
         expires: 7,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
