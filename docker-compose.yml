@@ -11,7 +11,7 @@ services:
             POSTGRES_PASSWORD: password
             POSTGRES_DB: t3-cat-inventory
         volumes:
-            - data_postgres:/var/lib/postgresql/18/docker
+            - data_postgres:/var/utils/postgresql/18/docker
 
 volumes:
     data_postgres:

@@ -9,7 +9,7 @@ import {
 } from "~/components/ui/dialog";
 import type { SemiFinishedGood } from "~/types/semi-finished-good";
 import { Badge } from "~/components/ui/badge";
-import { formatPrice, toRupiah } from "~/lib/utils";
+import { toRupiah } from "~/lib/utils";
 import { Package, User, Calendar, Hash } from "lucide-react";
 
 type SemiFinishedGoodDetailsDialogProps = {
@@ -47,7 +47,7 @@ export function SemiFinishedGoodDetailsDialog({
             </h3>
 
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-              <div className="flex gap-3 border border-dashed p-6 rounded-lg items-center">
+              <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
                 <Package className="mt-0.5 h-5 w-5" />
                 <div>
                   <p className="text-muted-foreground text-sm">Nama Barang</p>
@@ -55,7 +55,7 @@ export function SemiFinishedGoodDetailsDialog({
                 </div>
               </div>
 
-              <div className="flex gap-3 border border-dashed p-6 rounded-lg items-center">
+              <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
                 <User className="mt-0.5 h-5 w-5" />
                 <div>
                   <p className="text-muted-foreground text-sm">Dibuat Oleh</p>
@@ -63,7 +63,7 @@ export function SemiFinishedGoodDetailsDialog({
                 </div>
               </div>
 
-              <div className="flex gap-3 border border-dashed p-6 rounded-lg items-center">
+              <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
                 <Calendar className="mt-0.5 h-5 w-5" />
                 <div>
                   <p className="text-muted-foreground text-sm">
@@ -82,7 +82,7 @@ export function SemiFinishedGoodDetailsDialog({
                 </div>
               </div>
 
-              <div className="flex gap-3 border border-dashed p-6 rounded-lg items-center">
+              <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
                 <Hash className="mt-0.5 h-5 w-5" />
                 <div>
                   <p className="text-muted-foreground text-sm">
@@ -160,7 +160,8 @@ export function SemiFinishedGoodDetailsDialog({
                 <p className="text-xl font-bold">
                   {toRupiah(
                     details.reduce(
-                      (sum, detail) => sum + detail.rawMaterial.sellingPrice,
+                      (sum, detail) =>
+                        sum + detail.rawMaterial.sellingPrice * detail.qty,
                       0,
                     ),
                   )}

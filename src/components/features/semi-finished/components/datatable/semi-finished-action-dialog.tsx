@@ -12,10 +12,9 @@ import {
   FieldLabel,
 } from "~/components/ui/field";
 import { IsRequired } from "~/components/ui/is-required";
-import { Info, Loader, X } from "lucide-react";
+import { Loader, Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { SemiFinishedGood } from "~/types/semi-finished-good";
-import Cookies from "js-cookie";
 import {
   Sheet,
   SheetClose,
@@ -38,11 +37,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "~/components/ui/popover";
-import { Check } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { semiFinishedGoodFormSchema } from "~/components/features/semi-finished/form/semi-finished";
 import type { RawMaterial } from "~/types/raw-material";
-import { MaterialQtyDialog } from "../create/MaterialQtyDialog";
 import { MaterialQtyCard } from "../create/MaterialQtyCard";
 import {
   AlertDialog,
@@ -74,13 +71,6 @@ export function SemiFinishedGoodsActionDialog({
     null,
   );
   const [openCombobox, setOpenCombobox] = useState(false);
-
-  const [qtyNotification, setQtyNotification] = useState<{
-    name: string;
-    oldQty: number;
-    newQty: number;
-    material: RawMaterial;
-  } | null>(null);
 
   const { data: user } = trpc.auth.authMe.useQuery();
 
@@ -165,12 +155,6 @@ export function SemiFinishedGoodsActionDialog({
       form.reset();
     }
   }, [isEdit, currentRow]);
-
-  useEffect(() => {
-    if (!qtyNotification) return;
-    const timer = setTimeout(() => setQtyNotification(null), 1200);
-    return () => clearTimeout(timer);
-  }, [qtyNotification]);
 
   useEffect(() => {
     if (user?.id) {
@@ -325,14 +309,6 @@ export function SemiFinishedGoodsActionDialog({
                     );
 
                     field.handleChange(newMaterials);
-
-                    setQtyNotification({
-                      name: material.name,
-                      oldQty,
-                      newQty: qty,
-                      // @ts-expect-error type
-                      material,
-                    });
                   };
 
                   return (
@@ -462,10 +438,6 @@ export function SemiFinishedGoodsActionDialog({
               </Field>
             </SheetFooter>
           </form>
-
-          {qtyNotification && (
-            <MaterialQtyDialog qtyNotification={qtyNotification} />
-          )}
         </SheetContent>
       </Sheet>
 

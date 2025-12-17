@@ -49,9 +49,7 @@ export function AccessoriesActionDialog({
   const isEdit = !!currentRow;
   const utils = trpc.useUtils();
 
-  const { data: user } = trpc.auth.authMe.useQuery({
-    token: Cookies.get("auth.token") as string,
-  });
+  const { data: user } = trpc.auth.authMe.useQuery();
 
   const { data: suppliers } = trpc.supplier.getAll.useQuery();
 

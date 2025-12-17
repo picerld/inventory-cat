@@ -126,7 +126,7 @@ export function GlobalSearch() {
               </div>
             ) : (
               <CommandItem key={item.name} asChild>
-                <Link href={item.href} className="cursor-pointer">
+                <Link href={item.href} className="cursor-pointer mx-2 first:mt-1">
                   {ParentIcon && <ParentIcon className="mr-2 h-4 w-4" />}
                   {item.name}
                 </Link>

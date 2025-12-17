@@ -11,8 +11,6 @@ datasource db {
     directUrl = env("DIRECT_URL")
 }
 
-// CATEGORY USER [PT, PERSONAL]
-
 enum ItemType {
     RAW_MATERIAL
     SEMI_FINISHED_GOOD
