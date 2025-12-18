@@ -36,7 +36,7 @@ type QRPageProps = {
 export default function SemiFinishedGoodQrPage({ item }: QRPageProps) {
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL
-      ? `https://${process.env.NEXT_PUBLIC_APP_URL}`
+      ? `${process.env.NEXT_PUBLIC_APP_URL}`
       : "http://localhost:3000";
 
   const qrRef = useRef<HTMLDivElement>(null);
