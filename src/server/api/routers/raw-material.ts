@@ -99,12 +99,11 @@ export const rawMaterialRouter = createTRPCRouter({
       select: {
         qty: true,
         supplierPrice: true,
-        sellingPrice: true,
       },
     });
 
     const totalPotentialProfit = rawMaterialsWithProfit.reduce(
-      (sum, item) => sum + item.qty * (item.sellingPrice - item.supplierPrice),
+      (sum, item) => sum + item.qty * (item.supplierPrice - item.supplierPrice),
       0,
     );
 
@@ -116,7 +115,7 @@ export const rawMaterialRouter = createTRPCRouter({
 
     const avgSellingPrice = await ctx.db.rawMaterial.aggregate({
       _avg: {
-        sellingPrice: true,
+        supplierPrice: true,
       },
     });
 
@@ -148,7 +147,7 @@ export const rawMaterialRouter = createTRPCRouter({
       totalInventoryValue: Math.round(totalInventoryValue),
       totalPotentialProfit: Math.round(totalPotentialProfit),
       avgSupplierPrice: Math.round(avgSupplierPrice._avg.supplierPrice ?? 0),
-      avgSellingPrice: Math.round(avgSellingPrice._avg.sellingPrice ?? 0),
+      avgSellingPrice: Math.round(avgSellingPrice._avg.supplierPrice ?? 0),
       uniqueSuppliers: supplierCount.length,
     };
   }),
@@ -177,14 +176,12 @@ export const rawMaterialRouter = createTRPCRouter({
     .mutation(({ ctx, input }) => {
       return ctx.db.rawMaterial.create({
         data: {
-          paintGradeId: input.paintGradeId,
           supplierId: input.supplierId,
           userId: input.userId,
           name: input.name,
           qty: input.qty,
           materialType: input.materialType,
           supplierPrice: input.supplierPrice,
-          sellingPrice: input.sellingPrice,
         },
       });
     }),
@@ -225,14 +222,12 @@ export const rawMaterialRouter = createTRPCRouter({
       return ctx.db.rawMaterial.update({
         where: { id: input.id },
         data: {
-          paintGradeId: input.paintGradeId,
           supplierId: input.supplierId,
           userId: input.userId,
           name: input.name,
           qty: input.qty,
           materialType: input.materialType,
           supplierPrice: input.supplierPrice,
-          sellingPrice: input.sellingPrice,
         },
       });
     }),

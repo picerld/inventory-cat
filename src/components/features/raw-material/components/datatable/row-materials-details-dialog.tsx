@@ -70,9 +70,8 @@ export function RawMaterialsDetailsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle className="flex justify-between pt-5 text-2xl font-bold">
+          <DialogTitle className="pt-5 text-2xl font-bold">
             Bahan Baku ({currentRow.qty} kaleng)
-            <Badge>Grade {currentRow.paintGrade.name}</Badge>
           </DialogTitle>
           <DialogDescription className="text-base">
             Informasi lengkap tentang bahan baku "{currentRow.name}"

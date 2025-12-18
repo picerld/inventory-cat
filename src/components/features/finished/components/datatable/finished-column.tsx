@@ -35,7 +35,7 @@ export const finishedGoodsColumns: ColumnDef<FinishedGood>[] = [
     enableSorting: false,
   },
   {
-    accessorKey: "quality",
+    accessorKey: "paintGradeId",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Kualitas" />
     ),
@@ -43,7 +43,7 @@ export const finishedGoodsColumns: ColumnDef<FinishedGood>[] = [
       return (
         <div className="flex items-center gap-2 ps-2">
           <Badge variant="success" className="text-xs">
-            {row.original.quality ?? "-"}
+            {row.original.paintGrade.name ?? "-"}
           </Badge>
         </div>
       );

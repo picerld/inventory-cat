@@ -36,6 +36,12 @@ export const semiFinishedGoodRouter = createTRPCRouter({
         where,
         include: {
           user: true,
+          paintGrade: {
+            select: {
+              id: true,
+              name: true,
+            }
+          },
           SemiFinishedGoodDetail: {
             include: {
               rawMaterial: true,
@@ -137,6 +143,12 @@ export const semiFinishedGoodRouter = createTRPCRouter({
   getAll: protectedProcedure.query(({ ctx }) => {
     return ctx.db.semiFinishedGood.findMany({
       include: {
+        paintGrade: {
+          select: {
+            id: true,
+            name: true,
+          }
+        },
         SemiFinishedGoodDetail: {
           include: {
             rawMaterial: true,
@@ -153,6 +165,12 @@ export const semiFinishedGoodRouter = createTRPCRouter({
         where: { id: input.id },
         include: {
           user: true,
+          paintGrade: {
+            select: {
+              id: true,
+              name: true,
+            }
+          },
           SemiFinishedGoodDetail: {
             include: {
               rawMaterial: true,
@@ -203,6 +221,12 @@ export const semiFinishedGoodRouter = createTRPCRouter({
         where: { id: input.id },
         include: {
           user: true,
+          paintGrade: {
+            select: {
+              id: true,
+              name: true,
+            }
+          },
           SemiFinishedGoodDetail: {
             include: {
               rawMaterial: true,
@@ -221,6 +245,7 @@ export const semiFinishedGoodRouter = createTRPCRouter({
             userId: input.userId,
             name: input.name,
             qty: input.qty,
+            paintGradeId: input.paintGradeId,
             SemiFinishedGoodDetail: {
               create: input.materials.map((material) => ({
                 rawMaterialId: material.rawMaterialId,
@@ -230,6 +255,12 @@ export const semiFinishedGoodRouter = createTRPCRouter({
           },
           include: {
             user: true,
+            paintGrade: {
+              select: {
+                id: true,
+                name: true,
+              }
+            },
             SemiFinishedGoodDetail: {
               include: {
                 rawMaterial: true,
@@ -310,6 +341,7 @@ export const semiFinishedGoodRouter = createTRPCRouter({
         data: {
           userId: input.userId,
           name: input.name,
+          paintGradeId: input.paintGradeId,
           SemiFinishedGoodDetail: {
             create: input.materials.map((material) => ({
               rawMaterialId: material.rawMaterialId,
@@ -319,6 +351,12 @@ export const semiFinishedGoodRouter = createTRPCRouter({
         },
         include: {
           user: true,
+          paintGrade: {
+            select: {
+              id: true,
+              name: true,
+            }
+          },
           SemiFinishedGoodDetail: {
             include: {
               rawMaterial: true,

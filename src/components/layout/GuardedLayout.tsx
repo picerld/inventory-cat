@@ -192,7 +192,7 @@ export default function GuardedLayout({
 
               <ModeToggle />
 
-              <DropdownMenu>
+              {/* <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
@@ -269,7 +269,7 @@ export default function GuardedLayout({
                     View all notifications
                   </DropdownMenuItem>
                 </DropdownMenuContent>
-              </DropdownMenu>
+              </DropdownMenu> */}
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -295,7 +295,7 @@ export default function GuardedLayout({
                         {user ? user.name : "Unknown"}
                       </p>
                       <p className="text-muted-foreground text-xs leading-none">
-                        {user?.username ?? "user@example.com"}
+                        {user?.username ?? "unknown"}
                       </p>
                     </div>
                   </DropdownMenuLabel>

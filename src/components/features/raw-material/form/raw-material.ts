@@ -6,9 +6,6 @@ export const rawMaterialFormSchema = z.object({
     message: "Supplier harus dipilih!",
   }).min(1, "Supplier harus dipilih!"),
   userId: z.string(),
-  paintGradeId: z.string({
-    message: "Grade harus dipilih!",
-  }),
   name: z
     .string({
       message: "Nama Bahan Baku harus diisi!",
@@ -24,9 +21,6 @@ export const rawMaterialFormSchema = z.object({
   supplierPrice: z.number({
     message: "Harga dari supplier harus diisi!",
   }).min(1, "Harga dari supplier tidak boleh nol!"),
-  sellingPrice: z.number({
-    message: "Harga jual harus diisi!",
-  }).min(1, "Harga jual tidak boleh nol!"),
 });
 
 export type RawMaterialFormSchema = z.infer<typeof rawMaterialFormSchema>;

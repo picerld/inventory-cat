@@ -3,6 +3,9 @@ import z from "zod";
 export const semiFinishedGoodFormSchema = z.object({
   id: z.string().optional(),
   userId: z.string(),
+  paintGradeId: z.string({
+    message: "Grade harus dipilih!",
+  }).min(1, "Grade harus dipilih!"),
   name: z
     .string({
       message: "Nama Barang Setengah Jadi harus diisi!",

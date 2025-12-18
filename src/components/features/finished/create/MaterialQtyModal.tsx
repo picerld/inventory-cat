@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import type { RawMaterial } from "~/types/raw-material";
 import { Button } from "~/components/ui/button";
-import { Badge } from "~/components/ui/badge";
 import { toast } from "sonner";
 
 type MaterialQtyModalProps = {
@@ -99,7 +98,6 @@ export const MaterialQtyModal = ({
                   <p className="text-muted-foreground mt-1 text-sm">
                     {material.supplier.name}
                   </p>
-                  <Badge variant={"success"}>{material.paintGrade.name}</Badge>
                 </div>
               </div>
             </div>

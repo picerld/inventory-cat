@@ -63,7 +63,7 @@ export const RawMaterialStatsContainer = () => {
         {
           label: "Rata-rata Stok per Item",
           value: Math.round(
-            (data?.totalQty ?? 0) / (data?.totalRawMaterials || 1),
+            (data?.totalQty ?? 0) / (data?.totalRawMaterials ?? 1),
           ),
         },
         {
@@ -96,7 +96,7 @@ export const RawMaterialStatsContainer = () => {
         },
         {
           label: "Margin Keuntungan",
-          value: `${Math.round(((data?.totalPotentialProfit ?? 0) / (data?.totalInventoryValue || 1)) * 100)}%`,
+          value: `${Math.round(((data?.totalPotentialProfit ?? 0) / (data?.totalInventoryValue ?? 1)) * 100)}%`,
         },
       ],
     },
@@ -123,7 +123,7 @@ export const RawMaterialStatsContainer = () => {
         },
         {
           label: "ROI",
-          value: `${Math.round(((data?.totalPotentialProfit ?? 0) / (data?.totalInventoryValue || 1)) * 100)}%`,
+          value: `${Math.round(((data?.totalPotentialProfit ?? 0) / (data?.totalInventoryValue ?? 1)) * 100)}%`,
         },
       ],
     },
@@ -144,7 +144,7 @@ export const RawMaterialStatsContainer = () => {
         },
         {
           label: "Persentase Stok Menipis",
-          value: `${Math.round(((data?.lowStockCount ?? 0) / (data?.totalRawMaterials || 1)) * 100)}%`,
+          value: `${Math.round(((data?.lowStockCount ?? 0) / (data?.totalRawMaterials ?? 1)) * 100)}%`,
         },
         { label: "Perlu Perhatian", value: data?.lowStockCount ?? 0 },
       ],
@@ -185,7 +185,7 @@ export const RawMaterialStatsContainer = () => {
         { label: "Bulan Ini", value: data?.thisMonthRawMaterials ?? 0 },
         {
           label: "Persentase dari Tahun Ini",
-          value: `${Math.round(((data?.thisMonthRawMaterials ?? 0) / (data?.thisYearRawMaterials || 1)) * 100)}%`,
+          value: `${Math.round(((data?.thisMonthRawMaterials ?? 0) / (data?.thisYearRawMaterials ?? 1)) * 100)}%`,
         },
         {
           label: "Rata-rata Harian",
@@ -209,7 +209,7 @@ export const RawMaterialStatsContainer = () => {
         {
           label: "Rata-rata Item per Supplier",
           value: Math.round(
-            (data?.totalRawMaterials ?? 0) / (data?.uniqueSuppliers || 1),
+            (data?.totalRawMaterials ?? 0) / (data?.uniqueSuppliers ?? 1),
           ),
         },
         { label: "Total Stok", value: data?.totalQty ?? 0 },

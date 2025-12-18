@@ -1,13 +1,6 @@
 "use client";
 
 import { Button } from "~/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { trpc } from "~/utils/trpc";
@@ -24,7 +17,6 @@ import { useEffect } from "react";
 import type { RawMaterial } from "~/types/raw-material";
 import { rawMaterialFormSchema } from "../../form/raw-material";
 import { formatPrice } from "~/lib/utils";
-import Cookies from "js-cookie";
 import {
   Select,
   SelectContent,
@@ -56,12 +48,9 @@ export function RawMaterialsActionDialog({
   const isEdit = !!currentRow;
   const utils = trpc.useUtils();
 
-  const { data: user } = trpc.auth.authMe.useQuery({
-    token: Cookies.get("auth.token") as string,
-  });
+  const { data: user } = trpc.auth.authMe.useQuery();
 
   const { data: suppliers } = trpc.supplier.getAll.useQuery();
-  const { data: grades } = trpc.paintGrade.getAll.useQuery();
 
   const { mutate: createRawMaterial, isPending: isPendingCreate } =
     trpc.rawMaterial.create.useMutation({
@@ -112,13 +101,11 @@ export function RawMaterialsActionDialog({
   const form = useForm({
     defaultValues: {
       userId: user?.id ?? "",
-      paintGradeId: "",
       supplierId: "",
       name: "",
       qty: 0,
       materialType: "",
       supplierPrice: 0,
-      sellingPrice: 0,
     },
     validators: { onSubmit: rawMaterialFormSchema },
     onSubmit: ({ value }) => {
@@ -137,9 +124,7 @@ export function RawMaterialsActionDialog({
       form.setFieldValue("name", currentRow.name);
       form.setFieldValue("qty", currentRow.qty);
       form.setFieldValue("supplierPrice", currentRow.supplierPrice);
-      form.setFieldValue("sellingPrice", currentRow.sellingPrice);
       form.setFieldValue("supplierId", currentRow.supplierId);
-      form.setFieldValue("paintGradeId", currentRow.paintGradeId);
       form.setFieldValue("materialType", currentRow.materialType);
     } else {
       form.reset();
@@ -229,75 +214,39 @@ export function RawMaterialsActionDialog({
               }}
             </form.Field>
 
-            <div className="grid grid-cols-2 gap-5">
-              <form.Field name="supplierId">
-                {(field) => {
-                  const isInvalid =
-                    field.state.meta.isTouched && !field.state.meta.isValid;
+            <form.Field name="supplierId">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
 
-                  return (
-                    <Field>
-                      <FieldLabel className="text-base">
-                        Pilih Supplier <IsRequired />
-                      </FieldLabel>
-                      <Select
-                        value={field.state.value}
-                        onValueChange={field.handleChange}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih supplier" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {suppliers?.map((supplier) => (
-                            <SelectItem key={supplier.id} value={supplier.id}>
-                              {supplier.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                return (
+                  <Field>
+                    <FieldLabel className="text-base">
+                      Pilih Supplier <IsRequired />
+                    </FieldLabel>
+                    <Select
+                      value={field.state.value}
+                      onValueChange={field.handleChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih supplier" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {suppliers?.map((supplier) => (
+                          <SelectItem key={supplier.id} value={supplier.id}>
+                            {supplier.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                      {isInvalid && (
-                        <FieldError errors={field.state.meta.errors} />
-                      )}
-                    </Field>
-                  );
-                }}
-              </form.Field>
-
-              <form.Field name="paintGradeId">
-                {(field) => {
-                  const isInvalid =
-                    field.state.meta.isTouched && !field.state.meta.isValid;
-
-                  return (
-                    <Field>
-                      <FieldLabel className="text-base">
-                        Pilih Grade <IsRequired />
-                      </FieldLabel>
-                      <Select
-                        value={field.state.value}
-                        onValueChange={field.handleChange}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih grade" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {grades?.map((grade) => (
-                            <SelectItem key={grade.id} value={grade.id}>
-                              {grade.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      {isInvalid && (
-                        <FieldError errors={field.state.meta.errors} />
-                      )}
-                    </Field>
-                  );
-                }}
-              </form.Field>
-            </div>
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
+                  </Field>
+                );
+              }}
+            </form.Field>
 
             <form.Field name="qty">
               {(field) => {
@@ -327,91 +276,47 @@ export function RawMaterialsActionDialog({
               }}
             </form.Field>
 
-            <div className="grid grid-cols-2 gap-5">
-              <form.Field name="supplierPrice">
-                {(field) => {
-                  const isInvalid =
-                    field.state.meta.isTouched && !field.state.meta.isValid;
+            <form.Field name="supplierPrice">
+              {(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
 
-                  const raw = field.state.value ?? 0;
-                  const formatted = `Rp${formatPrice(raw)}`;
+                const raw = field.state.value ?? 0;
+                const formatted = `Rp${formatPrice(raw)}`;
 
-                  return (
-                    <Field>
-                      <FieldLabel className="text-base">
-                        Harga Supplier <IsRequired />
-                      </FieldLabel>
+                return (
+                  <Field>
+                    <FieldLabel className="text-base">
+                      Harga Supplier <IsRequired />
+                    </FieldLabel>
 
-                      <Input
-                        placeholder="Rp0"
-                        className="h-12 rounded-xl border-2"
-                        value={formatted}
-                        onChange={(e) => {
-                          let val = e.target.value;
+                    <Input
+                      placeholder="Rp0"
+                      className="h-12 rounded-xl border-2"
+                      value={formatted}
+                      onChange={(e) => {
+                        let val = e.target.value;
 
-                          val = val.replace(/^Rp\s?/, "");
+                        val = val.replace(/^Rp\s?/, "");
 
-                          const numeric = val.replace(/\D/g, "");
+                        const numeric = val.replace(/\D/g, "");
 
-                          field.handleChange(Number(numeric));
-                        }}
-                        onFocus={(e) => {
-                          if (!e.target.value.startsWith("Rp")) {
-                            e.target.value = "Rp" + e.target.value;
-                          }
-                        }}
-                      />
+                        field.handleChange(Number(numeric));
+                      }}
+                      onFocus={(e) => {
+                        if (!e.target.value.startsWith("Rp")) {
+                          e.target.value = "Rp" + e.target.value;
+                        }
+                      }}
+                    />
 
-                      {isInvalid && (
-                        <FieldError errors={field.state.meta.errors} />
-                      )}
-                    </Field>
-                  );
-                }}
-              </form.Field>
-
-              <form.Field name="sellingPrice">
-                {(field) => {
-                  const isInvalid =
-                    field.state.meta.isTouched && !field.state.meta.isValid;
-
-                  const raw = field.state.value ?? 0;
-                  const formatted = `Rp${formatPrice(raw)}`;
-
-                  return (
-                    <Field>
-                      <FieldLabel className="text-base">
-                        Harga Jual <IsRequired />
-                      </FieldLabel>
-
-                      <Input
-                        placeholder="Rp0"
-                        className="h-12 rounded-xl border-2"
-                        value={formatted}
-                        onChange={(e) => {
-                          let val = e.target.value;
-
-                          val = val.replace(/^Rp\s?/, "");
-
-                          const numeric = val.replace(/\D/g, "");
-
-                          field.handleChange(Number(numeric));
-                        }}
-                        onFocus={(e) => {
-                          if (!e.target.value.startsWith("Rp")) {
-                            e.target.value = "Rp" + e.target.value;
-                          }
-                        }}
-                      />
-
-                      {isInvalid && (
-                        <FieldError errors={field.state.meta.errors} />
-                      )}
-                    </Field>
-                  );
-                }}
-              </form.Field>
-            </div>
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
+                  </Field>
+                );
+              }}
+            </form.Field>
           </FieldGroup>
 
           <SheetFooter>

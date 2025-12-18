@@ -1,4 +1,5 @@
 import type { FinishedGoodDetail } from "./finished-good-detail";
+import type { PaintGrade } from "./pain-grade";
 import type { User } from "./user";
 
 export type FinishedGood = {
@@ -9,7 +10,8 @@ export type FinishedGood = {
     name: string;
     qty: number;
     batchNumber: string;
-    quality: string;
+    paintGradeId: string;
+    paintGrade: PaintGrade;
     finishedGoodDetails: FinishedGoodDetail[];
     dateProduced: Date;
     createdAt: Date;

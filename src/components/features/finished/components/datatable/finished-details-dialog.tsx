@@ -67,7 +67,7 @@ export function FinishedGoodDetailsDialog({
                 <Award className="mt-0.5 h-5 w-5" />
                 <div>
                   <p className="text-muted-foreground text-sm">Kualitas</p>
-                  <Badge variant="success">{currentRow.quality}</Badge>
+                  <Badge variant="success">{currentRow.paintGrade.name}</Badge>
                 </div>
               </div>
 
@@ -187,11 +187,11 @@ export function FinishedGoodDetailsDialog({
                         Harga Jual
                       </p>
                       <p className="font-medium">
-                        {toRupiah(detail.rawMaterial.sellingPrice)}
+                        {toRupiah(detail.rawMaterial.supplierPrice)}
                       </p>
                       <p className="text-muted-foreground mt-1 text-xs">
                         Total:{" "}
-                        {toRupiah(detail.rawMaterial.sellingPrice * detail.qty)}
+                        {toRupiah(detail.rawMaterial.supplierPrice * detail.qty)}
                       </p>
                     </div>
                   </div>
@@ -208,14 +208,14 @@ export function FinishedGoodDetailsDialog({
                     Total Nilai Bahan Baku
                   </p>
                   <p className="text-muted-foreground mt-1 text-xs">
-                    (Berdasarkan harga jual)
+                    (Berdasarkan harga supplier)
                   </p>
                 </div>
                 <p className="text-xl font-bold">
                   {toRupiah(
                     details.reduce(
                       (sum, detail) =>
-                        sum + detail.rawMaterial.sellingPrice * detail.qty,
+                        sum + detail.rawMaterial.supplierPrice * detail.qty,
                       0,
                     ),
                   )}

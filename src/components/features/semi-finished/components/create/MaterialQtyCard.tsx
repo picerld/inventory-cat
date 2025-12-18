@@ -76,8 +76,6 @@ export const MaterialQtyCard = ({
               {material.name}
             </div>
             <div className="text-muted-foreground flex items-center gap-2 text-xs">
-              <span className="truncate">{material.paintGrade?.name}</span>
-              <span>•</span>
               <span className="truncate">{material.supplier?.name}</span>
             </div>
             <div className="text-muted-foreground mt-1 text-xs">

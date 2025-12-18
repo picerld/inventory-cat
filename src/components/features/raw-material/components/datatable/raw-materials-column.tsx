@@ -5,8 +5,6 @@ import { DataTableColumnHeader } from "~/components/datatable/data-table-column-
 import { LongText } from "~/components/ui/long-text";
 import { DataTableRowActions } from "./data-table-row-action";
 import type { RawMaterial } from "~/types/raw-material";
-import { toRupiah } from "../../../../../lib/utils";
-import { Badge } from "~/components/ui/badge";
 
 export const rawMaterialsColumns: ColumnDef<RawMaterial>[] = [
   {
@@ -46,7 +44,7 @@ export const rawMaterialsColumns: ColumnDef<RawMaterial>[] = [
       </div>
     ),
     filterFn: (row, columnId, filterValue: string[]) => {
-      return filterValue.includes(row.getValue(columnId) as string);
+      return filterValue.includes(row.getValue(columnId));
     },
     enableSorting: false,
   },
@@ -59,7 +57,7 @@ export const rawMaterialsColumns: ColumnDef<RawMaterial>[] = [
       <div className="w-fit ps-2 text-nowrap">{row.original.materialType}</div>
     ),
     filterFn: (row, columnId, filterValue: string[]) => {
-      return filterValue.includes(row.getValue(columnId) as string);
+      return filterValue.includes(row.getValue(columnId));
     },
     enableSorting: false,
   },

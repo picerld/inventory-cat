@@ -51,6 +51,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 
 type SemiFinishedGoodsActionDialogProps = {
   currentRow?: SemiFinishedGood;
@@ -75,6 +82,7 @@ export function SemiFinishedGoodsActionDialog({
   const { data: user } = trpc.auth.authMe.useQuery();
 
   const { data: rawMaterials } = trpc.rawMaterial.getAll.useQuery();
+  const { data: grades } = trpc.paintGrade.getAll.useQuery();
 
   const { mutate: createSemiFinishedGood, isPending: isPendingCreate } =
     trpc.semiFinishedGood.create.useMutation({
@@ -125,6 +133,7 @@ export function SemiFinishedGoodsActionDialog({
   const form = useForm({
     defaultValues: {
       userId: user?.id ?? "",
+      paintGradeId: "",
       name: "",
       qty: 0,
       materials: [] as { rawMaterialId: string; qty: number }[],
@@ -141,16 +150,16 @@ export function SemiFinishedGoodsActionDialog({
 
   useEffect(() => {
     if (isEdit && currentRow) {
-      form.setFieldValue("name", currentRow.name);
-      form.setFieldValue("qty", currentRow.qty);
-
-      form.setFieldValue(
-        "materials",
+      const materials =
         currentRow.SemiFinishedGoodDetail?.map((detail) => ({
           rawMaterialId: detail.rawMaterialId,
           qty: detail.qty,
-        })) ?? [],
-      );
+        })) ?? [];
+
+      form.setFieldValue("name", currentRow.name);
+      form.setFieldValue("paintGradeId", currentRow.paintGradeId);
+      form.setFieldValue("materials", materials);
+      form.setFieldValue("qty", materials.length);
     } else {
       form.reset();
     }
@@ -161,6 +170,12 @@ export function SemiFinishedGoodsActionDialog({
       form.setFieldValue("userId", user.id);
     }
   }, [user?.id]);
+
+  const syncQtyFromMaterials = (
+    materials: { rawMaterialId: string; qty: number }[],
+  ) => {
+    form.setFieldValue("qty", materials.length);
+  };
 
   const isLoading = isPendingCreate || isPendingUpdate;
 
@@ -229,6 +244,40 @@ export function SemiFinishedGoodsActionDialog({
                 }}
               </form.Field>
 
+              <form.Field name="paintGradeId">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+
+                  return (
+                    <Field>
+                      <FieldLabel className="text-base">
+                        Pilih Kualitas (Grade) <IsRequired />
+                      </FieldLabel>
+                      <Select
+                        value={field.state.value}
+                        onValueChange={field.handleChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih grade" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {grades?.map((grade) => (
+                            <SelectItem key={grade.id} value={grade.id}>
+                              {grade.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+
               <form.Field name="qty">
                 {(field) => {
                   const isInvalid =
@@ -240,6 +289,7 @@ export function SemiFinishedGoodsActionDialog({
                         Kuantiti <IsRequired />
                       </FieldLabel>
                       <Input
+                        readOnly
                         placeholder="0"
                         className="h-12 rounded-xl border-2"
                         value={field.state.value}
@@ -252,6 +302,10 @@ export function SemiFinishedGoodsActionDialog({
                       {isInvalid && (
                         <FieldError errors={field.state.meta.errors} />
                       )}
+
+                      <p className="text-muted-foreground text-sm">
+                        Kuantiti otomatis dihitung dari jumlah bahan baku.
+                      </p>
                     </Field>
                   );
                 }}
@@ -266,18 +320,23 @@ export function SemiFinishedGoodsActionDialog({
                       materials.find((m) => m.rawMaterialId === rawMaterialId)
                     )
                       return;
-                    field.handleChange([
+
+                    const newMaterials = [
                       ...materials,
                       { rawMaterialId, qty: 1 },
-                    ]);
+                    ];
+
+                    field.handleChange(newMaterials);
+                    syncQtyFromMaterials(newMaterials);
                   };
 
                   const removeMaterial = (rawMaterialId: string) => {
-                    field.handleChange(
-                      materials.filter(
-                        (m) => m.rawMaterialId !== rawMaterialId,
-                      ),
+                    const newMaterials = materials.filter(
+                      (m) => m.rawMaterialId !== rawMaterialId,
                     );
+
+                    field.handleChange(newMaterials);
+                    syncQtyFromMaterials(newMaterials);
                   };
 
                   const updateQty = (rawMaterialId: string, qty: number) => {
@@ -365,7 +424,6 @@ export function SemiFinishedGoodsActionDialog({
                                           )}
                                         />
                                         {material.name} (
-                                        {material.paintGrade.name}) (
                                         {material.supplier.name})
                                       </CommandItem>
                                     );

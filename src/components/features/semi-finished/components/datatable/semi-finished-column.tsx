@@ -50,6 +50,21 @@ export const semiFinishedGoodsColumns: ColumnDef<SemiFinishedGood>[] = [
     },
   },
   {
+    accessorKey: "qty",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Kuantiti" />
+    ),
+    cell: ({ row }) => (
+      <LongText className="ps-3">{row.getValue("qty")}</LongText>
+    ),
+    meta: {
+      className: cn(
+        "drop-shadow-[0_1px_2px_rgb(0_0_0_/_0.1)] dark:drop-shadow-[0_1px_2px_rgb(255_255_255_/_0.1)]",
+        "ps-0.5 max-md:sticky start-6 @4xl/content:table-cell @4xl/content:drop-shadow-none",
+      ),
+    },
+  },
+  {
     accessorKey: "materials",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Bahan Baku" />
@@ -85,7 +100,7 @@ export const semiFinishedGoodsColumns: ColumnDef<SemiFinishedGood>[] = [
       </div>
     ),
     filterFn: (row, columnId, filterValue: string[]) => {
-      return filterValue.includes(row.getValue(columnId) as string);
+      return filterValue.includes(row.getValue(columnId));
     },
     enableSorting: false,
   },

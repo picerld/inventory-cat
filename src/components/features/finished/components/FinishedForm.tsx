@@ -12,9 +12,15 @@ import {
   FieldLabel,
 } from "~/components/ui/field";
 import { IsRequired } from "~/components/ui/is-required";
-import { CalendarIcon, Loader, Wand } from "lucide-react";
+import {
+  CalendarIcon,
+  Loader,
+  Wand,
+  Check,
+  Package,
+  Layers,
+} from "lucide-react";
 import { useEffect, useState } from "react";
-import Cookies from "js-cookie";
 import {
   Command,
   CommandEmpty,
@@ -28,9 +34,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "~/components/ui/popover";
-import { Check } from "lucide-react";
 import { cn, generateRandomCode } from "~/lib/utils";
 import type { RawMaterial } from "~/types/raw-material";
+import type { SemiFinishedGood } from "~/types/semi-finished-good";
 import type { FinishedGood } from "~/types/finished-good";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -38,6 +44,15 @@ import { Calendar } from "~/components/ui/calendar";
 import { finishedGoodFormSchema } from "../form/finished-good";
 import { MaterialQtyCard } from "../create/MaterialQtyCard";
 import { MaterialQtyModal } from "../create/MaterialQtyModal";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
+import { SemiFinishedQtyCard } from "../create/SemiFinishedQtyCard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 
 type FinishedFormProps = {
   mode: "create" | "edit";
@@ -54,19 +69,16 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
   const [date] = useState<Date | undefined>(new Date(2025, 5, 12));
 
   const [openCombobox, setOpenCombobox] = useState(false);
-
-  // Changed from qtyNotification to qtyModalOpen
   const [qtyModalOpen, setQtyModalOpen] = useState<{
     material: RawMaterial;
     currentQty: number;
     rawMaterialId: string;
   } | null>(null);
 
-  const { data: user } = trpc.auth.authMe.useQuery({
-    token: Cookies.get("auth.token") as string,
-  });
-
+  const { data: user } = trpc.auth.authMe.useQuery();
   const { data: rawMaterials } = trpc.rawMaterial.getAll.useQuery();
+  const { data: semiFinishedGoods } = trpc.semiFinishedGood.getAll.useQuery();
+  const { data: grades } = trpc.paintGrade.getAll.useQuery();
 
   const { mutate: createFinishedGood, isPending: isPendingCreate } =
     trpc.finishedGood.create.useMutation({
@@ -99,8 +111,6 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
 
         utils.finishedGood.getPaginated.invalidate();
         utils.finishedGood.getStats.invalidate();
-
-        form.reset();
       },
       onError: (error) => {
         toast.error("Gagal!!", {
@@ -115,13 +125,15 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
   const form = useForm({
     defaultValues: {
       userId: user?.id ?? "",
+      paintGradeId: "",
       name: "",
       qty: 0,
       productionCode: "",
       batchNumber: "",
-      quality: "",
       dateProduced: new Date(),
+      sourceType: "raw_material" as "raw_material" | "semi_finished",
       materials: [] as { rawMaterialId: string; qty: number }[],
+      semiFinishedGoods: [] as { semiFinishedGoodId: string; qty: number }[],
     },
 
     // @ts-expect-error type
@@ -142,27 +154,42 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
       form.setFieldValue("batchNumber", initialData.batchNumber);
       form.setFieldValue("name", initialData.name);
       form.setFieldValue("qty", initialData.qty);
-      form.setFieldValue("quality", initialData.quality);
+      form.setFieldValue("paintGradeId", initialData.paintGradeId);
       form.setFieldValue("dateProduced", new Date(initialData.dateProduced));
       form.setFieldValue(
         "materials",
-        initialData.finishedGoodDetails.map((m) => ({
+        initialData.finishedGoodDetails?.map((m) => ({
           rawMaterialId: m.rawMaterialId,
           qty: m.qty,
-        })),
+        })) || [],
       );
     } else {
       form.reset();
     }
   }, [mode, initialData]);
 
-  // Removed the auto-dismiss useEffect for qtyNotification
-
   useEffect(() => {
     if (user?.id) {
       form.setFieldValue("userId", user.id);
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    const sourceType = form.getFieldValue("sourceType");
+    if (sourceType === "raw_material") {
+      const materials = form.getFieldValue("materials");
+      const totalQty = materials.reduce((sum, m) => sum + m.qty, 0);
+      form.setFieldValue("qty", totalQty);
+    } else if (sourceType === "semi_finished") {
+      const semiFinished = form.getFieldValue("semiFinishedGoods");
+      const totalQty = semiFinished.reduce((sum, sf) => sum + sf.qty, 0);
+      form.setFieldValue("qty", totalQty);
+    }
+  }, [
+    form.getFieldValue("materials"),
+    form.getFieldValue("semiFinishedGoods"),
+    form.getFieldValue("sourceType"),
+  ]);
 
   const isLoading = isPendingCreate || isPendingUpdate;
 
@@ -176,31 +203,8 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
         }}
       >
         <FieldGroup>
-          <form.Field name="name">
-            {(field) => {
-              const isInvalid =
-                field.state.meta.isTouched && !field.state.meta.isValid;
-
-              return (
-                <Field>
-                  <FieldLabel className="text-base">
-                    Nama Barang Jadi <IsRequired />
-                  </FieldLabel>
-                  <Input
-                    placeholder="Cat Duco"
-                    className="h-12 rounded-xl border-2"
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-
-                  {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                </Field>
-              );
-            }}
-          </form.Field>
-
           <div className="grid grid-cols-2 gap-3">
-            <form.Field name="qty">
+            <form.Field name="name">
               {(field) => {
                 const isInvalid =
                   field.state.meta.isTouched && !field.state.meta.isValid;
@@ -208,38 +212,10 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                 return (
                   <Field>
                     <FieldLabel className="text-base">
-                      Kuantiti <IsRequired />
+                      Nama Barang Jadi <IsRequired />
                     </FieldLabel>
                     <Input
-                      placeholder="0"
-                      className="h-12 rounded-xl border-2"
-                      value={field.state.value}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, "");
-                        field.handleChange(Number(value));
-                      }}
-                    />
-
-                    {isInvalid && (
-                      <FieldError errors={field.state.meta.errors} />
-                    )}
-                  </Field>
-                );
-              }}
-            </form.Field>
-
-            <form.Field name="quality">
-              {(field) => {
-                const isInvalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid;
-
-                return (
-                  <Field>
-                    <FieldLabel className="text-base">
-                      Kualitas Barang <IsRequired />
-                    </FieldLabel>
-                    <Input
-                      placeholder="Bagus"
+                      placeholder="Cat Duco"
                       className="h-12 rounded-xl border-2"
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
@@ -252,7 +228,61 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                 );
               }}
             </form.Field>
+
+            <form.Field name="qty">
+              {(field) => {
+                return (
+                  <Field>
+                    <FieldLabel className="text-base">
+                      Kuantiti (Auto) <IsRequired />
+                    </FieldLabel>
+                    <Input
+                      placeholder="0"
+                      className="bg-muted h-12 rounded-xl border-2"
+                      value={field.state.value}
+                      disabled
+                      readOnly
+                    />
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      Otomatis dihitung dari jumlah bahan yang dipilih
+                    </p>
+                  </Field>
+                );
+              }}
+            </form.Field>
           </div>
+
+          <form.Field name="paintGradeId">
+            {(field) => {
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid;
+
+              return (
+                <Field>
+                  <FieldLabel className="text-base">
+                    Pilih Kualitas (Grade) <IsRequired />
+                  </FieldLabel>
+                  <Select
+                    value={field.state.value}
+                    onValueChange={field.handleChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih grade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {grades?.map((grade) => (
+                        <SelectItem key={grade.id} value={grade.id}>
+                          {grade.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                </Field>
+              );
+            }}
+          </form.Field>
 
           <form.Field name="dateProduced">
             {(field) => {
@@ -285,7 +315,7 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                       <Calendar
                         mode="single"
                         selected={field.state.value}
-                        onSelect={(date) => field.handleChange(date as Date)}
+                        onSelect={(date) => field.handleChange(date!)}
                         disabled={(date) =>
                           date > new Date() || date < new Date("1900-01-01")
                         }
@@ -385,138 +415,331 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
             </form.Field>
           </div>
 
-          <form.Field name="materials">
-            {(field) => {
-              const materials = field.state.value;
-
-              const addMaterial = (rawMaterialId: string) => {
-                if (materials.find((m) => m.rawMaterialId === rawMaterialId))
-                  return;
-                field.handleChange([...materials, { rawMaterialId, qty: 1 }]);
-              };
-
-              const removeMaterial = (rawMaterialId: string) => {
-                field.handleChange(
-                  materials.filter((m) => m.rawMaterialId !== rawMaterialId),
-                );
-              };
-
-              // Updated updateQty function - simplified without notification
-              const updateQty = (rawMaterialId: string, qty: number) => {
-                const material = rawMaterials?.find(
-                  (rm) => rm.id === rawMaterialId,
-                );
-                if (!material) return;
-
-                if (qty <= 0) {
-                  toast.error("Jumlah tidak boleh 0!", {
-                    description: "Minimal jumlah bahan baku adalah 1.",
-                  });
-                  return;
-                }
-
-                if (qty > material.qty) {
-                  toast.error("Stok tidak mencukupi!", {
-                    description: `Stok tersedia hanya ${material.qty} unit.`,
-                  });
-                  return;
-                }
-
-                const newMaterials = materials.map((m) =>
-                  m.rawMaterialId === rawMaterialId ? { ...m, qty } : m,
-                );
-
-                field.handleChange(newMaterials);
-              };
-
+          <form.Field name="sourceType">
+            {(sourceTypeField) => {
               return (
-                <Field>
-                  <FieldLabel className="text-base">
-                    Pilih Bahan Baku <IsRequired />
+                <div>
+                  <FieldLabel className="mb-3 text-base">
+                    Sumber Bahan <IsRequired />
                   </FieldLabel>
+                  <Tabs
+                    value={sourceTypeField.state.value}
+                    onValueChange={(value) => {
+                      sourceTypeField.handleChange(
+                        value as "raw_material" | "semi_finished",
+                      );
 
-                  <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="h-auto min-h-12 w-full justify-start rounded-xl border-2"
+                      form.setFieldValue("materials", []);
+                      form.setFieldValue("semiFinishedGoods", []);
+                      form.setFieldValue("qty", 0);
+                    }}
+                  >
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger
+                        value="raw_material"
+                        className="cursor-pointer gap-2"
                       >
-                        {materials.length > 0 ? (
-                          <span>{materials.length} bahan baku dipilih</span>
-                        ) : (
-                          <span className="text-muted-foreground">
-                            Pilih bahan baku...
-                          </span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
+                        <Package className="h-4 w-4" />
+                        Bahan Baku
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="semi_finished"
+                        className="cursor-pointer gap-2"
+                      >
+                        <Layers className="h-4 w-4" />
+                        Barang Setengah Jadi
+                      </TabsTrigger>
+                    </TabsList>
 
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Cari bahan baku..." />
-                        <CommandList>
-                          <CommandEmpty>Tidak ada bahan baku.</CommandEmpty>
-                          <CommandGroup>
-                            {rawMaterials
-                              ?.filter((m) => m.qty > 0)
-                              .map((material) => {
-                                const isSelected = materials.some(
-                                  (m) => m.rawMaterialId === material.id,
-                                );
+                    <TabsContent value="raw_material" className="mt-4">
+                      <form.Field name="materials">
+                        {(field) => {
+                          const materials = field.state.value;
 
-                                return (
-                                  <CommandItem
-                                    key={material.id}
-                                    onSelect={() => addMaterial(material.id)}
+                          const addMaterial = (rawMaterialId: string) => {
+                            const material = rawMaterials?.find(
+                              (rm) => rm.id === rawMaterialId,
+                            );
+                            if (!material) return;
+
+                            if (
+                              materials.find(
+                                (m) => m.rawMaterialId === rawMaterialId,
+                              )
+                            ) {
+                              toast.info("Bahan sudah dipilih!");
+                              return;
+                            }
+
+                            field.handleChange([
+                              ...materials,
+                              { rawMaterialId, qty: 0 },
+                            ]);
+                          };
+
+                          const removeMaterial = (rawMaterialId: string) => {
+                            field.handleChange(
+                              materials.filter(
+                                (m) => m.rawMaterialId !== rawMaterialId,
+                              ),
+                            );
+                          };
+
+                          return (
+                            <Field>
+                              <FieldLabel className="text-base">
+                                Pilih Bahan Baku <IsRequired />
+                              </FieldLabel>
+
+                              <Popover
+                                open={openCombobox}
+                                onOpenChange={setOpenCombobox}
+                              >
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className="h-auto min-h-12 w-full justify-start rounded-xl border-2"
                                   >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        isSelected
-                                          ? "opacity-100"
-                                          : "opacity-0",
-                                      )}
+                                    {materials.length > 0 ? (
+                                      <span>
+                                        {materials.length} bahan baku dipilih
+                                      </span>
+                                    ) : (
+                                      <span className="text-muted-foreground">
+                                        Pilih bahan baku...
+                                      </span>
+                                    )}
+                                  </Button>
+                                </PopoverTrigger>
+
+                                <PopoverContent className="w-full p-0">
+                                  <Command>
+                                    <CommandInput placeholder="Cari bahan baku..." />
+                                    <CommandList>
+                                      <CommandEmpty>
+                                        Tidak ada bahan baku.
+                                      </CommandEmpty>
+                                      <CommandGroup>
+                                        {rawMaterials
+                                          ?.filter((m) => m.qty > 0)
+                                          .map((material) => {
+                                            const isSelected = materials.some(
+                                              (m) =>
+                                                m.rawMaterialId === material.id,
+                                            );
+
+                                            return (
+                                              <CommandItem
+                                                key={material.id}
+                                                onSelect={() =>
+                                                  addMaterial(material.id)
+                                                }
+                                              >
+                                                <Check
+                                                  className={cn(
+                                                    "mr-2 h-4 w-4",
+                                                    isSelected
+                                                      ? "opacity-100"
+                                                      : "opacity-0",
+                                                  )}
+                                                />
+                                                {material.name} (
+                                                {material.supplier.name}) -
+                                                Stok: {material.qty}
+                                              </CommandItem>
+                                            );
+                                          })}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+
+                              <div className="mt-3 space-y-2">
+                                {materials.map((m) => {
+                                  const material = rawMaterials?.find(
+                                    (rm) => rm.id === m.rawMaterialId,
+                                  );
+
+                                  return (
+                                    <MaterialQtyCard
+                                      key={m.rawMaterialId}
+                                      material={material as RawMaterial}
+                                      m={m}
+                                      materials={materials}
+                                      onOpenModal={() => {
+                                        setQtyModalOpen({
+                                          material: material as RawMaterial,
+                                          currentQty: m.qty,
+                                          rawMaterialId: m.rawMaterialId,
+                                        });
+                                      }}
+                                      removeMaterial={removeMaterial}
                                     />
-                                    {material.name} ({material.paintGrade.name})
-                                    ({material.supplier.name})
-                                  </CommandItem>
-                                );
-                              })}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                                  );
+                                })}
+                              </div>
 
-                  <div className="mt-3 space-y-2">
-                    {materials.map((m) => {
-                      const material = rawMaterials?.find(
-                        (rm) => rm.id === m.rawMaterialId,
-                      );
+                              {field.state.meta.isTouched &&
+                                !field.state.meta.isValid && (
+                                  <FieldError
+                                    errors={field.state.meta.errors}
+                                  />
+                                )}
+                            </Field>
+                          );
+                        }}
+                      </form.Field>
+                    </TabsContent>
 
-                      return (
-                        <MaterialQtyCard
-                          key={m.rawMaterialId}
-                          material={material as RawMaterial}
-                          m={m}
-                          materials={materials}
-                          onOpenModal={() => {
-                            setQtyModalOpen({
-                              material: material as RawMaterial,
-                              currentQty: m.qty,
-                              rawMaterialId: m.rawMaterialId,
-                            });
-                          }}
-                          removeMaterial={removeMaterial}
-                        />
-                      );
-                    })}
-                  </div>
+                    <TabsContent value="semi_finished" className="mt-4">
+                      <form.Field name="semiFinishedGoods">
+                        {(field) => {
+                          const semiFinished = field.state.value;
 
-                  {field.state.meta.isTouched && !field.state.meta.isValid && (
-                    <FieldError errors={field.state.meta.errors} />
-                  )}
-                </Field>
+                          const addSemiFinished = (
+                            semiFinishedGoodId: string,
+                          ) => {
+                            const sfg = semiFinishedGoods?.find(
+                              (sf) => sf.id === semiFinishedGoodId,
+                            );
+                            if (!sfg) return;
+
+                            if (
+                              semiFinished.find(
+                                (sf) =>
+                                  sf.semiFinishedGoodId === semiFinishedGoodId,
+                              )
+                            ) {
+                              toast.info("Barang sudah dipilih!");
+                              return;
+                            }
+
+                            field.handleChange([
+                              ...semiFinished,
+                              { semiFinishedGoodId, qty: sfg.qty },
+                            ]);
+                          };
+
+                          const removeSemiFinished = (
+                            semiFinishedGoodId: string,
+                          ) => {
+                            field.handleChange(
+                              semiFinished.filter(
+                                (sf) =>
+                                  sf.semiFinishedGoodId !== semiFinishedGoodId,
+                              ),
+                            );
+                          };
+
+                          return (
+                            <Field>
+                              <FieldLabel className="text-base">
+                                Pilih Barang Setengah Jadi <IsRequired />
+                              </FieldLabel>
+
+                              <Popover
+                                open={openCombobox}
+                                onOpenChange={setOpenCombobox}
+                              >
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className="h-auto min-h-12 w-full justify-start rounded-xl border-2"
+                                  >
+                                    {semiFinished.length > 0 ? (
+                                      <span>
+                                        {semiFinished.length} barang setengah
+                                        jadi dipilih
+                                      </span>
+                                    ) : (
+                                      <span className="text-muted-foreground">
+                                        Pilih barang setengah jadi...
+                                      </span>
+                                    )}
+                                  </Button>
+                                </PopoverTrigger>
+
+                                <PopoverContent className="w-full p-0">
+                                  <Command>
+                                    <CommandInput placeholder="Cari barang setengah jadi..." />
+                                    <CommandList>
+                                      <CommandEmpty>
+                                        Tidak ada barang setengah jadi.
+                                      </CommandEmpty>
+                                      <CommandGroup>
+                                        {semiFinishedGoods
+                                          ?.filter((sf) => sf.qty > 0)
+                                          .map((sfg) => {
+                                            const isSelected =
+                                              semiFinished.some(
+                                                (sf) =>
+                                                  sf.semiFinishedGoodId ===
+                                                  sfg.id,
+                                              );
+
+                                            return (
+                                              <CommandItem
+                                                key={sfg.id}
+                                                onSelect={() =>
+                                                  addSemiFinished(sfg.id)
+                                                }
+                                              >
+                                                <Check
+                                                  className={cn(
+                                                    "mr-2 h-4 w-4",
+                                                    isSelected
+                                                      ? "opacity-100"
+                                                      : "opacity-0",
+                                                  )}
+                                                />
+                                                {sfg.name} (
+                                                {sfg.paintGrade?.name}) - Stok:{" "}
+                                                {sfg.qty}
+                                              </CommandItem>
+                                            );
+                                          })}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+
+                              <div className="mt-3 space-y-2">
+                                {semiFinished.map((sf) => {
+                                  const sfg = semiFinishedGoods?.find(
+                                    (s) => s.id === sf.semiFinishedGoodId,
+                                  );
+
+                                  return (
+                                    <SemiFinishedQtyCard
+                                      key={sf.semiFinishedGoodId}
+                                      semiFinished={sfg as SemiFinishedGood}
+                                      qty={sf.qty}
+                                      onRemove={removeSemiFinished}
+                                    />
+                                  );
+                                })}
+                              </div>
+
+                              {field.state.meta.isTouched &&
+                                !field.state.meta.isValid && (
+                                  <FieldError
+                                    errors={field.state.meta.errors}
+                                  />
+                                )}
+                            </Field>
+                          );
+                        }}
+                      </form.Field>
+                    </TabsContent>
+                  </Tabs>
+
+                  {sourceTypeField.state.meta.isTouched &&
+                    !sourceTypeField.state.meta.isValid && (
+                      <FieldError errors={sourceTypeField.state.meta.errors} />
+                    )}
+                </div>
               );
             }}
           </form.Field>

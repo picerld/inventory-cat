@@ -6,9 +6,9 @@ generator client {
 }
 
 datasource db {
-    provider  = "postgresql"
-    url       = env("DATABASE_URL")
-    directUrl = env("DIRECT_URL")
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+    // directUrl = env("DIRECT_URL")
 }
 
 enum ItemType {
@@ -18,13 +18,20 @@ enum ItemType {
     PAINT_ACCESSORIES
 }
 
+enum SourceType {
+    RAW_MATERIAL
+    SEMI_FINISHED
+}
+
 model PaintGrade {
-    id           String        @id @default(uuid())
-    name         String
-    description  String?
-    createdAt    DateTime      @default(now())
-    updatedAt    DateTime      @updatedAt
-    rawMaterials RawMaterial[]
+    id                String             @id @default(uuid())
+    name              String
+    description       String?
+    createdAt         DateTime           @default(now())
+    updatedAt         DateTime           @updatedAt
+    rawMaterials      RawMaterial[]
+    semiFinishedGoods SemiFinishedGood[]
+    finishedGoods     FinishedGood[]
 }
 
 model Supplier {
@@ -34,7 +41,7 @@ model Supplier {
     createdAt        DateTime           @default(now())
     updatedAt        DateTime           @updatedAt
     RawMaterial      RawMaterial[]
-    PaintAccessories PaintAccessories[]
+    paintAccessories PaintAccessories[]
 }
 
 model User {
@@ -59,17 +66,16 @@ model RawMaterial {
     supplier               Supplier                 @relation(fields: [supplierId], references: [id])
     userId                 String
     user                   User                     @relation(fields: [userId], references: [id])
-    paintGradeId           String
-    paintGrade             PaintGrade               @relation(fields: [paintGradeId], references: [id])
     name                   String
     qty                    Int
     materialType           String // LEM, THINNER, DLL
     supplierPrice          Float
-    sellingPrice           Float
     createdAt              DateTime                 @default(now())
     updatedAt              DateTime                 @updatedAt
     SemiFinishedGoodDetail SemiFinishedGoodDetail[]
     finishedGoodDetails    FinishedGoodDetail[]
+    paintGrade             PaintGrade?              @relation(fields: [paintGradeId], references: [id])
+    paintGradeId           String?
 }
 
 model SemiFinishedGood {
@@ -78,7 +84,10 @@ model SemiFinishedGood {
     user                   User                     @relation(fields: [userId], references: [id])
     name                   String
     qty                    Int
+    paintGradeId           String
+    paintGrade             PaintGrade               @relation(fields: [paintGradeId], references: [id])
     SemiFinishedGoodDetail SemiFinishedGoodDetail[]
+    finishedGoodDetails    FinishedGoodDetail[]
     createdAt              DateTime                 @default(now())
     updatedAt              DateTime                 @updatedAt
 }
@@ -97,28 +106,32 @@ model SemiFinishedGoodDetail {
 model FinishedGood {
     id                  String               @id @default(uuid())
     productionCode      String               @unique
-    userId              String
-    user                User                 @relation(fields: [userId], references: [id])
     name                String
     qty                 Int
     batchNumber         String
-    quality             String // BAGUS, ETC
+    sourceType          SourceType           @default(RAW_MATERIAL)
     dateProduced        DateTime             @default(now())
-    createdAt           DateTime             @default(now())
-    updatedAt           DateTime             @updatedAt
+    userId              String
+    user                User                 @relation(fields: [userId], references: [id])
+    paintGradeId        String
+    paintGrade          PaintGrade           @relation(fields: [paintGradeId], references: [id])
     finishedGoodDetails FinishedGoodDetail[]
     returnedItems       ReturnedItem[]
+    createdAt           DateTime             @default(now())
+    updatedAt           DateTime             @updatedAt
 }
 
 model FinishedGoodDetail {
-    id             String       @id @default(uuid())
-    finishedGoodId String
-    finishedGood   FinishedGood @relation(fields: [finishedGoodId], references: [id])
-    rawMaterialId  String
-    rawMaterial    RawMaterial  @relation(fields: [rawMaterialId], references: [id])
-    qty            Int
-    createdAt      DateTime
-    updatedAt      DateTime
+    id                 String            @id @default(uuid())
+    finishedGoodId     String
+    finishedGood       FinishedGood      @relation(fields: [finishedGoodId], references: [id])
+    rawMaterialId      String
+    rawMaterial        RawMaterial       @relation(fields: [rawMaterialId], references: [id])
+    qty                Int
+    createdAt          DateTime          @default(now())
+    updatedAt          DateTime          @updatedAt
+    semiFinishedGood   SemiFinishedGood? @relation(fields: [semiFinishedGoodId], references: [id])
+    semiFinishedGoodId String?
 }
 
 model PaintAccessories {

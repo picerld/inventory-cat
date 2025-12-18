@@ -1,5 +1,5 @@
 import type { RawMaterial } from "~/types/raw-material";
-import { X, Edit3 } from "lucide-react";
+import { X, Edit3, Lock } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -13,8 +13,9 @@ type MaterialQtyCardProps = {
   material: RawMaterial;
   m: { rawMaterialId: string; qty: number };
   materials: { rawMaterialId: string; qty: number }[];
-  onOpenModal: () => void;
+  onOpenModal?: () => void;
   removeMaterial: (id: string) => void;
+  readOnly?: boolean; // For when qty is auto-set from source
 };
 
 export const MaterialQtyCard = ({
@@ -22,6 +23,7 @@ export const MaterialQtyCard = ({
   m,
   onOpenModal,
   removeMaterial,
+  readOnly = false,
 }: MaterialQtyCardProps) => {
   if (!material) return null;
 
@@ -37,7 +39,7 @@ export const MaterialQtyCard = ({
               {material.name}
             </CardTitle>
             <CardDescription className="mt-1">
-              {material.paintGrade.name} · {material.supplier.name}
+              {material.supplier.name}
             </CardDescription>
           </div>
 
@@ -61,23 +63,32 @@ export const MaterialQtyCard = ({
             </span>
           </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onOpenModal}
-            className="gap-2"
-          >
-            <Edit3 className="h-3.5 w-3.5" />
-            Ubah
-          </Button>
+          {!readOnly && onOpenModal ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onOpenModal}
+              className="gap-2"
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+              Ubah
+            </Button>
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Lock className="h-3 w-3" />
+              <span>Auto</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground">
             Stok tersedia: <span className="font-medium">{material.qty}</span>
           </span>
-          <span>Sisa: {remainingStock}</span>
+          <span className={isLowStock && remainingStock > 0 ? "text-orange-600 font-medium" : ""}>
+            Sisa: {remainingStock}
+          </span>
         </div>
       </CardContent>
     </Card>

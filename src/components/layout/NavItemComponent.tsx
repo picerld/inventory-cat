@@ -8,8 +8,8 @@ export interface INavItem {
   children?: INavItem[];
 }
 
-const NavItemComponent: React.FC<{ 
-  item: INavItem; 
+const NavItemComponent: React.FC<{
+  item: INavItem;
   isMobile?: boolean;
   expandedItems: Set<string>;
   toggleExpanded: (name: string) => void;
@@ -21,7 +21,7 @@ const NavItemComponent: React.FC<{
     return (
       <Link key={item.name} href={item.href} className="group">
         <div
-          className={`flex items-center px-3 py-2.5 mx-2 my-0.5 rounded-md text-sm transition-colors ${
+          className={`mx-2 my-0.5 flex items-center rounded-md px-3 py-2.5 text-sm transition-colors ${
             item.active
               ? "bg-sidebar-accent font-semibold"
               : "text-foreground hover:text-foreground hover:bg-accent font-medium"
@@ -36,7 +36,7 @@ const NavItemComponent: React.FC<{
   return (
     <div key={item.name}>
       <div
-        className={`flex items-center justify-between px-3 py-2.5 mx-2 my-0.5 rounded-md text-sm cursor-pointer transition-colors group ${
+        className={`group mx-2 my-0.5 flex cursor-pointer items-center justify-between rounded-md px-3 py-2.5 text-sm transition-colors ${
           item.active
             ? "bg-sidebar-accent font-semibold"
             : "text-foreground hover:text-foreground hover:bg-accent font-medium"
@@ -51,11 +51,11 @@ const NavItemComponent: React.FC<{
         )}
       </div>
       {isExpanded && (
-        <div className="ml-2 mb-1">
+        <div className="mb-1 ml-2">
           {item.children!.map((child) => (
             <Link key={child.name} href={child.href} className="group">
               <div
-                className={`flex items-center px-3 py-2 mx-2 my-0.5 rounded-md text-sm transition-colors ${
+                className={`mx-2 my-0.5 flex items-center rounded-md px-3 py-2 text-sm transition-colors ${
                   child.active
                     ? "bg-sidebar-accent font-semibold"
                     : "text-foreground hover:text-foreground hover:bg-accent/50 font-medium"

@@ -10,7 +10,7 @@ import {
 import type { SemiFinishedGood } from "~/types/semi-finished-good";
 import { Badge } from "~/components/ui/badge";
 import { toRupiah } from "~/lib/utils";
-import { Package, User, Calendar, Hash } from "lucide-react";
+import { Package, User, Calendar, Hash, Award } from "lucide-react";
 
 type SemiFinishedGoodDetailsDialogProps = {
   currentRow: SemiFinishedGood | null;
@@ -92,6 +92,14 @@ export function SemiFinishedGoodDetailsDialog({
                 </div>
               </div>
             </div>
+
+            <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
+              <Award className="mt-0.5 h-5 w-5" />
+              <div>
+                <p className="text-muted-foreground text-sm">Grade</p>
+                <p className="font-medium">{currentRow.paintGrade?.name ?? "-"}</p>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -133,11 +141,13 @@ export function SemiFinishedGoodDetailsDialog({
                         Harga Jual
                       </p>
                       <p className="font-medium">
-                        {toRupiah(detail.rawMaterial.sellingPrice)}
+                        {toRupiah(detail.rawMaterial.supplierPrice)}
                       </p>
                       <p className="text-muted-foreground mt-1 text-xs">
                         Total: Rp
-                        {toRupiah(detail.rawMaterial.sellingPrice * detail.qty)}
+                        {toRupiah(
+                          detail.rawMaterial.supplierPrice * detail.qty,
+                        )}
                       </p>
                     </div>
                   </div>
@@ -154,14 +164,14 @@ export function SemiFinishedGoodDetailsDialog({
                     Total Nilai Bahan Baku
                   </p>
                   <p className="text-muted-foreground mt-1 text-xs">
-                    (Berdasarkan harga jual)
+                    (Berdasarkan harga supplier)
                   </p>
                 </div>
                 <p className="text-xl font-bold">
                   {toRupiah(
                     details.reduce(
                       (sum, detail) =>
-                        sum + detail.rawMaterial.sellingPrice * detail.qty,
+                        sum + detail.rawMaterial.supplierPrice * detail.qty,
                       0,
                     ),
                   )}
