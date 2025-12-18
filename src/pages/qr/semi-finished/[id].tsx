@@ -34,7 +34,10 @@ type QRPageProps = {
 };
 
 export default function SemiFinishedGoodQrPage({ item }: QRPageProps) {
-  const baseUrl = "http://localhost:3000"; // FOR DEV ONLY
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000";
   const qrRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
