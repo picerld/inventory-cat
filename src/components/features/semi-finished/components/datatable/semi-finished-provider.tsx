@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import useDialogState from "~/hooks/use-dialog-state";
 import type { SemiFinishedGoodFormSchema } from "../../form/semi-finished";
 
-type SemiFinishedGoodDialogType = "add" | "edit" | "delete" | "detail" | "qr";
+type SemiFinishedGoodDialogType = "add" | "edit" | "delete" | "detail" | "qr" | "update-qty";
 
 type SemiFinishedGoodContextType = {
   open: SemiFinishedGoodDialogType | null;
@@ -34,7 +34,6 @@ export function SemiFinishedGoodsProvider({
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const useSemiFinishedGoods = () => {
   const semiFinishedGoodsContext = React.useContext(SemiFinishedGoodsContext);
 

@@ -3,6 +3,7 @@ import { SemiFinishedGoodsDeleteDialog } from "./semi-finished-delete-dialog";
 import { SemiFinishedGoodDetailsDialog } from "./semi-finished-details-dialog";
 import { useSemiFinishedGoods } from "./semi-finished-provider";
 import { SemiFinishedQrCodeModal } from "~/components/features/semi-finished/components/SemiFinishedQrCodeModal";
+import { SemiFinishedGoodUpdateQty } from "./semi-finished-update-qty-dialog";
 
 export function SemiFinishedGoodsDialogs() {
   const { open, setOpen, currentRow, setCurrentRow } = useSemiFinishedGoods();
@@ -75,6 +76,21 @@ export function SemiFinishedGoodsDialogs() {
                 setTimeout(() => {
                   setCurrentRow(null);
                 }, 300);
+              }
+            }}
+            // @ts-expect-error type
+            currentRow={currentRow}
+          />
+
+          <SemiFinishedGoodUpdateQty
+            key={`semi-finished-update-qty-${currentRow.id}`}
+            open={open === "update-qty"}
+            onOpenChange={(state) => {
+              if (!state) {
+                setOpen(null);
+                setTimeout(() => {
+                  setCurrentRow(null);
+                }, 3000);
               }
             }}
             // @ts-expect-error type

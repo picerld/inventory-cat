@@ -2,7 +2,10 @@ import z from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
-import { semiFinishedGoodFormSchema } from "~/components/features/semi-finished/form/semi-finished";
+import {
+  semiFinishedGoodFormSchema,
+  updateQtySchema,
+} from "~/components/features/semi-finished/form/semi-finished";
 
 export const semiFinishedGoodRouter = createTRPCRouter({
   getPaginated: protectedProcedure
@@ -40,7 +43,7 @@ export const semiFinishedGoodRouter = createTRPCRouter({
             select: {
               id: true,
               name: true,
-            }
+            },
           },
           SemiFinishedGoodDetail: {
             include: {
@@ -147,7 +150,7 @@ export const semiFinishedGoodRouter = createTRPCRouter({
           select: {
             id: true,
             name: true,
-          }
+          },
         },
         SemiFinishedGoodDetail: {
           include: {
@@ -169,7 +172,7 @@ export const semiFinishedGoodRouter = createTRPCRouter({
             select: {
               id: true,
               name: true,
-            }
+            },
           },
           SemiFinishedGoodDetail: {
             include: {
@@ -195,10 +198,9 @@ export const semiFinishedGoodRouter = createTRPCRouter({
         userId: item.userId,
       };
 
-      const baseUrl =
-        process.env.NEXT_PUBLIC_APP_URL
-          ? `${process.env.NEXT_PUBLIC_APP_URL}`
-          : "http://localhost:3000";
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL
+        ? `${process.env.NEXT_PUBLIC_APP_URL}`
+        : "http://localhost:3000";
 
       const previewLink = `${baseUrl}/qr/semi-finished/${item.id}`;
 
@@ -225,7 +227,7 @@ export const semiFinishedGoodRouter = createTRPCRouter({
             select: {
               id: true,
               name: true,
-            }
+            },
           },
           SemiFinishedGoodDetail: {
             include: {
@@ -259,7 +261,7 @@ export const semiFinishedGoodRouter = createTRPCRouter({
               select: {
                 id: true,
                 name: true,
-              }
+              },
             },
             SemiFinishedGoodDetail: {
               include: {
@@ -355,7 +357,106 @@ export const semiFinishedGoodRouter = createTRPCRouter({
             select: {
               id: true,
               name: true,
-            }
+            },
+          },
+          SemiFinishedGoodDetail: {
+            include: {
+              rawMaterial: true,
+            },
+          },
+        },
+      });
+    }),
+
+  updateQty: protectedProcedure
+    .input(updateQtySchema)
+    .mutation(async ({ ctx, input }) => {
+      const currentSemiFinished = await ctx.db.semiFinishedGood.findUnique({
+        where: { id: input.id },
+        include: {
+          SemiFinishedGoodDetail: true,
+        },
+      });
+
+      if (!currentSemiFinished) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Barang setengah jadi tidak ditemukan",
+        });
+      }
+
+      for (const newMaterial of input.materials) {
+        const rawMaterial = await ctx.db.rawMaterial.findUnique({
+          where: { id: newMaterial.rawMaterialId },
+        });
+
+        if (!rawMaterial) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Bahan baku dengan ID ${newMaterial.rawMaterialId} tidak ditemukan`,
+          });
+        }
+
+        if (rawMaterial.qty < newMaterial.qty) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Stok bahan baku ${rawMaterial.name} tidak mencukupi. Tersedia: ${rawMaterial.qty}, Dibutuhkan: ${newMaterial.qty}`,
+          });
+        }
+      }
+
+      const operations = input.materials.map(async (newMaterial) => {
+        await ctx.db.rawMaterial.update({
+          where: { id: newMaterial.rawMaterialId },
+          data: {
+            qty: {
+              decrement: newMaterial.qty,
+            },
+          },
+        });
+
+        const existingDetail = currentSemiFinished.SemiFinishedGoodDetail.find(
+          (detail) => detail.rawMaterialId === newMaterial.rawMaterialId,
+        );
+
+        if (existingDetail) {
+          return ctx.db.semiFinishedGoodDetail.update({
+            where: { id: existingDetail.id },
+            data: {
+              qty: existingDetail.qty + newMaterial.qty,
+            },
+          });
+        } else {
+          return ctx.db.semiFinishedGoodDetail.create({
+            data: {
+              semiFinishedGoodId: input.id,
+              rawMaterialId: newMaterial.rawMaterialId,
+              qty: newMaterial.qty,
+            },
+          });
+        }
+      });
+
+      await Promise.all(operations);
+
+      const updatedDetails = await ctx.db.semiFinishedGoodDetail.findMany({
+        where: { semiFinishedGoodId: input.id },
+      });
+
+      const newTotalQty = updatedDetails.length;
+
+      return ctx.db.semiFinishedGood.update({
+        where: { id: input.id },
+        data: {
+          qty: newTotalQty,
+        },
+        include: {
+          user: true,
+          paintGrade: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
           SemiFinishedGoodDetail: {
             include: {

@@ -1,5 +1,12 @@
 import { type Row } from "@tanstack/react-table";
-import { GripVertical, Info, QrCode, Trash2, UserPen } from "lucide-react";
+import {
+  ClipboardPen,
+  GripVertical,
+  Info,
+  QrCode,
+  Trash2,
+  UserPen,
+} from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
   DropdownMenu,
@@ -23,8 +30,9 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
+            size={"icon-lg"}
             variant="ghost"
-            className="data-[state=open]:bg-muted flex h-8 w-8 p-0"
+            className="data-[state=open]:bg-muted flex p-0"
           >
             <GripVertical className="h-4 w-4" />
             <span className="sr-only">Open menu</span>
@@ -75,10 +83,21 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         onClick={() => {
           // @ts-expect-error type
           setCurrentRow(row.original);
+          setOpen("update-qty");
+        }}
+        variant={"outline"}
+        size={"icon-lg"}
+      >
+        <ClipboardPen className="size-5" />
+      </Button>
+      <Button
+        onClick={() => {
+          // @ts-expect-error type
+          setCurrentRow(row.original);
           setOpen("qr");
         }}
-        variant={"default"}
-        size={"icon-sm"}
+        variant={"outline"}
+        size={"icon-lg"}
       >
         <QrCode className="size-5" />
       </Button>

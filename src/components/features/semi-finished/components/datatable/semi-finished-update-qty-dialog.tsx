@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { useForm } from "@tanstack/react-form";
@@ -12,18 +19,9 @@ import {
   FieldLabel,
 } from "~/components/ui/field";
 import { IsRequired } from "~/components/ui/is-required";
-import { Loader, Check } from "lucide-react";
+import { Loader, Check, Package } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { SemiFinishedGood } from "~/types/semi-finished-good";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "~/components/ui/sheet";
 import {
   Command,
   CommandEmpty,
@@ -38,7 +36,6 @@ import {
   PopoverTrigger,
 } from "~/components/ui/popover";
 import { cn } from "~/lib/utils";
-import { semiFinishedGoodFormSchema } from "~/components/features/semi-finished/form/semi-finished";
 import type { RawMaterial } from "~/types/raw-material";
 import { MaterialQtyCard } from "../create/MaterialQtyCard";
 import {
@@ -51,67 +48,30 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
 
-type SemiFinishedGoodsActionDialogProps = {
-  currentRow?: SemiFinishedGood;
+type SemiFinishedGoodUpdateQtyProps = {
+  currentRow: SemiFinishedGood | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
-export function SemiFinishedGoodsActionDialog({
+export function SemiFinishedGoodUpdateQty({
   currentRow,
   open,
   onOpenChange,
-}: SemiFinishedGoodsActionDialogProps) {
-  const isEdit = !!currentRow;
+}: SemiFinishedGoodUpdateQtyProps) {
   const utils = trpc.useUtils();
-
   const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
-  const [pendingOpenState, setPendingOpenState] = useState<boolean | null>(
-    null,
-  );
   const [openCombobox, setOpenCombobox] = useState(false);
 
   const { data: user } = trpc.auth.authMe.useQuery();
-
   const { data: rawMaterials } = trpc.rawMaterial.getAll.useQuery();
-  const { data: grades } = trpc.paintGrade.getAll.useQuery();
 
-  const { mutate: createSemiFinishedGood, isPending: isPendingCreate } =
-    trpc.semiFinishedGood.create.useMutation({
+  const { mutate: updateQty, isPending } =
+    trpc.semiFinishedGood.updateQty.useMutation({
       onSuccess: () => {
         toast.success("Berhasil!!", {
-          description: "Barang Setengah Jadi berhasil ditambahkan",
-        });
-
-        utils.semiFinishedGood.getPaginated.invalidate();
-        utils.semiFinishedGood.getStats.invalidate();
-
-        form.reset();
-        onOpenChange(false);
-      },
-      onError: (error) => {
-        toast.error("Gagal!!", {
-          description:
-            error.data?.code === "UNAUTHORIZED"
-              ? "Silahkan login terlebih dahulu"
-              : "Coba periksa kembali form anda!",
-        });
-      },
-    });
-
-  const { mutate: updateSemiFinishedGood, isPending: isPendingUpdate } =
-    trpc.semiFinishedGood.update.useMutation({
-      onSuccess: () => {
-        toast.success("Berhasil!!", {
-          description: "Barang Setengah Jadi berhasil diperbarui!",
+          description: "Kuantiti berhasil diperbarui!",
         });
 
         utils.semiFinishedGood.getPaginated.invalidate();
@@ -133,37 +93,23 @@ export function SemiFinishedGoodsActionDialog({
   const form = useForm({
     defaultValues: {
       userId: user?.id ?? "",
-      paintGradeId: "",
-      name: "",
-      qty: 0,
       materials: [] as { rawMaterialId: string; qty: number }[],
     },
-    validators: { onSubmit: semiFinishedGoodFormSchema },
     onSubmit: ({ value }) => {
-      if (isEdit && currentRow) {
-        updateSemiFinishedGood({ id: currentRow.id, ...value });
-      } else {
-        createSemiFinishedGood(value);
-      }
+      if (!currentRow) return;
+      updateQty({
+        id: currentRow.id,
+        userId: value.userId,
+        materials: value.materials,
+      });
     },
   });
 
   useEffect(() => {
-    if (isEdit && currentRow) {
-      const materials =
-        currentRow.SemiFinishedGoodDetail?.map((detail) => ({
-          rawMaterialId: detail.rawMaterialId,
-          qty: detail.qty,
-        })) ?? [];
-
-      form.setFieldValue("name", currentRow.name);
-      form.setFieldValue("paintGradeId", currentRow.paintGradeId);
-      form.setFieldValue("materials", materials);
-      form.setFieldValue("qty", materials.length);
-    } else {
-      form.reset();
+    if (currentRow) {
+      form.setFieldValue("materials", []);
     }
-  }, [isEdit, currentRow]);
+  }, [currentRow, open]);
 
   useEffect(() => {
     if (user?.id) {
@@ -171,149 +117,96 @@ export function SemiFinishedGoodsActionDialog({
     }
   }, [user?.id]);
 
-  const syncQtyFromMaterials = (
-    materials: { rawMaterialId: string; qty: number }[],
-  ) => {
-    form.setFieldValue("qty", materials.length);
-  };
+  if (!currentRow) return null;
 
-  const isLoading = isPendingCreate || isPendingUpdate;
+  const currentDetails = currentRow.SemiFinishedGoodDetail ?? [];
 
   return (
     <>
-      <Sheet
+      <Dialog
         open={open}
         onOpenChange={(nextOpen) => {
           if (!nextOpen && form.state.isDirty) {
-            setPendingOpenState(nextOpen);
             setConfirmDiscardOpen(true);
             return;
           }
-
           form.reset();
           onOpenChange(nextOpen);
         }}
       >
-        <SheetContent
-          side="right"
-          className="overflow-y-auto px-3 backdrop-blur-xl sm:max-w-md"
-        >
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
           <form
-            className="flex h-full flex-col gap-6 py-1 pe-3"
+            className="flex flex-col gap-6"
             onSubmit={async (e) => {
               e.preventDefault();
               await form.handleSubmit();
             }}
           >
-            <SheetHeader className="px-0">
-              <SheetTitle className="text-2xl font-bold">
-                {isEdit
-                  ? "Edit Barang Setengah Jadi"
-                  : "Tambah Barang Setengah Jadi"}
-              </SheetTitle>
-              <SheetDescription className="text-muted-foreground text-[0.93rem]">
-                {isEdit
-                  ? "Perbarui barang setengah jadi di sini."
-                  : "Tambahkan barang setengah jadi baru di sini."}
-              </SheetDescription>
-            </SheetHeader>
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold">
+                Update Kuantiti {currentRow.name}
+              </DialogTitle>
+              <DialogDescription className="flex gap-2 text-base">
+                Kuantiti dihitung dari bahan baku yang dipilih{" "}
+                <span className="text-red-500">*</span>
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="bg-muted/30 space-y-4 rounded-lg border-2 p-4">
+              <div className="flex items-center gap-2">
+                <Package className="text-muted-foreground h-5 w-5" />
+                <h3 className="text-lg font-semibold">Bahan Baku Saat Ini</h3>
+              </div>
+
+              {currentDetails.length === 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  Tidak ada bahan baku terdaftar.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {currentDetails.map((detail) => {
+                    const material = rawMaterials?.find(
+                      (rm) => rm.id === detail.rawMaterialId,
+                    );
+
+                    return (
+                      <div
+                        key={detail.rawMaterialId}
+                        className="bg-background flex items-center justify-between rounded-lg border p-3"
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium">{material?.name}</p>
+                          <p className="text-muted-foreground text-sm">
+                            {material?.supplier.name}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">{detail.qty} unit</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="pt-2">
+                <p className="text-sm font-medium">
+                  Total Kuantiti Saat Ini:{" "}
+                  <span className="text-lg font-bold">
+                    {currentRow.qty} unit
+                  </span>
+                </p>
+              </div>
+            </div>
 
             <FieldGroup>
-              <form.Field name="name">
-                {(field) => {
-                  const isInvalid =
-                    field.state.meta.isTouched && !field.state.meta.isValid;
-
-                  return (
-                    <Field>
-                      <FieldLabel className="text-base">
-                        Nama Barang Setengah Jadi <IsRequired />
-                      </FieldLabel>
-                      <Input
-                        placeholder="Warna Red Green Blue"
-                        className="h-12 rounded-xl border-2"
-                        value={field.state.value}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                      />
-
-                      {isInvalid && (
-                        <FieldError errors={field.state.meta.errors} />
-                      )}
-                    </Field>
-                  );
-                }}
-              </form.Field>
-
-              <form.Field name="paintGradeId">
-                {(field) => {
-                  const isInvalid =
-                    field.state.meta.isTouched && !field.state.meta.isValid;
-
-                  return (
-                    <Field>
-                      <FieldLabel className="text-base">
-                        Pilih Kualitas (Grade) <IsRequired />
-                      </FieldLabel>
-                      <Select
-                        value={field.state.value}
-                        onValueChange={field.handleChange}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pilih grade" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {grades?.map((grade) => (
-                            <SelectItem key={grade.id} value={grade.id}>
-                              {grade.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      {isInvalid && (
-                        <FieldError errors={field.state.meta.errors} />
-                      )}
-                    </Field>
-                  );
-                }}
-              </form.Field>
-
-              <form.Field name="qty">
-                {(field) => {
-                  const isInvalid =
-                    field.state.meta.isTouched && !field.state.meta.isValid;
-
-                  return (
-                    <Field>
-                      <FieldLabel className="text-base">
-                        Kuantiti <IsRequired />
-                      </FieldLabel>
-                      <Input
-                        readOnly
-                        placeholder="0"
-                        className="h-12 rounded-xl border-2"
-                        value={field.state.value}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, "");
-                          field.handleChange(Number(value));
-                        }}
-                      />
-
-                      {isInvalid && (
-                        <FieldError errors={field.state.meta.errors} />
-                      )}
-
-                      <p className="text-muted-foreground text-sm">
-                        Kuantiti otomatis dihitung dari jumlah bahan baku.
-                      </p>
-                    </Field>
-                  );
-                }}
-              </form.Field>
-
               <form.Field name="materials">
                 {(field) => {
                   const materials = field.state.value;
+                  const additionalQty = materials.reduce(
+                    (sum, m) => sum + m.qty,
+                    0,
+                  );
 
                   const addMaterial = (rawMaterialId: string) => {
                     if (
@@ -327,7 +220,6 @@ export function SemiFinishedGoodsActionDialog({
                     ];
 
                     field.handleChange(newMaterials);
-                    syncQtyFromMaterials(newMaterials);
                   };
 
                   const removeMaterial = (rawMaterialId: string) => {
@@ -336,10 +228,12 @@ export function SemiFinishedGoodsActionDialog({
                     );
 
                     field.handleChange(newMaterials);
-                    syncQtyFromMaterials(newMaterials);
                   };
 
-                  const updateQty = (rawMaterialId: string, qty: number) => {
+                  const updateMaterialQty = (
+                    rawMaterialId: string,
+                    qty: number,
+                  ) => {
                     const material = rawMaterials?.find(
                       (rm) => rm.id === rawMaterialId,
                     );
@@ -359,10 +253,6 @@ export function SemiFinishedGoodsActionDialog({
                       return;
                     }
 
-                    const oldQty =
-                      materials.find((m) => m.rawMaterialId === rawMaterialId)
-                        ?.qty ?? 1;
-
                     const newMaterials = materials.map((m) =>
                       m.rawMaterialId === rawMaterialId ? { ...m, qty } : m,
                     );
@@ -373,7 +263,7 @@ export function SemiFinishedGoodsActionDialog({
                   return (
                     <Field>
                       <FieldLabel className="text-base">
-                        Pilih Bahan Baku <IsRequired />
+                        Pilih Bahan Baku Tambahan <IsRequired />
                       </FieldLabel>
 
                       <Popover
@@ -389,7 +279,7 @@ export function SemiFinishedGoodsActionDialog({
                               <span>{materials.length} bahan baku dipilih</span>
                             ) : (
                               <span className="text-muted-foreground">
-                                Pilih bahan baku...
+                                Pilih bahan baku untuk ditambahkan...
                               </span>
                             )}
                           </Button>
@@ -424,7 +314,8 @@ export function SemiFinishedGoodsActionDialog({
                                           )}
                                         />
                                         {material.name} (
-                                        {material.supplier.name})
+                                        {material.supplier.name}) - Stok:{" "}
+                                        {material.qty}
                                       </CommandItem>
                                     );
                                   })}
@@ -443,11 +334,10 @@ export function SemiFinishedGoodsActionDialog({
                           return (
                             <MaterialQtyCard
                               key={m.rawMaterialId}
-                              //   @ts-expect-error type
-                              material={material}
+                              material={material as RawMaterial}
                               m={m}
                               materials={materials}
-                              updateQty={updateQty}
+                              updateQty={updateMaterialQty}
                               removeMaterial={removeMaterial}
                             />
                           );
@@ -464,41 +354,36 @@ export function SemiFinishedGoodsActionDialog({
               </form.Field>
             </FieldGroup>
 
-            <SheetFooter>
-              <SheetClose asChild>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    if (form.state.isDirty) {
-                      setConfirmDiscardOpen(true);
-                      return;
-                    }
-                    form.reset();
-                    onOpenChange(false);
-                  }}
-                >
-                  Close
-                </Button>
-              </SheetClose>
-              <Field>
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="font-medium"
-                >
-                  {isLoading ? (
-                    <Loader className="mr-2 h-4 w-4 animate-spin" />
-                  ) : isEdit ? (
-                    "Simpan Perubahan"
-                  ) : (
-                    "Simpan Data"
-                  )}
-                </Button>
-              </Field>
-            </SheetFooter>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (form.state.isDirty) {
+                    setConfirmDiscardOpen(true);
+                    return;
+                  }
+                  form.reset();
+                  onOpenChange(false);
+                }}
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                disabled={isPending}
+                className="font-medium"
+              >
+                {isPending ? (
+                  <Loader className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Update Kuantiti"
+                )}
+              </Button>
+            </div>
           </form>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={confirmDiscardOpen}
@@ -521,7 +406,6 @@ export function SemiFinishedGoodsActionDialog({
                   setConfirmDiscardOpen(false);
                   form.reset();
                   onOpenChange(false);
-                  setPendingOpenState(null);
                 }}
               >
                 Ya, Buang

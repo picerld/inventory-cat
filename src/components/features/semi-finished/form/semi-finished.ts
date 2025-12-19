@@ -26,3 +26,18 @@ export const semiFinishedGoodFormSchema = z.object({
 export type SemiFinishedGoodFormSchema = z.infer<
   typeof semiFinishedGoodFormSchema
 >;
+
+export const updateQtySchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  materials: z.array(
+    z.object({
+      rawMaterialId: z.string(),
+      qty: z.number().min(1),
+    })
+  ).min(1, "Minimal 1 bahan baku harus dipilih"),
+});
+
+export type UpdateQtySchema = z.infer<
+  typeof updateQtySchema
+>;
