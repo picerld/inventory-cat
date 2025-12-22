@@ -1,6 +1,6 @@
 "use client";
 
-import { CirclePower, Loader } from "lucide-react";
+import { Loader } from "lucide-react";
 import { Button } from "../ui/button";
 import { useRouter } from "next/navigation";
 import { trpc } from "~/utils/trpc";
@@ -45,7 +45,6 @@ export const LogoutButton = () => {
       ) : (
         <p className="flex items-center gap-3">
           Logout
-          <CirclePower className="size-5 text-secondary" />
         </p>
       )}
     </Button>

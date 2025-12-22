@@ -1,3 +1,4 @@
+import { FinishedGoodQrCodeModal } from "../FinishedGoodQrCodeModal";
 import { FinishedGoodsActionDialog } from "./finished-action-dialog";
 import { FinishedGoodsDeleteDialog } from "./finished-delete-dialog";
 import { FinishedGoodDetailsDialog } from "./finished-details-dialog";
@@ -20,6 +21,21 @@ export function FinishedGoodsDialogs() {
 
       {currentRow && (
         <>
+          <FinishedGoodQrCodeModal
+            key={`finished-detail-qr-${currentRow.id}`}
+            open={open === "qr"}
+            onOpenChange={(state) => {
+              if (!state) {
+                setOpen(null);
+                setTimeout(() => {
+                  setCurrentRow(null);
+                }, 300);
+              }
+            }}
+            // @ts-expect-error type
+            currentRow={currentRow}
+          />
+
           <FinishedGoodDetailsDialog
             key={`finished-detail-${currentRow.id}`}
             open={open === "detail"}

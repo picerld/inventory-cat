@@ -1,5 +1,5 @@
 import { type Row } from "@tanstack/react-table";
-import { GripVertical, Info, Trash2, UserPen } from "lucide-react";
+import { GripVertical, Info, QrCode, Trash2, UserPen } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
   DropdownMenu,
@@ -22,7 +22,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
   const { setOpen, setCurrentRow } = useFinishedGoods();
   return (
-    <>
+    <div className="flex gap-2">
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
@@ -75,6 +75,18 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </>
+
+      <Button
+        onClick={() => {
+          // @ts-expect-error type
+          setCurrentRow(row.original);
+          setOpen("qr");
+        }}
+        variant={"outline"}
+        size={"icon-lg"}
+      >
+        <QrCode className="size-5" />
+      </Button>
+    </div>
   );
 }

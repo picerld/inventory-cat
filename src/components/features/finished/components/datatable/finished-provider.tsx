@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import useDialogState from "~/hooks/use-dialog-state";
 import type { FinishedGoodFormSchema } from "../../form/finished-good";
 
-type FinishedGoodDialogType = "add" | "edit" | "delete" | "detail";
+type FinishedGoodDialogType = "add" | "edit" | "delete" | "detail" | "qr";
 
 type FinishedGoodContextType = {
   open: FinishedGoodDialogType | null;
@@ -34,7 +34,6 @@ export function FinishedGoodsProvider({
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const useFinishedGoods = () => {
   const finishedGoodsContext = React.useContext(FinishedGoodsContext);
 

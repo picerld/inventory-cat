@@ -144,6 +144,66 @@ export const finishedGoodRouter = createTRPCRouter({
     });
   }),
 
+  getQRData: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const item = await ctx.db.finishedGood.findUnique({
+        where: { id: input.id },
+        include: {
+          user: {
+            select: {
+              name: true,
+            },
+          },
+          paintGrade: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          finishedGoodDetails: {
+            include: {
+              semiFinishedGood: {
+                select: {
+                  name: true,
+                  qty: true,
+                }
+              },
+              rawMaterial: {
+                select: {
+                  name: true,
+                  supplier: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!item) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Barang jadi tidak ditemukan",
+        });
+      }
+
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL
+        ? `${process.env.NEXT_PUBLIC_APP_URL}`
+        : "http://localhost:3000";
+
+      const previewLink = `${baseUrl}/qr/finished-good/${item.id}`;
+
+      return {
+        item,
+        qrValue: previewLink,
+        previewLink,
+      };
+    }),
+
   getCount: protectedProcedure.query(({ ctx }) => {
     return ctx.db.finishedGood.count();
   }),
