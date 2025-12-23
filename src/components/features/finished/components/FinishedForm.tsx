@@ -176,14 +176,15 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
 
   useEffect(() => {
     const sourceType = form.getFieldValue("sourceType");
+
     if (sourceType === "raw_material") {
       const materials = form.getFieldValue("materials");
-      const totalQty = materials.reduce((sum, m) => sum + m.qty, 0);
-      form.setFieldValue("qty", totalQty);
-    } else if (sourceType === "semi_finished") {
+      form.setFieldValue("qty", materials.length);
+    }
+
+    if (sourceType === "semi_finished") {
       const semiFinished = form.getFieldValue("semiFinishedGoods");
-      const totalQty = semiFinished.reduce((sum, sf) => sum + sf.qty, 0);
-      form.setFieldValue("qty", totalQty);
+      form.setFieldValue("qty", semiFinished.length);
     }
   }, [
     form.getFieldValue("materials"),

@@ -68,6 +68,7 @@ model RawMaterial {
     user                   User                     @relation(fields: [userId], references: [id])
     name                   String
     qty                    Int
+    // qty Decimal @db.Decimal(10, 3)
     materialType           String // LEM, THINNER, DLL
     supplierPrice          Float
     createdAt              DateTime                 @default(now())

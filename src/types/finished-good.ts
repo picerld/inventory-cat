@@ -11,6 +11,7 @@ export type FinishedGood = {
     qty: number;
     batchNumber: string;
     paintGradeId: string;
+    sourceType: "RAW_MATERIAL" | "SEMI_FINISHED";
     paintGrade: PaintGrade;
     finishedGoodDetails: FinishedGoodDetail[];
     dateProduced: Date;

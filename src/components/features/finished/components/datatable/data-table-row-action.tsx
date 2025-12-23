@@ -26,8 +26,9 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
+            size={"icon-lg"}
             variant="ghost"
-            className="data-[state=open]:bg-muted flex h-8 w-8 p-0"
+            className="data-[state=open]:bg-muted flex p-0"
           >
             <GripVertical className="h-4 w-4" />
             <span className="sr-only">Open menu</span>

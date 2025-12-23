@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -8,15 +9,14 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { Badge } from "~/components/ui/badge";
-import { toRupiah } from "~/lib/utils";
 import {
   Package,
   User,
-  Calendar,
   Hash,
   FileText,
   Award,
   CalendarClock,
+  Layers,
 } from "lucide-react";
 import type { FinishedGood } from "~/types/finished-good";
 
@@ -24,6 +24,15 @@ type FinishedGoodDetailsDialogProps = {
   currentRow: FinishedGood | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+};
+
+// Mock utility function
+const toRupiah = (amount: number) => {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(amount);
 };
 
 export function FinishedGoodDetailsDialog({
@@ -35,6 +44,18 @@ export function FinishedGoodDetailsDialog({
 
   const details = currentRow.finishedGoodDetails ?? [];
   const totalMaterials = details.length;
+  
+  // Separate raw materials and semi-finished goods
+  const rawMaterialDetails = details.filter(d => !d.semiFinishedGood);
+  const semiFinishedDetails = details.filter(d => d.semiFinishedGood);
+
+  // Calculate total value (only from raw materials with price)
+  const totalValue = details.reduce((sum, detail) => {
+    if (!detail.semiFinishedGood && detail.rawMaterial.supplierPrice > 0) {
+      return sum + detail.rawMaterial.supplierPrice * detail.qty;
+    }
+    return sum;
+  }, 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -49,6 +70,7 @@ export function FinishedGoodDetailsDialog({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* General Information */}
           <div className="space-y-4">
             <h3 className="border-b pb-2 text-lg font-semibold">
               Informasi Umum
@@ -94,7 +116,7 @@ export function FinishedGoodDetailsDialog({
                         day: "2-digit",
                         month: "long",
                         year: "numeric",
-                      },
+                      }
                     )}
                   </p>
                 </div>
@@ -117,49 +139,81 @@ export function FinishedGoodDetailsDialog({
               </div>
 
               <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
+                <Layers className="mt-0.5 h-5 w-5" />
+                <div>
+                  <p className="text-muted-foreground text-sm">Tipe Sumber</p>
+                  <Badge variant={currentRow.sourceType === "RAW_MATERIAL" ? "default" : "secondary"}>
+                    {currentRow.sourceType === "RAW_MATERIAL" ? "Bahan Baku" : "Setengah Jadi"}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
                 <User className="mt-0.5 h-5 w-5" />
                 <div>
                   <p className="text-muted-foreground text-sm">Dibuat Oleh</p>
                   <p className="font-medium">{currentRow.user?.name ?? "-"}</p>
                 </div>
               </div>
-
-              <div className="flex items-center gap-3 rounded-lg border border-dashed p-6">
-                <Calendar className="mt-0.5 h-5 w-5" />
-                <div>
-                  <p className="text-muted-foreground text-sm">
-                    Tanggal Input Data
-                  </p>
-                  <p className="font-medium">
-                    {new Date(currentRow.createdAt).toLocaleDateString(
-                      "id-ID",
-                      {
-                        day: "2-digit",
-                        month: "long",
-                        year: "numeric",
-                      },
-                    )}
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h3 className="text-lg font-semibold">Daftar Bahan Baku</h3>
-              <Badge variant="outline" className="text-sm">
-                {totalMaterials} Bahan
-              </Badge>
-            </div>
-
-            {details.length === 0 ? (
-              <div className="text-muted-foreground py-8 text-center">
-                Tidak ada bahan baku yang terdaftar
+          {/* Semi-Finished Goods Section */}
+          {semiFinishedDetails.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b pb-2">
+                <h3 className="text-lg font-semibold">Barang Setengah Jadi</h3>
+                <Badge variant="outline" className="text-sm">
+                  {semiFinishedDetails.length} Item
+                </Badge>
               </div>
-            ) : (
+
               <div className="space-y-3">
-                {details.map((detail, index) => (
+                {semiFinishedDetails.map((detail, index) => (
+                  <div
+                    key={detail.id}
+                    className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-4 transition-colors dark:border-blue-800 dark:bg-blue-950/20"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Badge
+                        variant="outline"
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900"
+                      >
+                        <Layers className="h-4 w-4" />
+                      </Badge>
+                      <div>
+                        <p className="font-medium">{detail.semiFinishedGood.name}</p>
+                        <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                          <span>Digunakan: {detail.qty} unit</span>
+                          <span>•</span>
+                          <span>
+                            Stok tersisa: {detail.semiFinishedGood.qty} unit
+                          </span>
+                          <span>•</span>
+                          <span className="text-xs">
+                            Grade: {detail.semiFinishedGood.paintGrade.name}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Raw Materials Section */}
+          {rawMaterialDetails.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b pb-2">
+                <h3 className="text-lg font-semibold">Daftar Bahan Baku</h3>
+                <Badge variant="outline" className="text-sm">
+                  {rawMaterialDetails.length} Bahan
+                </Badge>
+              </div>
+
+              <div className="space-y-3">
+                {rawMaterialDetails.map((detail, index) => (
                   <div
                     key={detail.id}
                     className="bg-card hover:bg-accent/50 flex items-center justify-between rounded-lg border p-4 transition-colors"
@@ -184,7 +238,7 @@ export function FinishedGoodDetailsDialog({
                     </div>
                     <div className="text-right">
                       <p className="text-muted-foreground text-sm">
-                        Harga Jual
+                        Harga Supplier
                       </p>
                       <p className="font-medium">
                         {toRupiah(detail.rawMaterial.supplierPrice)}
@@ -197,10 +251,18 @@ export function FinishedGoodDetailsDialog({
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {details.length > 0 && (
+          {/* Empty State */}
+          {details.length === 0 && (
+            <div className="text-muted-foreground py-8 text-center">
+              Tidak ada bahan yang terdaftar
+            </div>
+          )}
+
+          {/* Total Value Summary */}
+          {totalValue > 0 && (
             <div className="bg-muted/50 rounded-lg border p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -208,17 +270,11 @@ export function FinishedGoodDetailsDialog({
                     Total Nilai Bahan Baku
                   </p>
                   <p className="text-muted-foreground mt-1 text-xs">
-                    (Berdasarkan harga supplier)
+                    (Berdasarkan harga supplier, tidak termasuk barang setengah jadi)
                   </p>
                 </div>
                 <p className="text-xl font-bold">
-                  {toRupiah(
-                    details.reduce(
-                      (sum, detail) =>
-                        sum + detail.rawMaterial.supplierPrice * detail.qty,
-                      0,
-                    ),
-                  )}
+                  {toRupiah(totalValue)}
                 </p>
               </div>
             </div>

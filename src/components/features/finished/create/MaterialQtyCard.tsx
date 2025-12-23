@@ -15,7 +15,7 @@ type MaterialQtyCardProps = {
   materials: { rawMaterialId: string; qty: number }[];
   onOpenModal?: () => void;
   removeMaterial: (id: string) => void;
-  readOnly?: boolean; // For when qty is auto-set from source
+  readOnly?: boolean;
 };
 
 export const MaterialQtyCard = ({

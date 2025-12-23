@@ -76,9 +76,7 @@ export function FinishedGoodsActionDialog({
     rawMaterialId: string;
   } | null>(null);
 
-  const { data: user } = trpc.auth.authMe.useQuery({
-    token: Cookies.get("auth.token") as string,
-  });
+  const { data: user } = trpc.auth.authMe.useQuery();
 
   const { data: rawMaterials } = trpc.rawMaterial.getAll.useQuery();
 
