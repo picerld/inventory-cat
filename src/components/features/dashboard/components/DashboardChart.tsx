@@ -10,23 +10,19 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "~/components/ui/chart";
-import { Line, LineChart, Bar, BarChart, Pie, PieChart, XAxis, YAxis, CartesianGrid } from "recharts";
-
-const revenueData = [
-  { month: "Jan", revenue: 4200000, orders: 145 },
-  { month: "Feb", revenue: 3800000, orders: 132 },
-  { month: "Mar", revenue: 5100000, orders: 178 },
-  { month: "Apr", revenue: 4600000, orders: 156 },
-  { month: "May", revenue: 6200000, orders: 198 },
-  { month: "Jun", revenue: 7500000, orders: 234 },
-];
-
-const categoryData = [
-  { name: "Putih", value: 35, fill: "hsl(var(--primary))" },
-  { name: "Hitam", value: 25, fill: "hsl(var(--primary) / 0.8)" },
-  { name: "Merah", value: 20, fill: "hsl(var(--primary) / 0.6)" },
-  { name: "Hijau", value: 20, fill: "hsl(var(--primary) / 0.4)" },
-];
+import {
+  Line,
+  LineChart,
+  Bar,
+  BarChart,
+  Pie,
+  PieChart,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from "recharts";
+import { Skeleton } from "~/components/ui/skeleton";
+import { trpc } from "~/utils/trpc";
 
 const revenueChartConfig = {
   revenue: {
@@ -46,37 +42,39 @@ const categoryChartConfig = {
   value: {
     label: "Percentage",
   },
-  Electronics: {
-    label: "Electronics",
-    color: "hsl(var(--primary))",
-  },
-  Fashion: {
-    label: "Fashion",
-    color: "hsl(var(--primary) / 0.8)",
-  },
-  Food: {
-    label: "Food",
-    color: "hsl(var(--primary) / 0.6)",
-  },
-  Others: {
-    label: "Others",
-    color: "hsl(var(--primary) / 0.4)",
-  },
 };
 
 const DashboardCharts = () => {
+  const { data: revenueData, isLoading: revenueLoading } =
+    trpc.dashboard.getMonthlyRevenue.useQuery();
+  const { data: categoryData, isLoading: categoryLoading } =
+    trpc.dashboard.getTopCategories.useQuery();
+
+  if (revenueLoading || categoryLoading) {
+    return (
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Skeleton className="h-[400px] lg:col-span-2" />
+        <Skeleton className="h-[400px]" />
+        <Skeleton className="h-[350px] lg:col-span-3" />
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle>Revenue Overview</CardTitle>
           <CardDescription>
-            Monthly revenue trends for 2024
+            Monthly revenue trends for {new Date().getFullYear()}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={revenueChartConfig} className="h-[300px] w-full">
-            <LineChart data={revenueData}>
+          <ChartContainer
+            config={revenueChartConfig}
+            className="h-[300px] w-full"
+          >
+            <LineChart data={revenueData ?? []}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="month"
@@ -116,18 +114,17 @@ const DashboardCharts = () => {
       <Card>
         <CardHeader>
           <CardTitle>Penjualan Bahan</CardTitle>
-          <CardDescription>
-            Penjualan bahan terbesar
-          </CardDescription>
+          <CardDescription>Penjualan bahan terbesar</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={categoryChartConfig} className="h-[300px] w-full">
+          <ChartContainer
+            config={categoryChartConfig}
+            className="h-[300px] w-full"
+          >
             <PieChart>
-              <ChartTooltip
-                content={<ChartTooltipContent hideLabel />}
-              />
+              <ChartTooltip content={<ChartTooltipContent hideLabel />} />
               <Pie
-                data={categoryData}
+                data={categoryData ?? []}
                 dataKey="value"
                 nameKey="name"
                 innerRadius={60}
@@ -136,7 +133,7 @@ const DashboardCharts = () => {
             </PieChart>
           </ChartContainer>
           <div className="mt-4 space-y-2">
-            {categoryData.map((item) => (
+            {(categoryData ?? []).map((item) => (
               <div
                 key={item.name}
                 className="flex items-center justify-between text-sm"
@@ -162,8 +159,11 @@ const DashboardCharts = () => {
           <CardDescription>Monthly order volume comparison</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={ordersChartConfig} className="h-[250px] w-full">
-            <BarChart data={revenueData}>
+          <ChartContainer
+            config={ordersChartConfig}
+            className="h-[250px] w-full"
+          >
+            <BarChart data={revenueData ?? []}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="month"
@@ -171,11 +171,7 @@ const DashboardCharts = () => {
                 tickMargin={10}
                 axisLine={false}
               />
-              <YAxis
-                tickLine={false}
-                tickMargin={10}
-                axisLine={false}
-              />
+              <YAxis tickLine={false} tickMargin={10} axisLine={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Bar
                 dataKey="orders"

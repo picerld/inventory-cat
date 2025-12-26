@@ -1,16 +1,21 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 import { Package, TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
-
-const recentOrders = [
-  { id: "ORD-001", customer: "John Doe", amount: "Rp 1,250,000", status: "completed", time: "2 hours ago" },
-  { id: "ORD-002", customer: "Jane Smith", amount: "Rp 890,000", status: "processing", time: "4 hours ago" },
-  { id: "ORD-003", customer: "Bob Johnson", amount: "Rp 2,150,000", status: "completed", time: "5 hours ago" },
-  { id: "ORD-004", customer: "Alice Brown", amount: "Rp 675,000", status: "pending", time: "6 hours ago" },
-  { id: "ORD-005", customer: "Charlie Wilson", amount: "Rp 1,450,000", status: "completed", time: "8 hours ago" },
-];
+import { Skeleton } from "~/components/ui/skeleton";
+import { trpc } from "~/utils/trpc";
 
 const RecentActivity = () => {
+  const { data: recentOrders, isLoading: ordersLoading } =
+    trpc.dashboard.getRecentOrders.useQuery();
+  const { data: salesStats, isLoading: statsLoading } =
+    trpc.dashboard.getSalesStats.useQuery();
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
@@ -24,37 +29,56 @@ const RecentActivity = () => {
     }
   };
 
+  if (ordersLoading || statsLoading) {
+    return (
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Skeleton className="h-[500px] lg:col-span-2" />
+        <Skeleton className="h-[500px]" />
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle>Penjualan Terbaru</CardTitle>
-          <CardDescription>Latest transactions from your customers</CardDescription>
+          <CardDescription>
+            Latest transactions from your customers
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {recentOrders.map((order) => (
-              <div 
-                key={order.id} 
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="bg-primary/10 p-2 rounded-lg">
-                    <Package className="text-primary size-5" />
-                  </div>
-                  <div>
-                    <p className="font-medium">{order.customer}</p>
-                    <p className="text-sm text-muted-foreground">{order.id} • {order.time}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <p className="font-semibold">{order.amount}</p>
-                  <Badge className={getStatusColor(order.status)}>
-                    {order.status}
-                  </Badge>
-                </div>
+            {!recentOrders || recentOrders.length === 0 ? (
+              <div className="text-muted-foreground py-8 text-center">
+                No recent orders found
               </div>
-            ))}
+            ) : (
+              recentOrders.map((order) => (
+                <div
+                  key={order.id}
+                  className="hover:bg-muted/50 flex items-center justify-between rounded-lg border p-4 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="bg-primary/10 rounded-lg p-2">
+                      <Package className="text-primary size-5" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{order.customer}</p>
+                      <p className="text-muted-foreground text-sm">
+                        {order.id} • {order.time}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <p className="font-semibold">{order.amount}</p>
+                    <Badge className={getStatusColor(order.status)}>
+                      {order.status}
+                    </Badge>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
@@ -65,43 +89,55 @@ const RecentActivity = () => {
           <CardDescription>Overview of your sales</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-3 p-3 border rounded-lg">
-            <div className="bg-green-100 p-2 rounded-lg">
-              <CheckCircle className="text-green-700 size-5" />
+          <div className="flex items-center gap-3 rounded-lg border p-3">
+            <div className="rounded-lg bg-green-100 p-2">
+              <CheckCircle className="size-5 text-green-700" />
             </div>
             <div className="flex-1">
-              <p className="text-sm text-muted-foreground">Success Rate</p>
-              <p className="text-xl font-bold">98.5%</p>
+              <p className="text-muted-foreground text-sm">Success Rate</p>
+              <p className="text-xl font-bold">
+                {salesStats?.successRate ?? "0%"}
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 p-3 border rounded-lg">
-            <div className="bg-blue-100 p-2 rounded-lg">
-              <TrendingUp className="text-blue-700 size-5" />
+          <div className="flex items-center gap-3 rounded-lg border p-3">
+            <div className="rounded-lg bg-blue-100 p-2">
+              <TrendingUp className="size-5 text-blue-700" />
             </div>
             <div className="flex-1">
-              <p className="text-sm text-muted-foreground">Avg. Order Value</p>
-              <p className="text-xl font-bold">Rp 1.2M</p>
+              <p className="text-muted-foreground text-sm">Avg. Order Value</p>
+              <p className="text-xl font-bold">
+                Rp{" "}
+                {salesStats?.avgOrderValue
+                  ? (salesStats.avgOrderValue / 1000000).toFixed(1)
+                  : "0"}
+                M
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 p-3 border rounded-lg">
-            <div className="bg-yellow-100 p-2 rounded-lg">
-              <AlertCircle className="text-yellow-700 size-5" />
+          <div className="flex items-center gap-3 rounded-lg border p-3">
+            <div className="rounded-lg bg-yellow-100 p-2">
+              <AlertCircle className="size-5 text-yellow-700" />
             </div>
             <div className="flex-1">
-              <p className="text-sm text-muted-foreground">Pending Items</p>
-              <p className="text-xl font-bold">24</p>
+              <p className="text-muted-foreground text-sm">Pending Items</p>
+              <p className="text-xl font-bold">
+                {salesStats?.pendingItems ?? 0}
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 p-3 border rounded-lg">
-            <div className="bg-primary/10 p-2 rounded-lg">
+          <div className="flex items-center gap-3 rounded-lg border p-3">
+            <div className="bg-primary/10 rounded-lg p-2">
               <Package className="text-primary size-5" />
             </div>
             <div className="flex-1">
-              <p className="text-sm text-muted-foreground">Total Products</p>
-              <p className="text-xl font-bold">856</p>
+              <p className="text-muted-foreground text-sm">Total Products</p>
+              <p className="text-xl font-bold">
+                {salesStats?.totalProducts ?? 0}
+              </p>
             </div>
           </div>
         </CardContent>
