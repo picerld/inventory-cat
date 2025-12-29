@@ -7,86 +7,73 @@ import {
   TrendingDown,
   AlertTriangle,
 } from "lucide-react";
-import type { RawMaterial } from "~/types/raw-material";
 import { Button } from "~/components/ui/button";
 import { toast } from "sonner";
+import type { SemiFinishedGood } from "~/types/semi-finished-good";
 
-type MaterialQtyModalProps = {
-  material: RawMaterial;
+type SemiFinishedQtyModalProps = {
+  semiFinished: SemiFinishedGood;
   currentQty: number;
   onConfirm: (qty: number) => void;
   onClose: () => void;
 };
 
-export const MaterialQtyModal = ({
-  material,
+export const SemiFinishedQtyModal = ({
+  semiFinished,
   currentQty,
   onConfirm,
   onClose,
-}: MaterialQtyModalProps) => {
+}: SemiFinishedQtyModalProps) => {
   const [qty, setQty] = useState(currentQty.toString());
 
-  const numericQty = parseFloat(qty) || 0;
-  const materialQty = Number(material.qty);
+  const numericQty = Number(qty) || 0;
 
-  const remainingStock = materialQty - numericQty;
+  const remainingStock = semiFinished.qty - numericQty;
   const isLowStock = remainingStock < 10 && remainingStock > 0;
-  const stockPercentage = Math.max((remainingStock / materialQty) * 100, 0);
+  const stockPercentage = Math.max((remainingStock / semiFinished.qty) * 100, 0);
 
   const handleIncrement = () => {
-    const next = numericQty + 0.1;
-    if (next <= materialQty) setQty((Math.round(next * 10) / 10).toString());
+    const next = numericQty + 1;
+    if (next <= semiFinished.qty) setQty(next.toString());
   };
 
   const handleDecrement = () => {
-    const next = numericQty - 0.1;
-    if (next >= 0.1) setQty((Math.round(next * 10) / 10).toString());
+    const next = numericQty - 1;
+    if (next >= 1) setQty(next.toString());
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
 
-    if (!/^\d*\.?\d*$/.test(value)) return;
+    if (!/^\d*$/.test(value)) return;
 
-    setQty(value);
-  };
+    const numeric = Number(value);
 
-  const handleBlur = () => {
-    if (qty === "" || qty === ".") {
-      setQty("0.1");
+    if (value === "") {
+      setQty("");
       return;
     }
 
-    const numeric = parseFloat(qty);
-
-    if (isNaN(numeric) || numeric < 0.1) {
-      setQty("0.1");
-    } else if (numeric > materialQty) {
-      setQty(materialQty.toString());
+    if (numeric > semiFinished.qty) {
+      setQty(semiFinished.qty.toString());
+    } else if (numeric < 1) {
+      setQty("1");
+    } else {
+      setQty(value);
     }
   };
 
   const handleConfirm = () => {
-    const finalQty = parseFloat(qty);
+    const finalQty = Number(qty);
 
-    if (isNaN(finalQty) || finalQty < 0.1) {
-      toast.error("Jumlah tidak valid!", {
-        description: "Minimal jumlah adalah 0.1",
-      });
-      setQty("0.1");
-      return;
+    if (finalQty >= 1 && finalQty <= semiFinished.qty) {
+      onConfirm(finalQty);
+      onClose();
+    } else {
+      toast.error(`Jumlah harus antara 1 dan ${semiFinished.qty}.`);
+
+      setQty(semiFinished.qty.toString());
     }
-
-    if (finalQty > materialQty) {
-      toast.error("Stok tidak mencukupi!", {
-        description: `Stok tersedia hanya ${materialQty.toFixed(2)} barang.`,
-      });
-      setQty(materialQty.toString());
-      return;
-    }
-
-    onConfirm(finalQty);
-    onClose();
   };
 
   return (
@@ -105,11 +92,11 @@ export const MaterialQtyModal = ({
               </div>
               <div className="w-full">
                 <h3 className="text-lg leading-tight font-semibold">
-                  {material.name}
+                  {semiFinished.name}
                 </h3>
                 <div className="flex w-full justify-between">
                   <p className="text-muted-foreground mt-1 text-sm">
-                    {material.supplier.name}
+                    {semiFinished.paintGrade.name}
                   </p>
                 </div>
               </div>
@@ -130,7 +117,7 @@ export const MaterialQtyModal = ({
                   Stok Tersedia
                 </span>
                 <span className="text-2xl font-bold">
-                  {materialQty.toFixed(2)}{" "}
+                  {semiFinished.qty}{" "}
                   <span className="text-foreground text-base">barang</span>
                 </span>
               </div>
@@ -144,7 +131,7 @@ export const MaterialQtyModal = ({
                         : "bg-green-500"
                       : "bg-red-500"
                   }`}
-                  style={{ width: `${Math.min(stockPercentage, 100)}%` }}
+                  style={{ width: `${stockPercentage}%` }}
                 />
               </div>
 
@@ -160,13 +147,12 @@ export const MaterialQtyModal = ({
                         : "text-red-600"
                     }`}
                   >
-                    {remainingStock.toFixed(2)} barang
+                    {remainingStock} barang
                   </span>
                 </span>
               </div>
             </div>
 
-            {/* Input Qty */}
             <div>
               <label className="mb-3 block text-sm font-medium">
                 Jumlah Penggunaan
@@ -175,7 +161,7 @@ export const MaterialQtyModal = ({
                 <Button
                   size={"lg"}
                   onClick={handleDecrement}
-                  disabled={numericQty <= 0.1}
+                  disabled={numericQty <= 1}
                   className="bg-muted hover:bg-muted/80 text-primary rounded-xl py-7"
                 >
                   <Minus className="size-5" strokeWidth={3} />
@@ -186,7 +172,6 @@ export const MaterialQtyModal = ({
                     type="text"
                     value={qty}
                     onChange={handleInputChange}
-                    onBlur={handleBlur}
                     className="border-border focus:ring-primary h-14 w-full rounded-xl border-2 bg-transparent text-center text-2xl font-bold focus:ring-2 focus:ring-offset-2 focus:outline-none"
                   />
                   <span className="text-muted-foreground absolute top-1/2 right-4 -translate-y-1/2 text-sm">
@@ -197,7 +182,7 @@ export const MaterialQtyModal = ({
                 <Button
                   size={"lg"}
                   onClick={handleIncrement}
-                  disabled={numericQty >= materialQty}
+                  disabled={numericQty >= semiFinished.qty}
                   className="bg-muted hover:bg-muted/80 text-primary rounded-xl py-7"
                 >
                   <Plus className="size-5" strokeWidth={3} />
@@ -213,14 +198,14 @@ export const MaterialQtyModal = ({
                     Stok Rendah
                   </p>
                   <p className="mt-1 text-orange-700 dark:text-orange-300">
-                    Stok tersisa hanya {remainingStock.toFixed(2)} barang
-                    setelah penggunaan.
+                    Stok tersisa hanya {remainingStock} barang setelah
+                    penggunaan.
                   </p>
                 </div>
               </div>
             )}
 
-            {remainingStock <= 0 && (
+            {remainingStock === 0 && (
               <div className="flex items-start gap-3 rounded-xl bg-red-50 p-3 dark:bg-red-950/20">
                 <TrendingDown className="mt-0.5 h-5 w-5 text-red-600 dark:text-red-500" />
                 <div className="flex-1 text-sm">

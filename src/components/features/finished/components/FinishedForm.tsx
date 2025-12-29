@@ -36,7 +36,6 @@ import {
 } from "~/components/ui/popover";
 import { cn, generateRandomCode } from "~/lib/utils";
 import type { RawMaterial } from "~/types/raw-material";
-import type { SemiFinishedGood } from "~/types/semi-finished-good";
 import type { FinishedGood } from "~/types/finished-good";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -53,6 +52,8 @@ import {
 } from "~/components/ui/select";
 import { SemiFinishedQtyCard } from "../create/SemiFinishedQtyCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import type { SemiFinishedGood } from "~/types/semi-finished-good";
+import { SemiFinishedQtyModal } from "../create/SemiFinishedQtyModal";
 
 type FinishedFormProps = {
   mode: "create" | "edit";
@@ -68,11 +69,17 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
     );
   const [date] = useState<Date | undefined>(new Date(2025, 5, 12));
 
-  const [openCombobox, setOpenCombobox] = useState(false);
-  const [qtyModalOpen, setQtyModalOpen] = useState<{
+  const [openCombobox, setOpenCombobox] = useState<boolean>(false);
+  const [rawMaterialQtyModalOpen, setRawMaterialQtyModalOpen] = useState<{
     material: RawMaterial;
     currentQty: number;
     rawMaterialId: string;
+  } | null>(null);
+
+  const [semiFinishedQtyModalOpen, setSemiFinishedQtyModalOpen] = useState<{
+    semiFinished: SemiFinishedGood;
+    currentQty: number;
+    semiFinishedGoodId: string;
   } | null>(null);
 
   const { data: user } = trpc.auth.authMe.useQuery();
@@ -132,18 +139,33 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
       batchNumber: "",
       dateProduced: new Date(),
       sourceType: "raw_material" as "raw_material" | "semi_finished",
-      materials: [] as { rawMaterialId: string; qty: number }[],
-      semiFinishedGoods: [] as { semiFinishedGoodId: string; qty: number }[],
+      materials: [] as { rawMaterialId: string; qty: number | string }[],
+      semiFinishedGoods: [] as {
+        semiFinishedGoodId: string;
+        qty: number | string;
+      }[],
     },
 
     // @ts-expect-error type
     validators: { onSubmit: finishedGoodFormSchema },
 
     onSubmit: async ({ value }) => {
+      const payload = {
+        ...value,
+        materials: value.materials.map((m) => ({
+          rawMaterialId: m.rawMaterialId,
+          qty: typeof m.qty === "string" ? parseFloat(m.qty) || 0 : m.qty,
+        })),
+        semiFinishedGoods: value.semiFinishedGoods.map((sf) => ({
+          semiFinishedGoodId: sf.semiFinishedGoodId,
+          qty: typeof sf.qty === "string" ? parseFloat(sf.qty) || 0 : sf.qty,
+        })),
+      };
+
       if (mode === "create") {
-        createFinishedGood(value);
+        createFinishedGood(payload);
       } else {
-        updateFinishedGood({ id: initialData!.id, ...value });
+        updateFinishedGood({ id: initialData!.id, ...payload });
       }
     },
   });
@@ -153,14 +175,14 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
       form.setFieldValue("productionCode", initialData.productionCode);
       form.setFieldValue("batchNumber", initialData.batchNumber);
       form.setFieldValue("name", initialData.name);
-      form.setFieldValue("qty", initialData.qty);
+      form.setFieldValue("qty", Number(initialData.qty));
       form.setFieldValue("paintGradeId", initialData.paintGradeId);
       form.setFieldValue("dateProduced", new Date(initialData.dateProduced));
       form.setFieldValue(
         "materials",
         initialData.finishedGoodDetails?.map((m) => ({
           rawMaterialId: m.rawMaterialId,
-          qty: m.qty,
+          qty: Number(m.qty),
         })) || [],
       );
     } else {
@@ -244,7 +266,7 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                       disabled
                       readOnly
                     />
-                    <p className="text-muted-foreground mt-1 text-xs">
+                    <p className="text-muted-foreground mt-1 hidden text-xs sm:block">
                       Otomatis dihitung dari jumlah bahan yang dipilih
                     </p>
                   </Field>
@@ -334,7 +356,7 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
             }}
           </form.Field>
 
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <form.Field name="productionCode">
               {(field) => {
                 const isInvalid =
@@ -352,6 +374,7 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                         className="col-span-6 h-12 rounded-xl border-2"
                         value={field.state.value}
                         onChange={(e) => field.handleChange(e.target.value)}
+                        disabled={mode === "edit"}
                       />
 
                       <Button
@@ -362,6 +385,7 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                         onClick={() =>
                           field.handleChange(generateRandomCode("P"))
                         }
+                        disabled={mode === "edit"}
                       >
                         <Wand className="size-5" strokeWidth={2.5} />
                       </Button>
@@ -392,6 +416,7 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                         className="col-span-6 h-12 rounded-xl border-2"
                         value={field.state.value}
                         onChange={(e) => field.handleChange(e.target.value)}
+                        disabled={mode === "edit"}
                       />
 
                       <Button
@@ -402,6 +427,7 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                         onClick={() =>
                           field.handleChange(generateRandomCode("B"))
                         }
+                        disabled={mode === "edit"}
                       >
                         <Wand className="size-5" strokeWidth={2.5} />
                       </Button>
@@ -426,6 +452,8 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                   <Tabs
                     value={sourceTypeField.state.value}
                     onValueChange={(value) => {
+                      if (mode === "edit") return; // Prevent changes in edit mode
+
                       sourceTypeField.handleChange(
                         value as "raw_material" | "semi_finished",
                       );
@@ -439,6 +467,7 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                       <TabsTrigger
                         value="raw_material"
                         className="cursor-pointer gap-2"
+                        disabled={mode === "edit"}
                       >
                         <Package className="h-4 w-4" />
                         Bahan Baku
@@ -446,6 +475,7 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                       <TabsTrigger
                         value="semi_finished"
                         className="cursor-pointer gap-2"
+                        disabled={mode === "edit"}
                       >
                         <Layers className="h-4 w-4" />
                         Barang Setengah Jadi
@@ -458,6 +488,8 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                           const materials = field.state.value;
 
                           const addMaterial = (rawMaterialId: string) => {
+                            if (mode === "edit") return; // Prevent adding in edit mode
+
                             const material = rawMaterials?.find(
                               (rm) => rm.id === rawMaterialId,
                             );
@@ -474,11 +506,13 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
 
                             field.handleChange([
                               ...materials,
-                              { rawMaterialId, qty: 0 },
+                              { rawMaterialId, qty: 0.1 },
                             ]);
                           };
 
                           const removeMaterial = (rawMaterialId: string) => {
+                            if (mode === "edit") return; // Prevent removing in edit mode
+
                             field.handleChange(
                               materials.filter(
                                 (m) => m.rawMaterialId !== rawMaterialId,
@@ -492,69 +526,82 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                                 Pilih Bahan Baku <IsRequired />
                               </FieldLabel>
 
-                              <Popover
-                                open={openCombobox}
-                                onOpenChange={setOpenCombobox}
-                              >
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    className="h-auto min-h-12 w-full justify-start rounded-xl border-2"
-                                  >
-                                    {materials.length > 0 ? (
-                                      <span>
-                                        {materials.length} bahan baku dipilih
-                                      </span>
-                                    ) : (
-                                      <span className="text-muted-foreground">
-                                        Pilih bahan baku...
-                                      </span>
-                                    )}
-                                  </Button>
-                                </PopoverTrigger>
+                              {mode === "edit" ? (
+                                <div className="bg-muted rounded-xl border-2 p-3">
+                                  <p className="text-muted-foreground text-sm">
+                                    {materials.length} bahan baku dipilih (tidak
+                                    dapat diubah saat edit)
+                                  </p>
+                                </div>
+                              ) : (
+                                <Popover
+                                  open={openCombobox}
+                                  onOpenChange={setOpenCombobox}
+                                >
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      className="h-auto min-h-12 w-full justify-start rounded-xl border-2"
+                                    >
+                                      {materials.length > 0 ? (
+                                        <span>
+                                          {materials.length} bahan baku dipilih
+                                        </span>
+                                      ) : (
+                                        <span className="text-muted-foreground">
+                                          Pilih bahan baku...
+                                        </span>
+                                      )}
+                                    </Button>
+                                  </PopoverTrigger>
 
-                                <PopoverContent className="w-full p-0">
-                                  <Command>
-                                    <CommandInput placeholder="Cari bahan baku..." />
-                                    <CommandList>
-                                      <CommandEmpty>
-                                        Tidak ada bahan baku.
-                                      </CommandEmpty>
-                                      <CommandGroup>
-                                        {rawMaterials
-                                          ?.filter((m) => m.qty > 0)
-                                          .map((material) => {
-                                            const isSelected = materials.some(
-                                              (m) =>
-                                                m.rawMaterialId === material.id,
-                                            );
+                                  <PopoverContent className="w-full p-0">
+                                    <Command>
+                                      <CommandInput placeholder="Cari bahan baku..." />
+                                      <CommandList>
+                                        <CommandEmpty>
+                                          Tidak ada bahan baku.
+                                        </CommandEmpty>
+                                        <CommandGroup>
+                                          {rawMaterials
+                                            ?.filter((m) => Number(m.qty) > 0)
+                                            .map((material) => {
+                                              const isSelected = materials.some(
+                                                (m) =>
+                                                  m.rawMaterialId ===
+                                                  material.id,
+                                              );
 
-                                            return (
-                                              <CommandItem
-                                                key={material.id}
-                                                onSelect={() =>
-                                                  addMaterial(material.id)
-                                                }
-                                              >
-                                                <Check
-                                                  className={cn(
-                                                    "mr-2 h-4 w-4",
-                                                    isSelected
-                                                      ? "opacity-100"
-                                                      : "opacity-0",
+                                              return (
+                                                <CommandItem
+                                                  key={material.id}
+                                                  onSelect={() =>
+                                                    addMaterial(material.id)
+                                                  }
+                                                >
+                                                  <Check
+                                                    className={cn(
+                                                      "mr-2 h-4 w-4",
+                                                      isSelected
+                                                        ? "opacity-100"
+                                                        : "opacity-0",
+                                                    )}
+                                                  />
+                                                  {material.name} (
+                                                  {material.supplier.name}) -
+                                                  Stok:{" "}
+                                                  {Number(material.qty).toFixed(
+                                                    2,
                                                   )}
-                                                />
-                                                {material.name} (
-                                                {material.supplier.name}) -
-                                                Stok: {material.qty}
-                                              </CommandItem>
-                                            );
-                                          })}
-                                      </CommandGroup>
-                                    </CommandList>
-                                  </Command>
-                                </PopoverContent>
-                              </Popover>
+                                                </CommandItem>
+                                              );
+                                            })}
+                                        </CommandGroup>
+                                      </CommandList>
+                                    </Command>
+                                  </PopoverContent>
+                                </Popover>
+                              )}
 
                               <div className="mt-3 space-y-2">
                                 {materials.map((m) => {
@@ -565,17 +612,24 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                                   return (
                                     <MaterialQtyCard
                                       key={m.rawMaterialId}
-                                      material={material as RawMaterial}
+                                      material={material}
                                       m={m}
                                       materials={materials}
                                       onOpenModal={() => {
-                                        setQtyModalOpen({
-                                          material: material as RawMaterial,
-                                          currentQty: m.qty,
+                                        if (mode === "edit") return; // Prevent modal in edit mode
+
+                                        const currentQty =
+                                          typeof m.qty === "string"
+                                            ? parseFloat(m.qty) || 0.1
+                                            : m.qty;
+                                        setRawMaterialQtyModalOpen({
+                                          material: material,
+                                          currentQty,
                                           rawMaterialId: m.rawMaterialId,
                                         });
                                       }}
                                       removeMaterial={removeMaterial}
+                                      isReadOnly={mode === "edit"}
                                     />
                                   );
                                 })}
@@ -601,6 +655,8 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                           const addSemiFinished = (
                             semiFinishedGoodId: string,
                           ) => {
+                            if (mode === "edit") return; // Prevent adding in edit mode
+
                             const sfg = semiFinishedGoods?.find(
                               (sf) => sf.id === semiFinishedGoodId,
                             );
@@ -618,13 +674,15 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
 
                             field.handleChange([
                               ...semiFinished,
-                              { semiFinishedGoodId, qty: sfg.qty },
+                              { semiFinishedGoodId, qty: Number(sfg.qty) },
                             ]);
                           };
 
                           const removeSemiFinished = (
                             semiFinishedGoodId: string,
                           ) => {
+                            if (mode === "edit") return; // Prevent removing in edit mode
+
                             field.handleChange(
                               semiFinished.filter(
                                 (sf) =>
@@ -639,72 +697,81 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                                 Pilih Barang Setengah Jadi <IsRequired />
                               </FieldLabel>
 
-                              <Popover
-                                open={openCombobox}
-                                onOpenChange={setOpenCombobox}
-                              >
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    className="h-auto min-h-12 w-full justify-start rounded-xl border-2"
-                                  >
-                                    {semiFinished.length > 0 ? (
-                                      <span>
-                                        {semiFinished.length} barang setengah
-                                        jadi dipilih
-                                      </span>
-                                    ) : (
-                                      <span className="text-muted-foreground">
-                                        Pilih barang setengah jadi...
-                                      </span>
-                                    )}
-                                  </Button>
-                                </PopoverTrigger>
+                              {mode === "edit" ? (
+                                <div className="bg-muted rounded-xl border-2 p-3">
+                                  <p className="text-muted-foreground text-sm">
+                                    {semiFinished.length} barang setengah jadi
+                                    dipilih (tidak dapat diubah saat edit)
+                                  </p>
+                                </div>
+                              ) : (
+                                <Popover
+                                  open={openCombobox}
+                                  onOpenChange={setOpenCombobox}
+                                >
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      className="h-auto min-h-12 w-full justify-start rounded-xl border-2"
+                                    >
+                                      {semiFinished.length > 0 ? (
+                                        <span>
+                                          {semiFinished.length} barang setengah
+                                          jadi dipilih
+                                        </span>
+                                      ) : (
+                                        <span className="text-muted-foreground">
+                                          Pilih barang setengah jadi...
+                                        </span>
+                                      )}
+                                    </Button>
+                                  </PopoverTrigger>
 
-                                <PopoverContent className="w-full p-0">
-                                  <Command>
-                                    <CommandInput placeholder="Cari barang setengah jadi..." />
-                                    <CommandList>
-                                      <CommandEmpty>
-                                        Tidak ada barang setengah jadi.
-                                      </CommandEmpty>
-                                      <CommandGroup>
-                                        {semiFinishedGoods
-                                          ?.filter((sf) => sf.qty > 0)
-                                          .map((sfg) => {
-                                            const isSelected =
-                                              semiFinished.some(
-                                                (sf) =>
-                                                  sf.semiFinishedGoodId ===
-                                                  sfg.id,
+                                  <PopoverContent className="w-full p-0">
+                                    <Command>
+                                      <CommandInput placeholder="Cari barang setengah jadi..." />
+                                      <CommandList>
+                                        <CommandEmpty>
+                                          Tidak ada barang setengah jadi.
+                                        </CommandEmpty>
+                                        <CommandGroup>
+                                          {semiFinishedGoods
+                                            ?.filter((sf) => Number(sf.qty) > 0)
+                                            .map((sfg) => {
+                                              const isSelected =
+                                                semiFinished.some(
+                                                  (sf) =>
+                                                    sf.semiFinishedGoodId ===
+                                                    sfg.id,
+                                                );
+
+                                              return (
+                                                <CommandItem
+                                                  key={sfg.id}
+                                                  onSelect={() =>
+                                                    addSemiFinished(sfg.id)
+                                                  }
+                                                >
+                                                  <Check
+                                                    className={cn(
+                                                      "mr-2 h-4 w-4",
+                                                      isSelected
+                                                        ? "opacity-100"
+                                                        : "opacity-0",
+                                                    )}
+                                                  />
+                                                  {sfg.name} (
+                                                  {sfg.paintGrade?.name}) -
+                                                  Stok: {Number(sfg.qty)}
+                                                </CommandItem>
                                               );
-
-                                            return (
-                                              <CommandItem
-                                                key={sfg.id}
-                                                onSelect={() =>
-                                                  addSemiFinished(sfg.id)
-                                                }
-                                              >
-                                                <Check
-                                                  className={cn(
-                                                    "mr-2 h-4 w-4",
-                                                    isSelected
-                                                      ? "opacity-100"
-                                                      : "opacity-0",
-                                                  )}
-                                                />
-                                                {sfg.name} (
-                                                {sfg.paintGrade?.name}) - Stok:{" "}
-                                                {sfg.qty}
-                                              </CommandItem>
-                                            );
-                                          })}
-                                      </CommandGroup>
-                                    </CommandList>
-                                  </Command>
-                                </PopoverContent>
-                              </Popover>
+                                            })}
+                                        </CommandGroup>
+                                      </CommandList>
+                                    </Command>
+                                  </PopoverContent>
+                                </Popover>
+                              )}
 
                               <div className="mt-3 space-y-2">
                                 {semiFinished.map((sf) => {
@@ -715,9 +782,25 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
                                   return (
                                     <SemiFinishedQtyCard
                                       key={sf.semiFinishedGoodId}
-                                      semiFinished={sfg as SemiFinishedGood}
-                                      qty={sf.qty}
+                                      semiFinished={sfg}
+                                      sfm={sf}
                                       onRemove={removeSemiFinished}
+                                      onOpenModal={() => {
+                                        if (mode === "edit") return; // Prevent modal in edit mode
+
+                                        const currentQty =
+                                          typeof sf.qty === "string"
+                                            ? parseFloat(sf.qty) || 1
+                                            : sf.qty;
+
+                                        setSemiFinishedQtyModalOpen({
+                                          semiFinished: sfg,
+                                          currentQty,
+                                          semiFinishedGoodId:
+                                            sf.semiFinishedGoodId,
+                                        });
+                                      }}
+                                      isReadOnly={mode === "edit"}
                                     />
                                   );
                                 })}
@@ -757,42 +840,44 @@ export function FinishedGoodForm({ mode, initialData }: FinishedFormProps) {
         </Button>
       </form>
 
-      {qtyModalOpen && (
+      {rawMaterialQtyModalOpen && (
         <MaterialQtyModal
-          material={qtyModalOpen.material}
-          currentQty={qtyModalOpen.currentQty}
+          material={rawMaterialQtyModalOpen.material}
+          currentQty={rawMaterialQtyModalOpen.currentQty}
           onConfirm={(qty: number) => {
             const materials = form.getFieldValue("materials");
-            const material = rawMaterials?.find(
-              (rm) => rm.id === qtyModalOpen.rawMaterialId,
-            );
-
-            if (!material) return;
-
-            if (qty <= 0) {
-              toast.error("Jumlah tidak boleh 0!", {
-                description: "Minimal jumlah bahan baku adalah 1.",
-              });
-              return;
-            }
-
-            if (qty > material.qty) {
-              toast.error("Stok tidak mencukupi!", {
-                description: `Stok tersedia hanya ${material.qty} unit.`,
-              });
-              return;
-            }
 
             const newMaterials = materials.map((m) =>
-              m.rawMaterialId === qtyModalOpen.rawMaterialId
+              m.rawMaterialId === rawMaterialQtyModalOpen.rawMaterialId
                 ? { ...m, qty }
                 : m,
             );
 
             form.setFieldValue("materials", newMaterials);
-            setQtyModalOpen(null);
+            setRawMaterialQtyModalOpen(null);
           }}
-          onClose={() => setQtyModalOpen(null)}
+          onClose={() => setRawMaterialQtyModalOpen(null)}
+        />
+      )}
+
+      {semiFinishedQtyModalOpen && (
+        <SemiFinishedQtyModal
+          semiFinished={semiFinishedQtyModalOpen.semiFinished}
+          currentQty={semiFinishedQtyModalOpen.currentQty}
+          onConfirm={(qty: number) => {
+            const semiFinishedGoods = form.getFieldValue("semiFinishedGoods");
+
+            const newSemiFinishedGoods = semiFinishedGoods.map((sf) =>
+              sf.semiFinishedGoodId ===
+              semiFinishedQtyModalOpen.semiFinishedGoodId
+                ? { ...sf, qty }
+                : sf,
+            );
+
+            form.setFieldValue("semiFinishedGoods", newSemiFinishedGoods);
+            setSemiFinishedQtyModalOpen(null);
+          }}
+          onClose={() => setSemiFinishedQtyModalOpen(null)}
         />
       )}
     </div>

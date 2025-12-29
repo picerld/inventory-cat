@@ -164,7 +164,7 @@ export default function FinishedGoodQrPage({ item }: QRPageProps) {
                         Jumlah
                       </p>
                       <p className="text-lg font-semibold text-slate-900">
-                        {item.qty}
+                        {Number(item.qty)}
                       </p>
                     </div>
                   </div>
@@ -225,7 +225,7 @@ export default function FinishedGoodQrPage({ item }: QRPageProps) {
                             {detail.rawMaterial.supplier}
                           </span>
                         </div>
-                        <Badge variant="secondary">{detail.qty}</Badge>
+                        <Badge variant="secondary">{Number(detail.qty)}</Badge>
                       </div>
                     ))}
                   </div>
@@ -293,7 +293,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         item: {
           id: item.id,
           name: item.name,
-          qty: item.qty,
+          qty: Number(item.qty),
           createdAt: item.createdAt.toISOString(),
           user: {
             name: item.user.name,
@@ -303,7 +303,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
               name: detail.rawMaterial.name,
               supplier: detail.rawMaterial.supplier.name,
             },
-            qty: detail.qty,
+            qty: Number(detail.qty),
           })),
         },
       },

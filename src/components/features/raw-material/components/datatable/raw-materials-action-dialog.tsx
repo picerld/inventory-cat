@@ -109,13 +109,16 @@ export function RawMaterialsActionDialog({
     },
     validators: { onSubmit: rawMaterialFormSchema },
     onSubmit: ({ value }) => {
-      if (isEdit && currentRow) {
-        updateRawMaterial({ id: currentRow.id, ...value });
-      } else {
-        createRawMaterial(value);
-      }
+      const payload = {
+        ...value,
+        qty: Number(value.qty),
+      };
 
-      utils.supplier.getStats.invalidate();
+      if (isEdit && currentRow) {
+        updateRawMaterial({ id: currentRow.id, ...payload });
+      } else {
+        createRawMaterial(payload);
+      }
     },
   });
 
@@ -258,13 +261,18 @@ export function RawMaterialsActionDialog({
                     <FieldLabel className="text-base">
                       Kuantiti <IsRequired />
                     </FieldLabel>
+
                     <Input
-                      placeholder="0"
+                      type="text"
+                      placeholder="0.00"
                       className="h-12 rounded-xl border-2"
-                      value={field.state.value}
+                      value={field.state.value ?? ""}
                       onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, "");
-                        field.handleChange(Number(value));
+                        const value = e.target.value;
+
+                        if (/^\d*\.?\d*$/.test(value)) {
+                          field.handleChange(value);
+                        }
                       }}
                     />
 

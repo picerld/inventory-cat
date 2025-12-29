@@ -31,7 +31,11 @@ export const finishedGoodFormSchema = z.object({
     .array(
       z.object({
         rawMaterialId: z.string(),
-        qty: z.number().min(1, "Kuantitas minimal 1"),
+        qty: z.coerce
+          .number({
+            invalid_type_error: "Qty harus berupa angka",
+          })
+          .finite("Qty harus berupa angka yang valid"),
       }),
     )
     .optional(),

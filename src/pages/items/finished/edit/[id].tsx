@@ -18,7 +18,7 @@ export default function Page() {
 
   return (
     <GuardedLayout>
-      <HeadMetaData title="Edit Bahan Jadi" />
+      <HeadMetaData title="Edit Barang Jadi" />
 
       <Link
         href="/items/finished"
@@ -27,8 +27,8 @@ export default function Page() {
         <ChevronLeft className="mr-2 h-4 w-4" /> Kembali
       </Link>
       <Header
-        title="Edit Bahan Jadi"
-        subtitle="Manage your Bahan Jadi network and track performance"
+        title="Edit Barang Jadi"
+        subtitle="Manage your Barang Jadi network and track performance"
       >
         <Button size={"icon-lg"} variant={"outline"}>
           <ChartNoAxesCombined className="size-6" />

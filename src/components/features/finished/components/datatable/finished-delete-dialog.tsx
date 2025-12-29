@@ -58,7 +58,7 @@ export function FinishedGoodsDeleteDialog({
     if (value.trim() !== currentRow.name) {
       toast.error("Nama tidak cocok", {
         description:
-          "Silakan ketik nama bahan jadi dengan benar untuk konfirmasi",
+          "Silakan ketik nama barang jadi dengan benar untuk konfirmasi",
       });
       return;
     }

@@ -8,7 +8,6 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { trpc } from "~/utils/trpc";
 import { toast } from "sonner";
@@ -36,7 +35,6 @@ import {
   PopoverTrigger,
 } from "~/components/ui/popover";
 import { cn } from "~/lib/utils";
-import type { RawMaterial } from "~/types/raw-material";
 import { MaterialQtyCard } from "../create/MaterialQtyCard";
 import {
   AlertDialog,
@@ -61,8 +59,8 @@ export function SemiFinishedGoodUpdateQty({
   onOpenChange,
 }: SemiFinishedGoodUpdateQtyProps) {
   const utils = trpc.useUtils();
-  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
-  const [openCombobox, setOpenCombobox] = useState(false);
+  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState<boolean>(false);
+  const [openCombobox, setOpenCombobox] = useState<boolean>(false);
 
   const { data: user } = trpc.auth.authMe.useQuery();
   const { data: rawMaterials } = trpc.rawMaterial.getAll.useQuery();
@@ -93,15 +91,21 @@ export function SemiFinishedGoodUpdateQty({
   const form = useForm({
     defaultValues: {
       userId: user?.id ?? "",
-      materials: [] as { rawMaterialId: string; qty: number }[],
+      materials: [] as { rawMaterialId: string; qty: number | string }[],
     },
     onSubmit: ({ value }) => {
       if (!currentRow) return;
-      updateQty({
+
+      const payload = {
         id: currentRow.id,
         userId: value.userId,
-        materials: value.materials,
-      });
+        materials: value.materials.map((m) => ({
+          rawMaterialId: m.rawMaterialId,
+          qty: typeof m.qty === "string" ? parseFloat(m.qty) || 0 : m.qty,
+        })),
+      };
+
+      updateQty(payload);
     },
   });
 
@@ -181,7 +185,12 @@ export function SemiFinishedGoodUpdateQty({
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold">{detail.qty} unit</p>
+                          <p className="font-semibold">
+                            {typeof detail.qty === "number"
+                              ? detail.qty.toFixed(2)
+                              : detail.qty}{" "}
+                            unit
+                          </p>
                         </div>
                       </div>
                     );
@@ -193,7 +202,10 @@ export function SemiFinishedGoodUpdateQty({
                 <p className="text-sm font-medium">
                   Total Kuantiti Saat Ini:{" "}
                   <span className="text-lg font-bold">
-                    {currentRow.qty} unit
+                    {typeof currentRow.qty === "number"
+                      ? currentRow.qty.toFixed(2)
+                      : currentRow.qty}{" "}
+                    unit
                   </span>
                 </p>
               </div>
@@ -203,10 +215,13 @@ export function SemiFinishedGoodUpdateQty({
               <form.Field name="materials">
                 {(field) => {
                   const materials = field.state.value;
-                  const additionalQty = materials.reduce(
-                    (sum, m) => sum + m.qty,
-                    0,
-                  );
+                  const additionalQty = materials.reduce((sum, m) => {
+                    const qty =
+                      typeof m.qty === "string"
+                        ? parseFloat(m.qty) || 0
+                        : m.qty;
+                    return sum + qty;
+                  }, 0);
 
                   const addMaterial = (rawMaterialId: string) => {
                     if (
@@ -216,7 +231,7 @@ export function SemiFinishedGoodUpdateQty({
 
                     const newMaterials = [
                       ...materials,
-                      { rawMaterialId, qty: 1 },
+                      { rawMaterialId, qty: 0.1 },
                     ];
 
                     field.handleChange(newMaterials);
@@ -232,25 +247,27 @@ export function SemiFinishedGoodUpdateQty({
 
                   const updateMaterialQty = (
                     rawMaterialId: string,
-                    qty: number,
+                    qty: number | string,
                   ) => {
                     const material = rawMaterials?.find(
                       (rm) => rm.id === rawMaterialId,
                     );
                     if (!material) return;
 
-                    if (qty <= 0) {
-                      toast.error("Jumlah tidak boleh 0!", {
-                        description: "Minimal jumlah bahan baku adalah 1.",
-                      });
-                      return;
-                    }
+                    if (typeof qty === "number") {
+                      if (qty <= 0) {
+                        toast.error("Jumlah tidak boleh 0!", {
+                          description: "Minimal jumlah bahan baku adalah 0.1.",
+                        });
+                        return;
+                      }
 
-                    if (qty > material.qty) {
-                      toast.error("Stok tidak mencukupi!", {
-                        description: `Stok tersedia hanya ${material.qty} unit.`,
-                      });
-                      return;
+                      if (qty > Number(material.qty)) {
+                        toast.error("Stok tidak mencukupi!", {
+                          description: `Stok tersedia hanya ${material.qty} unit.`,
+                        });
+                        return;
+                      }
                     }
 
                     const newMaterials = materials.map((m) =>
@@ -292,7 +309,7 @@ export function SemiFinishedGoodUpdateQty({
                               <CommandEmpty>Tidak ada bahan baku.</CommandEmpty>
                               <CommandGroup>
                                 {rawMaterials
-                                  ?.filter((m) => m.qty > 0)
+                                  ?.filter((m) => Number(m.qty) > 0)
                                   .map((material) => {
                                     const isSelected = materials.some(
                                       (m) => m.rawMaterialId === material.id,
@@ -315,7 +332,7 @@ export function SemiFinishedGoodUpdateQty({
                                         />
                                         {material.name} (
                                         {material.supplier.name}) - Stok:{" "}
-                                        {material.qty}
+                                        {Number(material.qty).toFixed(2)}
                                       </CommandItem>
                                     );
                                   })}
@@ -334,7 +351,8 @@ export function SemiFinishedGoodUpdateQty({
                           return (
                             <MaterialQtyCard
                               key={m.rawMaterialId}
-                              material={material as RawMaterial}
+                              isEdit={false}
+                              material={material}
                               m={m}
                               materials={materials}
                               updateQty={updateMaterialQty}
@@ -343,6 +361,26 @@ export function SemiFinishedGoodUpdateQty({
                           );
                         })}
                       </div>
+
+                      {materials.length > 0 && (
+                        <div className="bg-primary/10 text-primary border-primary/20 mt-4 rounded-lg border-2 p-3">
+                          <p className="text-sm font-medium">
+                            Total Tambahan Kuantiti:{" "}
+                            <span className="text-lg font-bold">
+                              +{additionalQty.toFixed(2)} unit
+                            </span>
+                          </p>
+                          <p className="text-muted-foreground mt-1 text-xs">
+                            Kuantiti baru akan menjadi:{" "}
+                            <span className="font-semibold">
+                              {(Number(currentRow.qty) + additionalQty).toFixed(
+                                2,
+                              )}{" "}
+                              unit
+                            </span>
+                          </p>
+                        </div>
+                      )}
 
                       {field.state.meta.isTouched &&
                         !field.state.meta.isValid && (

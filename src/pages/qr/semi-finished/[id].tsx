@@ -292,7 +292,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         item: {
           id: item.id,
           name: item.name,
-          qty: item.qty,
+          qty: Number(item.qty),
           createdAt: item.createdAt.toISOString(),
           user: {
             name: item.user.name,
@@ -302,7 +302,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
               name: detail.rawMaterial.name,
               supplier: detail.rawMaterial.supplier.name,
             },
-            qty: detail.qty,
+            qty: Number(detail.qty),
           })),
         },
       },

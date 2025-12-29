@@ -12,10 +12,10 @@ export default function FinishedPage() {
   return (
     <FinishedGoodsProvider>
     <GuardedLayout>
-      <HeadMetaData title="Bahan Jadi" />
+      <HeadMetaData title="Barang Jadi" />
       <Header
-        title="Bahan Jadi"
-        subtitle="Manage your Bahan Jadi network and track performance"
+        title="Barang Jadi"
+        subtitle="Manage your Barang Jadi network and track performance"
       >
         <Button size={"icon-lg"} variant={"outline"}>
           <ChartNoAxesCombined className="size-6" />

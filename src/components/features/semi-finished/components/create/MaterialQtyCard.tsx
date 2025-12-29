@@ -15,19 +15,23 @@ import { Progress } from "~/components/ui/progress";
 import type { RawMaterial } from "~/types/raw-material";
 import { useState, useEffect } from "react";
 
+type MaterialCardProps = {
+  isEdit: boolean;
+  m: { rawMaterialId: string; qty: number | string };
+  material: RawMaterial | undefined;
+  materials: { rawMaterialId: string; qty: number | string }[];
+  updateQty: (rawMaterialId: string, qty: number | string) => void;
+  removeMaterial: (rawMaterialId: string) => void;
+};
+
 export const MaterialQtyCard = ({
-  material,
   m,
+  isEdit,
+  material,
   materials,
   updateQty,
   removeMaterial,
-}: {
-  material: RawMaterial | undefined;
-  m: { rawMaterialId: string; qty: number };
-  materials: { rawMaterialId: string; qty: number }[];
-  updateQty: (rawMaterialId: string, qty: number) => void;
-  removeMaterial: (rawMaterialId: string) => void;
-}) => {
+}: MaterialCardProps) => {
   const [oldQty, setOldQty] = useState(m.qty);
   const [showNotification, setShowNotification] = useState(false);
 
@@ -44,11 +48,14 @@ export const MaterialQtyCard = ({
 
   if (!material) return null;
 
-  const maxStock = material.qty;
-  const stockPercentage = (m.qty / maxStock) * 100;
-  const remainingStock = material.qty - m.qty;
-  const isIncreasing = m.qty > oldQty;
-  const remainingPercentage = (remainingStock / material.qty) * 100;
+  const maxStock = Number(material.qty);
+  const currentQty = typeof m.qty === "string" ? parseFloat(m.qty) || 0 : m.qty;
+  const stockPercentage = (currentQty / maxStock) * 100;
+  const remainingStock = maxStock - currentQty;
+  const oldQtyNum =
+    typeof oldQty === "string" ? parseFloat(oldQty) || 0 : oldQty;
+  const isIncreasing = currentQty > oldQtyNum;
+  const remainingPercentage = (remainingStock / maxStock) * 100;
   const stockStatus =
     remainingPercentage > 30
       ? "healthy"
@@ -80,7 +87,9 @@ export const MaterialQtyCard = ({
             </div>
             <div className="text-muted-foreground mt-1 text-xs">
               Stok:{" "}
-              <span className="text-foreground font-medium">{maxStock}</span>{" "}
+              <span className="text-foreground font-medium">
+                {Number(material.qty).toFixed(2)}
+              </span>{" "}
               unit
             </div>
           </div>
@@ -93,32 +102,45 @@ export const MaterialQtyCard = ({
                 variant="ghost"
                 className="hover:bg-background hover:text-primary h-8 w-8 rounded-md"
                 onClick={() => {
-                  const current = m.qty;
-                  const next = Math.max(1, current - 1);
-                  updateQty(m.rawMaterialId, next);
+                  const current = currentQty;
+                  const next = Math.max(0.1, current - 0.1);
+                  updateQty(m.rawMaterialId, Math.round(next * 10) / 10);
                 }}
-                disabled={m.qty <= 1}
+                disabled={currentQty <= 0.1 || isEdit}
               >
                 <Minus className="h-4 w-4" />
               </Button>
 
               <Input
-                type="number"
-                min={1}
-                max={maxStock}
+                type="text"
                 value={m.qty}
                 onChange={(e) => {
-                  let value = Number(e.target.value);
+                  const value = e.target.value;
 
-                  if (isNaN(value)) return;
-
-                  if (value < 1) value = 1;
-
-                  if (value > maxStock) value = maxStock;
+                  // Allow decimal input
+                  if (!/^\d*\.?\d*$/.test(value)) return;
 
                   updateQty(m.rawMaterialId, value);
                 }}
-                className="h-8 w-14 border-none bg-transparent text-center font-semibold shadow-none focus-visible:ring-0"
+                onBlur={(e) => {
+                  const value = e.target.value;
+
+                  // On blur, validate and set to minimum if invalid
+                  if (value === "" || value === ".") {
+                    updateQty(m.rawMaterialId, 0.1);
+                    return;
+                  }
+
+                  const num = parseFloat(value);
+                  if (isNaN(num) || num <= 0) {
+                    updateQty(m.rawMaterialId, 0.1);
+                  } else if (num > maxStock) {
+                    updateQty(m.rawMaterialId, maxStock);
+                  }
+                }}
+                readOnly={isEdit}
+                disabled={isEdit}
+                className="h-8 w-16 border-none bg-transparent text-center font-semibold"
               />
 
               <Button
@@ -127,11 +149,11 @@ export const MaterialQtyCard = ({
                 variant="ghost"
                 className="hover:bg-background hover:text-primary h-8 w-8 rounded-md"
                 onClick={() => {
-                  const current = m.qty;
-                  const next = Math.min(maxStock, current + 1);
-                  updateQty(m.rawMaterialId, next);
+                  const current = currentQty;
+                  const next = Math.min(maxStock, current + 0.1);
+                  updateQty(m.rawMaterialId, Math.round(next * 10) / 10);
                 }}
-                disabled={m.qty >= maxStock}
+                disabled={currentQty >= maxStock || isEdit}
               >
                 <Plus className="h-4 w-4" />
               </Button>
@@ -143,6 +165,7 @@ export const MaterialQtyCard = ({
               variant="ghost"
               className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-9 w-9 rounded-lg transition-colors"
               onClick={() => removeMaterial(m.rawMaterialId)}
+              disabled={isEdit}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -165,7 +188,7 @@ export const MaterialQtyCard = ({
                 {material.name}
               </div>
             </div>
-            
+
             <Button
               type="button"
               size="icon"
@@ -188,9 +211,13 @@ export const MaterialQtyCard = ({
                 <span className="text-xs font-medium">Kuantiti</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-xs">{oldQty}</span>
+                <span className="text-muted-foreground text-xs">
+                  {typeof oldQty === "number" ? oldQty.toFixed(2) : oldQty}
+                </span>
                 <span className="text-muted-foreground text-xs">→</span>
-                <span className="text-sm font-bold">{m.qty}</span>
+                <span className="text-sm font-bold">
+                  {typeof m.qty === "number" ? m.qty.toFixed(2) : m.qty}
+                </span>
               </div>
             </div>
 
@@ -210,7 +237,7 @@ export const MaterialQtyCard = ({
                   }
                   className="text-xs font-bold"
                 >
-                  {remainingStock} unit
+                  {remainingStock.toFixed(2)} unit
                 </Badge>
               </div>
 
@@ -226,8 +253,11 @@ export const MaterialQtyCard = ({
                   }`}
                 />
                 <div className="text-muted-foreground flex justify-between text-[10px]">
-                  <span>Terpakai: {m.qty}</span>
-                  <span>Total: {material.qty}</span>
+                  <span>
+                    Terpakai:{" "}
+                    {typeof m.qty === "number" ? m.qty.toFixed(2) : m.qty}
+                  </span>
+                  <span>Total: {Number(material.qty).toFixed(2)}</span>
                 </div>
               </div>
             </div>

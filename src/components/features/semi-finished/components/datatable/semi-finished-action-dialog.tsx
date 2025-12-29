@@ -39,7 +39,6 @@ import {
 } from "~/components/ui/popover";
 import { cn } from "~/lib/utils";
 import { semiFinishedGoodFormSchema } from "~/components/features/semi-finished/form/semi-finished";
-import type { RawMaterial } from "~/types/raw-material";
 import { MaterialQtyCard } from "../create/MaterialQtyCard";
 import {
   AlertDialog,
@@ -60,14 +59,14 @@ import {
 } from "~/components/ui/select";
 
 type SemiFinishedGoodsActionDialogProps = {
-  currentRow?: SemiFinishedGood;
   open: boolean;
+  currentRow?: SemiFinishedGood;
   onOpenChange: (open: boolean) => void;
 };
 
 export function SemiFinishedGoodsActionDialog({
-  currentRow,
   open,
+  currentRow,
   onOpenChange,
 }: SemiFinishedGoodsActionDialogProps) {
   const isEdit = !!currentRow;
@@ -136,14 +135,22 @@ export function SemiFinishedGoodsActionDialog({
       paintGradeId: "",
       name: "",
       qty: 0,
-      materials: [] as { rawMaterialId: string; qty: number }[],
+      materials: [] as { rawMaterialId: string; qty: number | string }[],
     },
     validators: { onSubmit: semiFinishedGoodFormSchema },
     onSubmit: ({ value }) => {
+      const payload = {
+        ...value,
+        materials: value.materials.map((m) => ({
+          rawMaterialId: m.rawMaterialId,
+          qty: typeof m.qty === "string" ? parseFloat(m.qty) || 0 : m.qty,
+        })),
+      };
+
       if (isEdit && currentRow) {
-        updateSemiFinishedGood({ id: currentRow.id, ...value });
+        updateSemiFinishedGood({ id: currentRow.id, ...payload });
       } else {
-        createSemiFinishedGood(value);
+        createSemiFinishedGood(payload);
       }
     },
   });
@@ -153,7 +160,7 @@ export function SemiFinishedGoodsActionDialog({
       const materials =
         currentRow.SemiFinishedGoodDetail?.map((detail) => ({
           rawMaterialId: detail.rawMaterialId,
-          qty: detail.qty,
+          qty: Number(detail.qty),
         })) ?? [];
 
       form.setFieldValue("name", currentRow.name);
@@ -172,7 +179,7 @@ export function SemiFinishedGoodsActionDialog({
   }, [user?.id]);
 
   const syncQtyFromMaterials = (
-    materials: { rawMaterialId: string; qty: number }[],
+    materials: { rawMaterialId: string; qty: number | string }[],
   ) => {
     form.setFieldValue("qty", materials.length);
   };
@@ -323,7 +330,7 @@ export function SemiFinishedGoodsActionDialog({
 
                     const newMaterials = [
                       ...materials,
-                      { rawMaterialId, qty: 1 },
+                      { rawMaterialId, qty: 0.1 },
                     ];
 
                     field.handleChange(newMaterials);
@@ -339,29 +346,30 @@ export function SemiFinishedGoodsActionDialog({
                     syncQtyFromMaterials(newMaterials);
                   };
 
-                  const updateQty = (rawMaterialId: string, qty: number) => {
+                  const updateQty = (
+                    rawMaterialId: string,
+                    qty: number | string,
+                  ) => {
                     const material = rawMaterials?.find(
                       (rm) => rm.id === rawMaterialId,
                     );
                     if (!material) return;
 
-                    if (qty <= 0) {
-                      toast.error("Jumlah tidak boleh 0!", {
-                        description: "Minimal jumlah bahan baku adalah 1.",
-                      });
-                      return;
-                    }
+                    if (typeof qty === "number") {
+                      if (qty <= 0) {
+                        toast.error("Jumlah tidak boleh 0!", {
+                          description: "Minimal jumlah bahan baku adalah 0.1.",
+                        });
+                        return;
+                      }
 
-                    if (qty > material.qty) {
-                      toast.error("Stok tidak mencukupi!", {
-                        description: `Stok tersedia hanya ${material.qty} unit.`,
-                      });
-                      return;
+                      if (qty > Number(material.qty)) {
+                        toast.error("Stok tidak mencukupi!", {
+                          description: `Stok tersedia hanya ${material.qty} unit.`,
+                        });
+                        return;
+                      }
                     }
-
-                    const oldQty =
-                      materials.find((m) => m.rawMaterialId === rawMaterialId)
-                        ?.qty ?? 1;
 
                     const newMaterials = materials.map((m) =>
                       m.rawMaterialId === rawMaterialId ? { ...m, qty } : m,
@@ -382,6 +390,7 @@ export function SemiFinishedGoodsActionDialog({
                       >
                         <PopoverTrigger asChild>
                           <Button
+                            disabled={isEdit}
                             variant="outline"
                             className="h-auto min-h-12 w-full justify-start rounded-xl border-2"
                           >
@@ -402,7 +411,7 @@ export function SemiFinishedGoodsActionDialog({
                               <CommandEmpty>Tidak ada bahan baku.</CommandEmpty>
                               <CommandGroup>
                                 {rawMaterials
-                                  ?.filter((m) => m.qty > 0)
+                                  ?.filter((m) => Number(m.qty) > 0)
                                   .map((material) => {
                                     const isSelected = materials.some(
                                       (m) => m.rawMaterialId === material.id,
@@ -443,7 +452,7 @@ export function SemiFinishedGoodsActionDialog({
                           return (
                             <MaterialQtyCard
                               key={m.rawMaterialId}
-                              //   @ts-expect-error type
+                              isEdit={isEdit}
                               material={material}
                               m={m}
                               materials={materials}

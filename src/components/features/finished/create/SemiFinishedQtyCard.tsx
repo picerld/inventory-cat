@@ -1,5 +1,5 @@
 import type { SemiFinishedGood } from "~/types/semi-finished-good";
-import { X } from "lucide-react";
+import { Edit3, Lock, X } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -11,19 +11,20 @@ import {
 
 type SemiFinishedQtyCardProps = {
   semiFinished: SemiFinishedGood;
-  qty: number;
+  sfm: { semiFinishedGoodId: string; qty: number };
+  onOpenModal?: () => void;
   onRemove: (id: string) => void;
+  readOnly?: boolean;
 };
 
 export const SemiFinishedQtyCard = ({
   semiFinished,
-  qty,
+  sfm,
+  onOpenModal,
   onRemove,
+  readOnly = false,
 }: SemiFinishedQtyCardProps) => {
   if (!semiFinished) return null;
-
-  const remainingStock = semiFinished.qty - qty;
-  const isLowStock = remainingStock < 10;
 
   return (
     <Card>
@@ -52,26 +53,35 @@ export const SemiFinishedQtyCard = ({
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold">{qty}</span>
+            <span className="text-2xl font-bold">{sfm.qty}</span>
             <span className="text-muted-foreground text-xs">
               barang digunakan
             </span>
           </div>
+
+          {!readOnly && onOpenModal ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onOpenModal}
+              className="gap-2"
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+              Ubah
+            </Button>
+          ) : (
+            <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
+              <Lock className="h-3 w-3" />
+              <span>Auto</span>
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center justify-between text-xs">
+        <div className="flex items-center text-xs">
           <span className="text-muted-foreground">
             Stok tersedia:{" "}
             <span className="font-medium">{semiFinished.qty}</span>
-          </span>
-          <span
-            className={
-              isLowStock && remainingStock > 0
-                ? "font-medium text-orange-600"
-                : ""
-            }
-          >
-            Sisa: {remainingStock}
           </span>
         </div>
       </CardContent>
