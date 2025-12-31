@@ -13,7 +13,7 @@ export const OnLoadItem = ({ isLoading }: { isLoading: boolean }) => {
       <AlertDialogContent className="sm:max-w-[425px]">
         <AlertDialogHeader className="flex items-center">
           {isLoading ? (
-            <div className="bg-primary mb-4 flex h-14 w-14 animate-bounce items-center justify-center rounded-full">
+            <div className="bg-primary mb-4 flex h-14 w-14 items-center justify-center rounded-full">
               <Info className="text-secondary size-8" strokeWidth={2.5} />
             </div>
           ) : (
@@ -31,7 +31,7 @@ export const OnLoadItem = ({ isLoading }: { isLoading: boolean }) => {
           <AlertDialogDescription className="text-center text-base">
             {isLoading
               ? "Sedang memuat data..."
-              : "Yay! Data berhasil diambil!"}
+              : "Data berhasil diambil!"}
           </AlertDialogDescription>
         </AlertDialogHeader>
       </AlertDialogContent>

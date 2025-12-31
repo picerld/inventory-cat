@@ -47,7 +47,7 @@ import {
   EmptyTitle,
 } from "~/components/ui/empty";
 
-import { ArrowUpRightIcon, CircleStar, Folder, Plus, UserCheck } from "lucide-react";
+import { ArrowUpRightIcon, Folder, Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
 
 import { useRawMaterials } from "./raw-materials-provider";

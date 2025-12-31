@@ -46,7 +46,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "~/components/ui/empty";
-import { ArrowUpRightIcon, Folder, Plus, UserCheck } from "lucide-react";
+import { ArrowUpRightIcon, Badge, Folder, Plus } from "lucide-react";
 import { Button, buttonVariants } from "~/components/ui/button";
 import { useFinishedGoods } from "./finished-provider";
 import type { FinishedGood } from "~/types/finished-good";
@@ -65,12 +65,7 @@ export function FinishedGoodsTable() {
 
   const searchObj = useMemo<Record<string, unknown>>(() => {
     const entries = Array.from(searchParams?.entries() ?? []).map(([k, v]) => {
-      if (k === "supplierId") {
-        if (v === "" || v === "all") return [k, undefined];
-        return [k, v.split(",")];
-      }
-
-      if (k === "userId") {
+      if (k === "paintGradeId") {
         if (v === "" || v === "all") return [k, undefined];
         return [k, v.split(",")];
       }
@@ -131,13 +126,14 @@ export function FinishedGoodsTable() {
     globalFilter: { enabled: true, key: "search", trim: true },
     columnFilters: [
       { columnId: "name", searchKey: "name", type: "string" },
-      { columnId: "userId", searchKey: "userId", type: "array" },
+      { columnId: "paintGradeId", searchKey: "paintGradeId", type: "array" },
     ],
   });
 
   const searchTerm = typeof globalFilter === "string" ? globalFilter : "";
 
   const { data: users } = trpc.user.getAll.useQuery();
+  const { data: grades } = trpc.paintGrade.getAll.useQuery();
 
   const { data, isLoading } = trpc.finishedGood.getPaginated.useQuery(
     {
@@ -235,6 +231,18 @@ export function FinishedGoodsTable() {
         table={table}
         searchKey="name"
         searchPlaceholder="Cari barang jadi..."
+        filters={[
+          {
+            columnId: "paintGradeId",
+            title: "Grade",
+            // @ts-expect-error type
+            options: grades?.map((grade) => ({
+              label: grade.name,
+              value: grade.id,
+              icon: Badge,
+            })),
+          },
+        ]}
       />
 
       <Link
