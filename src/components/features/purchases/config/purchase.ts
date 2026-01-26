@@ -1,0 +1,1 @@
+export type PurchaseStatus = "DRAFT" | "ONGOING" | "FINISHED" | "CANCELED";

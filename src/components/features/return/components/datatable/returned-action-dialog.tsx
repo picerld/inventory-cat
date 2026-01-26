@@ -20,7 +20,7 @@ import {
 } from "~/components/ui/field";
 import { IsRequired } from "~/components/ui/is-required";
 import { Textarea } from "~/components/ui/textarea";
-import { Loader } from "lucide-react";
+import { Check, ChevronsUpDown, Loader } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ReturnGood } from "~/types/return-good";
 import { returnedGoodFormSchema } from "../../form/returned-good";
@@ -32,6 +32,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "~/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "~/components/ui/command";
+import { cn } from "~/lib/utils";
 
 type ReturnGoodActionDialogProps = {
   currentRow?: ReturnGood;
@@ -47,9 +61,9 @@ export function ReturnGoodsActionDialog({
   const isEdit = !!currentRow;
   const utils = trpc.useUtils();
 
-  const { data: user } = trpc.auth.authMe.useQuery({
-    token: Cookies.get("auth.token") as string,
-  });
+  const [popoverOpen, setPopoverOpen] = useState<boolean>(false);
+
+  const { data: user } = trpc.auth.authMe.useQuery();
 
   const { data: finishedGoods } = trpc.finishedGood.getAll.useQuery();
 
@@ -85,7 +99,7 @@ export function ReturnGoodsActionDialog({
 
   const form = useForm({
     defaultValues: {
-      userId: user?.id || "",
+      userId: user?.id ?? "",
       finishedGoodId: "",
       qty: 0,
       from: "",
@@ -97,7 +111,7 @@ export function ReturnGoodsActionDialog({
     },
     onSubmit: ({ value }) => {
       if (isEdit) {
-        updateReturned({ id: currentRow!.id, ...value });
+        updateReturned({ id: currentRow.id, ...value });
       } else {
         createReturned(value);
       }
@@ -110,7 +124,7 @@ export function ReturnGoodsActionDialog({
       form.setFieldValue("finishedGoodId", currentRow.finishedGoodId);
       form.setFieldValue("qty", currentRow.qty);
       form.setFieldValue("from", currentRow.from);
-      form.setFieldValue("description", currentRow.description || "");
+      form.setFieldValue("description", currentRow.description ?? "");
     } else {
       form.reset();
     }
@@ -126,7 +140,7 @@ export function ReturnGoodsActionDialog({
         onOpenChange(state);
       }}
     >
-      <DialogContent className="backdrop-blur-xl">
+      <DialogContent className="backdrop-blur-xl sm:max-w-2xl">
         <DialogHeader className="text-start">
           <DialogTitle className="text-2xl font-bold">
             {isEdit ? "Edit Barang Retur" : "Tambah Barang Retur"}
@@ -158,21 +172,57 @@ export function ReturnGoodsActionDialog({
                       Barang Jadi <IsRequired />
                     </FieldLabel>
 
-                    <Select
-                      value={field.state.value}
-                      onValueChange={field.handleChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih barang jadi" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {finishedGoods?.map((fg) => (
-                          <SelectItem key={fg.id} value={fg.id}>
-                            {fg.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-[200px] justify-between"
+                          disabled={isEdit}
+                        >
+                          {field.state.value
+                            ? finishedGoods?.find(
+                                (fg) => fg.id === field.state.value,
+                              )?.name
+                            : "Pilih Barang Jadi"}
+
+                          <ChevronsUpDown className="opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command>
+                          <CommandInput
+                            placeholder="Search framework..."
+                            className="h-9"
+                          />
+                          <CommandList>
+                            <CommandEmpty>No framework found.</CommandEmpty>
+                            <CommandGroup>
+                              {finishedGoods?.map((finishedGood) => (
+                                <CommandItem
+                                  key={finishedGood.id}
+                                  value={finishedGood.id}
+                                  onSelect={(currentValue) => {
+                                    field.handleChange(currentValue);
+                                    setPopoverOpen(false);
+                                  }}
+                                >
+                                  {finishedGood.name}
+                                  <Check
+                                    className={cn(
+                                      "ml-auto",
+                                      finishedGood.id === field.state.value
+                                        ? "opacity-100"
+                                        : "opacity-0",
+                                    )}
+                                  />
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
 
                     {isInvalid && (
                       <FieldError errors={field.state.meta.errors} />

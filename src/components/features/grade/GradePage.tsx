@@ -12,10 +12,10 @@ export default function GradePage() {
   return (
     <GradesProvider>
       <GuardedLayout>
-        <HeadMetaData title="Grade" />
+        <HeadMetaData title="Kualitas" />
         <Header
-          title="Grade"
-          subtitle="Manage your Grade network and track performance"
+          title="Kualitas"
+          subtitle="Manage your Kualitas network and track performance"
         >
           <Button size={"icon-lg"} variant={"outline"}>
             <ChartNoAxesCombined className="size-6" />

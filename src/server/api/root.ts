@@ -9,6 +9,8 @@ import { accessoriesRouter } from "./routers/accessories";
 import { returnGoodRouter } from "./routers/return-good";
 import { createCallerFactory, createTRPCRouter } from "./trpc";
 import { dashboardRouter } from "~/server/api/routers/dashboard";
+import { purchaseRouter } from "./routers/purchase";
+import { profileRouter } from "./routers/profile";
 
 /**
  * This is the primary router for your server.
@@ -18,6 +20,7 @@ import { dashboardRouter } from "~/server/api/routers/dashboard";
 export const appRouter = createTRPCRouter({
   auth: authRouter,
   user: userRouter,
+  profile: profileRouter,
   dashboard: dashboardRouter,
   supplier: supplierRouter,
   rawMaterial: rawMaterialRouter,
@@ -26,6 +29,7 @@ export const appRouter = createTRPCRouter({
   paintGrade: gradeRouter,
   accessories: accessoriesRouter,
   returnGood: returnGoodRouter,
+  purchase: purchaseRouter,
 });
 
 // export type definition of API

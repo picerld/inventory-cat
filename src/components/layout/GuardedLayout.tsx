@@ -8,7 +8,7 @@ import {
 import { Button } from "../ui/button";
 import { ModeToggle } from "../ui/mode-toggle";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { trpc } from "~/utils/trpc";
 import {
   Sheet,
@@ -39,23 +39,29 @@ export default function GuardedLayout({
 }: {
   readonly children: React.ReactNode;
 }) {
+  const router = useRouter();
   const pathName = usePathname();
 
   const { expandedItems, toggleExpanded, setExpanded } = useSidebar();
 
-  const { data: user } = trpc.auth.authMe.useQuery(undefined, {
-    enabled: true,
+  const {
+    data: user,
+    isLoading,
+    isError,
+  } = trpc.auth.authMe.useQuery(undefined, {
+    retry: false,
   });
 
   const navItem: INavItem[] = [
     { name: "Dashboard", href: "/dashboard", active: false },
     { name: "Supplier", href: "/suppliers", active: false },
+    { name: "Customer", href: "/customers", active: false },
     {
       name: "Barang",
       href: "/items",
       active: false,
       children: [
-        { name: "Grade", href: "/items/grades", active: false },
+        { name: "Kualitas", href: "/items/grades", active: false },
         { name: "Bahan Baku", href: "/items/raw-materials", active: false },
         {
           name: "Barang Setengah Jadi",
@@ -90,13 +96,25 @@ export default function GuardedLayout({
       active: false,
       children: [
         {
-          name: "Penjualan Bahan Jadi",
+          name: "Penjualan Barang Jadi",
           href: "/sales/finished",
           active: false,
         },
         {
           name: "Penjualan Aksesoris Cat",
           href: "/sales/accessories",
+          active: false,
+        },
+      ],
+    },
+    {
+      name: "Laporan",
+      href: "/reports",
+      active: false,
+      children: [
+        {
+          name: "Mutasi Stok",
+          href: "/reports/stock-movements",
           active: false,
         },
       ],
@@ -120,6 +138,12 @@ export default function GuardedLayout({
     setExpanded(parentsToExpand);
   }, [pathName]);
 
+  React.useEffect(() => {
+    if (!isLoading && (!user || isError)) {
+      router.replace("/");
+    }
+  }, [isLoading, user, isError]);
+
   const getUserInitials = (name: string) => {
     return name
       .split(" ")
@@ -128,6 +152,14 @@ export default function GuardedLayout({
       .toUpperCase()
       .slice(0, 2);
   };
+
+  if (isLoading || !user) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <span className="text-muted-foreground text-sm">Checking session…</span>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-background min-h-screen">
@@ -300,7 +332,12 @@ export default function GuardedLayout({
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="cursor-pointer">
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => {
+                      router.push("/profile");
+                    }}
+                  >
                     <User className="mr-2 h-4 w-4" />
                     Profile
                   </DropdownMenuItem>
@@ -357,7 +394,12 @@ export default function GuardedLayout({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem className="cursor-pointer">
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => {
+                      router.push("/profile");
+                    }}
+                  >
                     <User className="mr-2 h-4 w-4" />
                     Profile
                   </DropdownMenuItem>

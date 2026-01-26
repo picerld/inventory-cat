@@ -235,7 +235,6 @@ export function FinishedGoodsTable() {
           {
             columnId: "paintGradeId",
             title: "Grade",
-            // @ts-expect-error type
             options: grades?.map((grade) => ({
               label: grade.name,
               value: grade.id,

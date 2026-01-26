@@ -12,12 +12,12 @@ const GradeStatsContainer = () => {
   const statsData = [
     {
       id: 1,
-      title: "Total Grade",
+      title: "Total Kualitas",
       value: data?.totalGrades ?? 0,
       change: `+${data?.growth}%`,
       changeType: data!.growth >= 0 ? "positive" : "negative",
       icon: Users,
-      description: "Grade Aktif",
+      description: "Kualitas Aktif",
     },
   ];
 

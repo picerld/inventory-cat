@@ -41,43 +41,48 @@ export function ReturnedGoodDetailsDialog({
               Informasi Umum
             </h3>
 
-            <div className="grid grid-cols-1 gap-2">
-              <div className="flex items-center gap-3 rounded-lg border border-dashed p-4">
-                <User className="mt-0.5 h-5 w-5" />
-                <div>
-                  <p className="text-muted-foreground text-sm">
-                    Dikembalikan oleh
-                  </p>
-                  <p className="font-medium">{currentRow.user.name}</p>
+            <div className="grid grid-cols-1 gap-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-3 rounded-lg border border-dashed p-4">
+                  <User className="mt-0.5 h-5 w-5" />
+                  <div>
+                    <p className="text-muted-foreground text-sm">
+                      Dikembalikan oleh
+                    </p>
+                    <p className="font-medium">{currentRow.user.name}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 rounded-lg border border-dashed p-4">
+                  <Package className="mt-0.5 h-5 w-5" />
+                  <div>
+                    <p className="text-muted-foreground text-sm">Barang</p>
+                    <p className="font-medium">
+                      {currentRow.finishedGood.name}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 rounded-lg border border-dashed p-4">
-                <Package className="mt-0.5 h-5 w-5" />
-                <div>
-                  <p className="text-muted-foreground text-sm">Barang</p>
-                  <p className="font-medium">{currentRow.finishedGood.name}</p>
+              <div className="grid grid-cols-2 gap-5">
+                <div className="flex items-center gap-3 rounded-lg border border-dashed p-4">
+                  <Hash className="mt-0.5 h-5 w-5" />
+                  <div>
+                    <p className="text-muted-foreground text-sm">
+                      Jumlah Dikembalikan
+                    </p>
+                    <p className="font-medium">{currentRow.qty} unit</p>
+                  </div>
                 </div>
-              </div>
 
-              {/* Qty */}
-              <div className="flex items-center gap-3 rounded-lg border border-dashed p-4">
-                <Hash className="mt-0.5 h-5 w-5" />
-                <div>
-                  <p className="text-muted-foreground text-sm">
-                    Jumlah Dikembalikan
-                  </p>
-                  <p className="font-medium">{currentRow.qty} unit</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 rounded-lg border border-dashed p-4">
-                <Package className="mt-0.5 h-5 w-5" />
-                <div>
-                  <p className="text-muted-foreground text-sm">
-                    Dari Bagian / Keperluan
-                  </p>
-                  <p className="font-medium">{currentRow.from}</p>
+                <div className="flex items-center gap-3 rounded-lg border border-dashed p-4">
+                  <Package className="mt-0.5 h-5 w-5" />
+                  <div>
+                    <p className="text-muted-foreground text-sm">
+                      Dari Bagian / Keperluan
+                    </p>
+                    <p className="font-medium">{currentRow.from}</p>
+                  </div>
                 </div>
               </div>
 

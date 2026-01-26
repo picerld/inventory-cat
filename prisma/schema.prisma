@@ -23,6 +23,39 @@ enum SourceType {
     SEMI_FINISHED
 }
 
+enum PurchaseStatus {
+    DRAFT
+    ONGOING
+    FINISHED
+    CANCELED
+}
+
+enum SaleStatus {
+    DRAFT
+    ONGOING
+    FINISHED
+    CANCELED
+}
+
+enum PurchaseItemType {
+    RAW_MATERIAL
+    PAINT_ACCESSORIES
+}
+
+enum SaleItemType {
+    FINISHED_GOOD
+    PAINT_ACCESSORIES
+}
+
+enum StockMovementType {
+    PURCHASE_IN
+    SALE_OUT
+    PRODUCTION_IN
+    PRODUCTION_OUT
+    RETURN_IN
+    ADJUSTMENT
+}
+
 model PaintGrade {
     id                String             @id @default(uuid())
     name              String
@@ -42,6 +75,20 @@ model Supplier {
     updatedAt        DateTime           @updatedAt
     RawMaterial      RawMaterial[]
     paintAccessories PaintAccessories[]
+
+    purchases Purchase[]
+}
+
+model Customer {
+    id        String   @id @default(uuid())
+    name      String
+    phone     String?
+    address   String?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // NEW
+    sales Sale[]
 }
 
 model User {
@@ -58,14 +105,18 @@ model User {
     FinishedGood     FinishedGood[]
     PaintAccessories PaintAccessories[]
     returnedItems    ReturnedItem[]
+
+    purchases      Purchase[]
+    sales          Sale[]
+    stockMovements StockMovement[]
 }
 
 model RawMaterial {
     id                     String                   @id @default(uuid())
     supplierId             String
-    supplier               Supplier                 @relation(fields: [supplierId], references: [id])
+    supplier               Supplier                 @relation(fields: [supplierId], references: [id], onDelete: Cascade)
     userId                 String
-    user                   User                     @relation(fields: [userId], references: [id])
+    user                   User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
     name                   String
     qty                    Decimal                  @db.Decimal(10, 2)
     materialType           String // LEM, THINNER, DLL
@@ -74,33 +125,42 @@ model RawMaterial {
     updatedAt              DateTime                 @updatedAt
     SemiFinishedGoodDetail SemiFinishedGoodDetail[]
     finishedGoodDetails    FinishedGoodDetail[]
-    paintGrade             PaintGrade?              @relation(fields: [paintGradeId], references: [id])
+    paintGrade             PaintGrade?              @relation(fields: [paintGradeId], references: [id], onDelete: SetNull)
     paintGradeId           String?
+
+    purchaseItems PurchaseItem[]
+
+    @@index([supplierId])
 }
 
 model SemiFinishedGood {
     id                     String                   @id @default(uuid())
     userId                 String
-    user                   User                     @relation(fields: [userId], references: [id])
+    user                   User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
     name                   String
     qty                    Decimal                  @db.Decimal(10, 2)
     paintGradeId           String
-    paintGrade             PaintGrade               @relation(fields: [paintGradeId], references: [id])
+    paintGrade             PaintGrade               @relation(fields: [paintGradeId], references: [id], onDelete: Cascade)
     SemiFinishedGoodDetail SemiFinishedGoodDetail[]
     finishedGoodDetails    FinishedGoodDetail[]
     createdAt              DateTime                 @default(now())
     updatedAt              DateTime                 @updatedAt
+
+    @@index([paintGradeId])
 }
 
 model SemiFinishedGoodDetail {
     id                 String           @id @default(uuid())
     semiFinishedGoodId String
-    semiFinishedGood   SemiFinishedGood @relation(fields: [semiFinishedGoodId], references: [id])
+    semiFinishedGood   SemiFinishedGood @relation(fields: [semiFinishedGoodId], references: [id], onDelete: Cascade)
     rawMaterialId      String
-    rawMaterial        RawMaterial      @relation(fields: [rawMaterialId], references: [id])
+    rawMaterial        RawMaterial      @relation(fields: [rawMaterialId], references: [id], onDelete: Cascade)
     qty                Decimal          @db.Decimal(10, 2)
     createdAt          DateTime         @default(now())
     updatedAt          DateTime         @updatedAt
+
+    @@index([semiFinishedGoodId])
+    @@index([rawMaterialId])
 }
 
 model FinishedGood {
@@ -112,70 +172,196 @@ model FinishedGood {
     sourceType          SourceType           @default(RAW_MATERIAL)
     dateProduced        DateTime             @default(now())
     userId              String
-    user                User                 @relation(fields: [userId], references: [id])
+    user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
     paintGradeId        String
-    paintGrade          PaintGrade           @relation(fields: [paintGradeId], references: [id])
+    paintGrade          PaintGrade           @relation(fields: [paintGradeId], references: [id], onDelete: Cascade)
     finishedGoodDetails FinishedGoodDetail[]
     returnedItems       ReturnedItem[]
     createdAt           DateTime             @default(now())
     updatedAt           DateTime             @updatedAt
+
+    saleItems SaleItem[]
+
+    @@index([paintGradeId])
 }
 
 model FinishedGoodDetail {
     id                 String            @id @default(uuid())
     finishedGoodId     String
-    finishedGood       FinishedGood      @relation(fields: [finishedGoodId], references: [id])
+    finishedGood       FinishedGood      @relation(fields: [finishedGoodId], references: [id], onDelete: Cascade)
     rawMaterialId      String
-    rawMaterial        RawMaterial       @relation(fields: [rawMaterialId], references: [id])
+    rawMaterial        RawMaterial       @relation(fields: [rawMaterialId], references: [id], onDelete: Cascade)
     qty                Decimal           @db.Decimal(10, 2)
     createdAt          DateTime          @default(now())
     updatedAt          DateTime          @updatedAt
-    semiFinishedGood   SemiFinishedGood? @relation(fields: [semiFinishedGoodId], references: [id])
+    semiFinishedGood   SemiFinishedGood? @relation(fields: [semiFinishedGoodId], references: [id], onDelete: SetNull)
     semiFinishedGoodId String?
+
+    @@index([finishedGoodId])
+    @@index([rawMaterialId])
+    @@index([semiFinishedGoodId])
 }
 
 model PaintAccessories {
     id            String   @id @default(uuid())
     name          String
     supplierId    String
-    supplier      Supplier @relation(fields: [supplierId], references: [id])
+    supplier      Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
     userId        String
-    user          User     @relation(fields: [userId], references: [id])
+    user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
     supplierPrice Float
     sellingPrice  Float
     qty           Decimal  @db.Decimal(10, 2)
     createdAt     DateTime @default(now())
     updatedAt     DateTime @updatedAt
+
+    purchaseItems PurchaseItem[]
+    saleItems     SaleItem[]
+
+    @@index([supplierId])
 }
 
 model ReturnedItem {
     id             String       @id @default(uuid())
     // itemType    ItemType
     userId         String
-    user           User         @relation(fields: [userId], references: [id])
+    user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
     finishedGoodId String
-    finishedGood   FinishedGood @relation(fields: [finishedGoodId], references: [id])
+    finishedGood   FinishedGood @relation(fields: [finishedGoodId], references: [id], onDelete: Cascade)
     qty            Decimal      @db.Decimal(10, 2)
     from           String
     description    String?
     createdAt      DateTime     @default(now())
     updatedAt      DateTime     @updatedAt
+
+    @@index([finishedGoodId])
 }
 
-model Selling {
-    id        String   @id @default(uuid())
-    qty       Decimal  @db.Decimal(10, 2)
-    itemType  ItemType
-    itemId    String
+model Purchase {
+    id         String @id @default(uuid())
+    purchaseNo String @unique
+
+    supplierId String
+    supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+    receivedNote String?
+    purchasedAt  DateTime @default(now())
+
+    status PurchaseStatus @default(DRAFT)
+    notes  String?
+
+    userId String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    items PurchaseItem[]
+
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
+
+    @@index([supplierId])
+    @@index([purchasedAt])
+    @@index([status])
 }
 
-model Buying {
-    id        String   @id @default(uuid())
-    qty       Decimal  @db.Decimal(10, 2)
-    itemType  ItemType
-    itemId    String
+model PurchaseItem {
+    id String @id @default(uuid())
+
+    purchaseId String
+    purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+    itemType PurchaseItemType
+
+    rawMaterialId String?
+    rawMaterial   RawMaterial? @relation(fields: [rawMaterialId], references: [id], onDelete: SetNull)
+
+    accessoryId String?
+    accessory   PaintAccessories? @relation(fields: [accessoryId], references: [id], onDelete: SetNull)
+
+    qty       Decimal @db.Decimal(10, 2)
+    unitPrice Float
+    subtotal  Float
+
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
+
+    @@index([purchaseId])
+    @@index([rawMaterialId])
+    @@index([accessoryId])
+}
+
+model Sale {
+    id     String @id @default(uuid())
+    saleNo String @unique
+
+    customerId String
+    customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+    orderNo   String?
+    invoiceNo String?   @unique
+    shippedAt DateTime?
+    soldAt    DateTime  @default(now())
+
+    status SaleStatus @default(DRAFT)
+    notes  String?
+
+    userId String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    items SaleItem[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([customerId])
+    @@index([soldAt])
+    @@index([status])
+}
+
+model SaleItem {
+    id String @id @default(uuid())
+
+    saleId String
+    sale   Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+    itemType SaleItemType
+
+    finishedGoodId String?
+    finishedGood   FinishedGood? @relation(fields: [finishedGoodId], references: [id], onDelete: SetNull)
+
+    accessoryId String?
+    accessory   PaintAccessories? @relation(fields: [accessoryId], references: [id], onDelete: SetNull)
+
+    qty       Decimal @db.Decimal(10, 2)
+    unitPrice Float
+    subtotal  Float
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([saleId])
+    @@index([finishedGoodId])
+    @@index([accessoryId])
+}
+
+model StockMovement {
+    id   String            @id @default(uuid())
+    type StockMovementType
+
+    itemType ItemType
+    itemId   String
+    qty      Decimal  @db.Decimal(10, 2)
+
+    refPurchaseId String?
+    refSaleId     String?
+    refReturnId   String?
+
+    userId String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    createdAt DateTime @default(now())
+
+    @@index([itemType, itemId])
+    @@index([refPurchaseId])
+    @@index([refSaleId])
+    @@index([refReturnId])
 }

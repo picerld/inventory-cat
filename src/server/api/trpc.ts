@@ -24,7 +24,6 @@ export const createTRPCContext = async ({ req, res }: CreateNextContextOptions) 
     }
   }
 
-  // Auto-clear invalid cookie
   if (!user && token) {
     res.setHeader("Set-Cookie", "auth.token=; Max-Age=0; Path=/; SameSite=Lax");
   }
@@ -55,17 +54,7 @@ const authMiddleware = t.middleware(async ({ ctx, next }) => {
   return next();
 });
 
-const adminMiddleware = t.middleware(async ({ ctx, next }) => {
-  const ADMIN_ID = process.env.ADMIN_USER_ID;
-  if (!ctx.user || ctx.user.id !== ADMIN_ID) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Admins only" });
-  }
-  return next();
-});
-
-// Exports
 export const createTRPCRouter = t.router;
 export const publicProcedure = t.procedure.use(timingMiddleware);
 export const protectedProcedure = t.procedure.use(timingMiddleware).use(authMiddleware);
-export const adminProcedure = t.procedure.use(timingMiddleware).use(authMiddleware).use(adminMiddleware);
 export const createCallerFactory = t.createCallerFactory;

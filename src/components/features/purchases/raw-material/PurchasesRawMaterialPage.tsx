@@ -1,22 +1,40 @@
 import GuardedLayout from "~/components/layout/GuardedLayout";
 import { HeadMetaData } from "~/components/meta/HeadMetaData";
 import { Header } from "~/components/container/Header";
-import { Wallet } from "lucide-react";
-import { Button } from "~/components/ui/button";
+import PurchaseRawMaterialCards from "./components/PurchaseRawMaterialCard";
+import { ChartNoAxesCombined, Plus } from "lucide-react";
+import { Button, buttonVariants } from "~/components/ui/button";
+import Link from "next/link";
 
-export default function PurchasesRawMaterialPage() {
+export default function PurchaseRawMaterialPage() {
   return (
     <GuardedLayout>
-      <HeadMetaData title="Bahan Baku" />
+      <HeadMetaData title="Pembelian Bahan Baku" />
+
       <Header
         title="Pembelian Bahan Baku"
-        subtitle="Manage your Pembelian Bahan Baku network and track performance"
+        subtitle="Catat pembelian bahan baku dan update stok saat diposting"
       >
-        <Button size={"icon-lg"} variant={"outline"}>
-          <Wallet className="size-6" />
-        </Button>
+        <div className="flex gap-2">
+          <Link
+            href="/purchases/raw-materials/create"
+            className={buttonVariants({
+              variant: "outline",
+              className: "mb-4",
+              size: "lg"
+            })}
+          >
+            <Plus className="h-4 w-4" />
+            Tambah Pembelian Bahan Baku
+          </Link>
+
+          <Button size={"icon-lg"} variant={"outline"}>
+            <ChartNoAxesCombined className="size-6" />
+          </Button>
+        </div>
       </Header>
-      Pembelian Bahan Baku
+
+      <PurchaseRawMaterialCards />
     </GuardedLayout>
   );
 }
