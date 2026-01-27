@@ -25,19 +25,13 @@ export const stockMovementRouter = createTRPCRouter({
       z.object({
         page: z.number().min(1).default(1),
         perPage: z.number().min(1).max(100).default(10),
-
         search: z.string().optional().default(""),
-
-        // ✅ filter tambahan
         type: movementTypeEnum.optional(),
         itemType: itemTypeEnum.optional(),
         itemId: z.string().optional(),
-
         refPurchaseId: z.string().optional(),
         refSaleId: z.string().optional(),
         refReturnId: z.string().optional(),
-
-        // ✅ NEW
         refSemiFinishedGoodId: z.string().optional(),
         refFinishedGoodId: z.string().optional(),
       }),
@@ -53,8 +47,6 @@ export const stockMovementRouter = createTRPCRouter({
         ...(input.refPurchaseId ? { refPurchaseId: input.refPurchaseId } : {}),
         ...(input.refSaleId ? { refSaleId: input.refSaleId } : {}),
         ...(input.refReturnId ? { refReturnId: input.refReturnId } : {}),
-
-        // ✅ NEW
         ...(input.refSemiFinishedGoodId
           ? { refSemiFinishedGoodId: input.refSemiFinishedGoodId }
           : {}),
@@ -66,8 +58,6 @@ export const stockMovementRouter = createTRPCRouter({
           ? {
               OR: [
                 { user: { name: { contains: search, mode: "insensitive" } } },
-
-                // cari by purchaseNo/saleNo/etc kalau include relasi ada
                 {
                   refPurchase: {
                     purchaseNo: { contains: search, mode: "insensitive" },
@@ -78,8 +68,6 @@ export const stockMovementRouter = createTRPCRouter({
                     saleNo: { contains: search, mode: "insensitive" },
                   },
                 },
-
-                // NEW: cari by sfg/fg name
                 {
                   refSemiFinishedGood: {
                     name: { contains: search, mode: "insensitive" },
