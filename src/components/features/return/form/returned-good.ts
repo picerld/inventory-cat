@@ -19,6 +19,8 @@ export const returnedGoodFormSchema = z.object({
     })
     .min(1, "Dari harus diisi!"),
   description: z.string().optional(),
+
+  applyToStock: z.boolean().optional().default(true),
 });
 
 export type ReturnedGoodFormSchema = z.infer<typeof returnedGoodFormSchema>;

@@ -12,45 +12,29 @@ import { Input } from "~/components/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { trpc } from "~/utils/trpc";
 import { toast } from "sonner";
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "~/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "~/components/ui/field";
 import { IsRequired } from "~/components/ui/is-required";
 import { Textarea } from "~/components/ui/textarea";
 import { Check, ChevronsUpDown, Loader } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReturnGood } from "~/types/return-good";
 import { returnedGoodFormSchema } from "../../form/returned-good";
-import Cookies from "js-cookie";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "~/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "~/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "~/components/ui/command";
 import { cn } from "~/lib/utils";
 
 type ReturnGoodActionDialogProps = {
   currentRow?: ReturnGood;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+};
+
+type FormValue = {
+  userId: string;
+  finishedGoodId: string;
+  qty: number;
+  from: string;
+  description?: string;
 };
 
 export function ReturnGoodsActionDialog({
@@ -61,41 +45,44 @@ export function ReturnGoodsActionDialog({
   const isEdit = !!currentRow;
   const utils = trpc.useUtils();
 
-  const [popoverOpen, setPopoverOpen] = useState<boolean>(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+
+  // NEW
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingValue, setPendingValue] = useState<FormValue | null>(null);
 
   const { data: user } = trpc.auth.authMe.useQuery();
-
   const { data: finishedGoods } = trpc.finishedGood.getAll.useQuery();
 
   const { mutate: createReturned, isPending: isPendingCreate } =
     trpc.returnGood.create.useMutation({
       onSuccess: () => {
-        toast.success("Berhasil!", {
-          description: "Barang retur berhasil ditambahkan.",
-        });
-
+        toast.success("Berhasil!", { description: "Barang retur berhasil ditambahkan." });
         utils.returnGood.getPaginated.invalidate();
         utils.returnGood.getStats.invalidate();
-
+        utils.finishedGood.getAll.invalidate(); // kalau stok berubah
         form.reset();
+        setConfirmOpen(false);
         onOpenChange(false);
       },
+      onError: (e) => toast.error("Gagal", { description: e.message }),
     });
 
   const { mutate: updateReturned, isPending: isPendingUpdate } =
     trpc.returnGood.update.useMutation({
       onSuccess: () => {
-        toast.success("Berhasil!", {
-          description: "Barang retur berhasil diperbarui.",
-        });
-
+        toast.success("Berhasil!", { description: "Barang retur berhasil diperbarui." });
         utils.returnGood.getPaginated.invalidate();
         utils.returnGood.getStats.invalidate();
-
+        utils.finishedGood.getAll.invalidate();
         form.reset();
+        setConfirmOpen(false);
         onOpenChange(false);
       },
+      onError: (e) => toast.error("Gagal", { description: e.message }),
     });
+
+  const isLoading = isPendingCreate || isPendingUpdate;
 
   const form = useForm({
     defaultValues: {
@@ -110,13 +97,23 @@ export function ReturnGoodsActionDialog({
       onSubmit: returnedGoodFormSchema,
     },
     onSubmit: ({ value }) => {
-      if (isEdit) {
-        updateReturned({ id: currentRow.id, ...value });
-      } else {
-        createReturned(value);
-      }
+      // kita TIDAK langsung mutate.
+      // kita simpan value, lalu buka dialog konfirmasi.
+      setPendingValue({
+        userId: value.userId,
+        finishedGoodId: value.finishedGoodId,
+        qty: value.qty,
+        from: value.from,
+        description: value.description ?? "",
+      });
+      setConfirmOpen(true);
     },
   });
+
+  useEffect(() => {
+    if (user?.id) form.setFieldValue("userId", user.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   useEffect(() => {
     if (isEdit && currentRow) {
@@ -128,197 +125,224 @@ export function ReturnGoodsActionDialog({
     } else {
       form.reset();
     }
-  }, [isEdit, currentRow]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, currentRow?.id]);
 
-  const isLoading = isPendingCreate || isPendingUpdate;
+  const doSubmit = (applyToStock: boolean) => {
+    if (!pendingValue) return;
+
+    const payload = {
+      ...pendingValue,
+      applyToStock, // NEW FLAG
+    };
+
+    if (isEdit) {
+      updateReturned({ id: currentRow!.id, ...payload });
+    } else {
+      createReturned(payload);
+    }
+  };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(state) => {
-        if (!state) form.reset();
-        onOpenChange(state);
-      }}
-    >
-      <DialogContent className="backdrop-blur-xl sm:max-w-2xl">
-        <DialogHeader className="text-start">
-          <DialogTitle className="text-2xl font-bold">
-            {isEdit ? "Edit Barang Retur" : "Tambah Barang Retur"}
-          </DialogTitle>
+    <>
+      {/* MAIN FORM DIALOG */}
+      <Dialog
+        open={open}
+        onOpenChange={(state) => {
+          if (!state) {
+            form.reset();
+            setConfirmOpen(false);
+            setPendingValue(null);
+          }
+          onOpenChange(state);
+        }}
+      >
+        <DialogContent className="backdrop-blur-xl sm:max-w-2xl">
+          <DialogHeader className="text-start">
+            <DialogTitle className="text-2xl font-bold">
+              {isEdit ? "Edit Barang Retur" : "Tambah Barang Retur"}
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-[0.93rem]">
+              {isEdit ? "Perbarui data barang retur di sini." : "Tambahkan barang retur di sini."}
+            </DialogDescription>
+          </DialogHeader>
 
-          <DialogDescription className="text-muted-foreground text-[0.93rem]">
-            {isEdit
-              ? "Perbarui data barang retur di sini."
-              : "Tambahkan barang retur di sini."}
-          </DialogDescription>
-        </DialogHeader>
+          <form
+            className="flex flex-col gap-6 py-1 pe-3"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              await form.handleSubmit();
+            }}
+          >
+            <FieldGroup>
+              <form.Field name="finishedGoodId">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
 
-        <form
-          className="flex flex-col gap-6 py-1 pe-3"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            await form.handleSubmit();
-          }}
-        >
-          <FieldGroup>
-            <form.Field name="finishedGoodId">
-              {(field) => {
-                const isInvalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field>
+                      <FieldLabel className="text-base">
+                        Barang Jadi <IsRequired />
+                      </FieldLabel>
 
-                return (
+                      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className="w-full justify-between"
+                            disabled={isEdit}
+                          >
+                            {field.state.value
+                              ? finishedGoods?.find((fg) => fg.id === field.state.value)?.name
+                              : "Pilih Barang Jadi"}
+                            <ChevronsUpDown className="opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput placeholder="Cari barang jadi..." className="h-9" />
+                            <CommandList>
+                              <CommandEmpty>Tidak ditemukan.</CommandEmpty>
+                              <CommandGroup>
+                                {finishedGoods?.map((fg) => (
+                                  <CommandItem
+                                    key={fg.id}
+                                    value={fg.id}
+                                    onSelect={(val) => {
+                                      field.handleChange(val);
+                                      setPopoverOpen(false);
+                                    }}
+                                  >
+                                    {fg.name}
+                                    <Check
+                                      className={cn(
+                                        "ml-auto",
+                                        fg.id === field.state.value ? "opacity-100" : "opacity-0",
+                                      )}
+                                    />
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+
+                      {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+
+              <form.Field name="qty">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+
+                  return (
+                    <Field>
+                      <FieldLabel className="text-base">
+                        Jumlah <IsRequired />
+                      </FieldLabel>
+                      <Input
+                        placeholder="0"
+                        className="h-12 rounded-xl border-2"
+                        value={field.state.value}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "");
+                          field.handleChange(Number(value || 0));
+                        }}
+                      />
+                      {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+
+              <form.Field name="from">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+
+                  return (
+                    <Field>
+                      <FieldLabel className="text-base">
+                        Dari <IsRequired />
+                      </FieldLabel>
+                      <Input
+                        placeholder="Contoh: Customer, Gudang, QC..."
+                        className="h-12 rounded-xl border-2"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                      />
+                      {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+
+              <form.Field name="description">
+                {(field) => (
                   <Field>
-                    <FieldLabel className="text-base">
-                      Barang Jadi <IsRequired />
-                    </FieldLabel>
-
-                    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className="w-[200px] justify-between"
-                          disabled={isEdit}
-                        >
-                          {field.state.value
-                            ? finishedGoods?.find(
-                                (fg) => fg.id === field.state.value,
-                              )?.name
-                            : "Pilih Barang Jadi"}
-
-                          <ChevronsUpDown className="opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-full p-0">
-                        <Command>
-                          <CommandInput
-                            placeholder="Search framework..."
-                            className="h-9"
-                          />
-                          <CommandList>
-                            <CommandEmpty>No framework found.</CommandEmpty>
-                            <CommandGroup>
-                              {finishedGoods?.map((finishedGood) => (
-                                <CommandItem
-                                  key={finishedGood.id}
-                                  value={finishedGood.id}
-                                  onSelect={(currentValue) => {
-                                    field.handleChange(currentValue);
-                                    setPopoverOpen(false);
-                                  }}
-                                >
-                                  {finishedGood.name}
-                                  <Check
-                                    className={cn(
-                                      "ml-auto",
-                                      finishedGood.id === field.state.value
-                                        ? "opacity-100"
-                                        : "opacity-0",
-                                    )}
-                                  />
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-
-                    {isInvalid && (
-                      <FieldError errors={field.state.meta.errors} />
-                    )}
-                  </Field>
-                );
-              }}
-            </form.Field>
-
-            <form.Field name="qty">
-              {(field) => {
-                const isInvalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid;
-
-                return (
-                  <Field>
-                    <FieldLabel className="text-base">
-                      Jumlah <IsRequired />
-                    </FieldLabel>
-                    <Input
-                      placeholder="0"
-                      className="h-12 rounded-xl border-2"
-                      value={field.state.value}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, "");
-                        field.handleChange(Number(value));
-                      }}
-                    />
-
-                    {isInvalid && (
-                      <FieldError errors={field.state.meta.errors} />
-                    )}
-                  </Field>
-                );
-              }}
-            </form.Field>
-
-            <form.Field name="from">
-              {(field) => {
-                const isInvalid =
-                  field.state.meta.isTouched && !field.state.meta.isValid;
-
-                return (
-                  <Field>
-                    <FieldLabel className="text-base">
-                      Dari <IsRequired />
-                    </FieldLabel>
-
-                    <Input
-                      placeholder="Contoh: Customer, Gudang, QC..."
-                      className="h-12 rounded-xl border-2"
+                    <FieldLabel className="text-base">Deskripsi</FieldLabel>
+                    <Textarea
+                      placeholder="Masukkan deskripsi retur (opsional)…"
+                      className="h-32"
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
                     />
-
-                    {isInvalid && (
-                      <FieldError errors={field.state.meta.errors} />
-                    )}
                   </Field>
-                );
-              }}
-            </form.Field>
-
-            <form.Field name="description">
-              {(field) => (
-                <Field>
-                  <FieldLabel className="text-base">Deskripsi</FieldLabel>
-
-                  <Textarea
-                    placeholder="Masukkan deskripsi retur (opsional)…"
-                    className="h-32"
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                </Field>
-              )}
-            </form.Field>
-
-            <Field>
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="py-6 font-medium"
-              >
-                {isLoading ? (
-                  <Loader className="mr-2 h-4 w-4 animate-spin" />
-                ) : isEdit ? (
-                  "Simpan Perubahan"
-                ) : (
-                  "Simpan Data"
                 )}
-              </Button>
-            </Field>
-          </FieldGroup>
-        </form>
-      </DialogContent>
-    </Dialog>
+              </form.Field>
+
+              <Field>
+                <Button type="submit" disabled={isLoading} className="py-6 font-medium">
+                  {isLoading ? (
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                  ) : isEdit ? (
+                    "Simpan Perubahan"
+                  ) : (
+                    "Simpan Data"
+                  )}
+                </Button>
+              </Field>
+            </FieldGroup>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* CONFIRM DIALOG */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader className="text-start">
+            <DialogTitle>Konfirmasi Retur</DialogTitle>
+            <DialogDescription>
+              Retur ini mau <b>dimasukkan ke stok</b> atau <b>hanya dicatat</b>?
+              <br />
+              Jika dimasukkan ke stok, jumlah stok barang jadi akan bertambah.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="outline"
+              disabled={isLoading}
+              onClick={() => doSubmit(false)}
+            >
+              Hanya dicatat
+            </Button>
+
+            <Button
+              disabled={isLoading}
+              onClick={() => doSubmit(true)}
+            >
+              {isLoading ? "Memproses..." : "Masukkan ke stok"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

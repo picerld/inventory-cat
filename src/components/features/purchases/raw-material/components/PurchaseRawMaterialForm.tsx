@@ -6,9 +6,14 @@ import { trpc } from "~/utils/trpc";
 import { toast } from "sonner";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { Field, FieldError, FieldGroup, FieldLabel } from "~/components/ui/field";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "~/components/ui/field";
 import { IsRequired } from "~/components/ui/is-required";
-import { cn, generateRandomCode, toRupiah } from "~/lib/utils";
+import { cn, generateRandomCode, toNumber, toRupiah } from "~/lib/utils";
 import {
   Command,
   CommandEmpty,
@@ -17,8 +22,12 @@ import {
   CommandItem,
   CommandList,
 } from "~/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
-import { Check, Loader, Wand, Trash2 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "~/components/ui/popover";
+import { Check, Loader, Wand, Trash2, TriangleAlert } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -28,8 +37,9 @@ import {
 } from "~/components/ui/select";
 import { purchaseRawMaterialFormSchema } from "../form/purchase-raw-material";
 import type { PurchaseRawMaterialFull } from "~/types/purchase";
-
-type PurchaseStatus = "DRAFT" | "ONGOING" | "FINISHED" | "CANCELED";
+import type { PurchaseStatus } from "../../config/purchase";
+import { ConfirmActionDialog } from "~/components/dialog/ConfirmActionDialog";
+import { PurchaseRawMaterialFormAction } from "./PurchaseRawMaterialFormAction";
 
 type PurchaseRawMaterialFormProps = {
   mode: "create" | "edit";
@@ -42,13 +52,17 @@ type Line = {
   unitPrice: number | string;
 };
 
-const toNumber = (v: string | number | undefined | null) => {
-  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
-  const n = parseFloat(String(v ?? "").replaceAll(",", "."));
-  return Number.isFinite(n) ? n : 0;
-};
+type ActionKey =
+  | "submit"
+  | "set-ongoing"
+  | "set-finished"
+  | "set-canceled"
+  | null;
 
-export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMaterialFormProps) {
+export function PurchaseRawMaterialForm({
+  mode,
+  initialData,
+}: PurchaseRawMaterialFormProps) {
   const utils = trpc.useUtils();
 
   const { data: user } = trpc.auth.authMe.useQuery();
@@ -56,56 +70,7 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
   const { data: rawMaterials } = trpc.rawMaterial.getAll.useQuery();
 
   const [openMaterialPicker, setOpenMaterialPicker] = useState(false);
-
-  const { mutate: createPurchase, isPending: isPendingCreate } =
-    trpc.purchase.create.useMutation({
-      onSuccess: () => {
-        toast.success("Berhasil!!", { description: "Pembelian bahan baku berhasil dibuat" });
-        utils.purchase.getPaginated.invalidate();
-        utils.purchase.getRawMaterialPaginated?.invalidate?.(); // kalau ada di client
-        form.reset();
-      },
-      onError: (error) => {
-        toast.error("Gagal!!", {
-          description:
-            error.data?.code === "UNAUTHORIZED"
-              ? "Silahkan login terlebih dahulu"
-              : error.message ?? "Coba periksa kembali form anda!",
-        });
-      },
-    });
-
-  const { mutate: updatePurchase, isPending: isPendingUpdate } =
-    trpc.purchase.update.useMutation({
-      onSuccess: () => {
-        toast.success("Berhasil!!", { description: "Pembelian bahan baku berhasil diperbarui!" });
-        utils.purchase.getPaginated.invalidate();
-        utils.purchase.getRawMaterialPaginated?.invalidate?.();
-      },
-      onError: (error) => {
-        toast.error("Gagal!!", {
-          description:
-            error.data?.code === "UNAUTHORIZED"
-              ? "Silahkan login terlebih dahulu"
-              : error.message || "Coba periksa kembali form anda!",
-        });
-      },
-    });
-
-  const { mutate: updateStatus, isPending: isPendingUpdateStatus } =
-    trpc.purchase.updateStatus.useMutation({
-      onSuccess: () => {
-        toast.success("Berhasil!", { description: "Status purchase berhasil diubah." });
-        utils.purchase.getPaginated.invalidate();
-        utils.purchase.getRawMaterialPaginated?.invalidate?.();
-        utils.rawMaterial.getAll.invalidate(); // karena FINISHED bisa nambah stok
-      },
-      onError: (error) => {
-        toast.error("Gagal ubah status", {
-          description: error.message || "Tidak bisa mengubah status purchase.",
-        });
-      },
-    });
+  const [activeAction, setActiveAction] = useState<ActionKey>(null);
 
   const form = useForm({
     defaultValues: {
@@ -122,7 +87,8 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
     validators: { onSubmit: purchaseRawMaterialFormSchema },
 
     onSubmit: async ({ value }) => {
-      // payload items harus sesuai schema zod kamu: rawMaterialId, qty, unitPrice
+      setActiveAction("submit");
+
       const itemsPayload = (value.items ?? []).map((l) => ({
         rawMaterialId: l.rawMaterialId,
         qty: toNumber(l.qty),
@@ -146,6 +112,76 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
       }
     },
   });
+
+  const { mutate: createPurchase, isPending: isPendingCreate } =
+    trpc.purchase.create.useMutation({
+      onSuccess: async () => {
+        toast.success("Berhasil!!", {
+          description: "Pembelian bahan baku berhasil dibuat",
+        });
+
+        await utils.purchase.getPaginated.invalidate();
+        await utils.purchase.getRawMaterialPaginated?.invalidate?.();
+
+        form.reset();
+
+        setActiveAction(null);
+      },
+      onError: (error) => {
+        toast.error("Gagal!!", {
+          description:
+            error.data?.code === "UNAUTHORIZED"
+              ? "Silahkan login terlebih dahulu"
+              : (error.message ?? "Coba periksa kembali form anda!"),
+        });
+        setActiveAction(null);
+      },
+    });
+
+  const { mutate: updatePurchase, isPending: isPendingUpdate } =
+    trpc.purchase.update.useMutation({
+      onSuccess: async () => {
+        toast.success("Berhasil!!", {
+          description: "Pembelian bahan baku berhasil diperbarui!",
+        });
+
+        await utils.purchase.getPaginated.invalidate();
+        await utils.purchase.getRawMaterialPaginated?.invalidate?.();
+
+        setActiveAction(null);
+      },
+      onError: (error) => {
+        toast.error("Gagal!!", {
+          description:
+            error.data?.code === "UNAUTHORIZED"
+              ? "Silahkan login terlebih dahulu"
+              : error.message || "Coba periksa kembali form anda!",
+        });
+        setActiveAction(null);
+      },
+    });
+
+  const { mutate: updateStatus, isPending: isPendingUpdateStatus } =
+    trpc.purchase.updateStatus.useMutation({
+      onSuccess: async () => {
+        toast.success("Berhasil!", {
+          description: "Status purchase berhasil diubah.",
+        });
+
+        await utils.purchase.getPaginated.invalidate();
+        await utils.purchase.getRawMaterialPaginated?.invalidate?.();
+        await utils.rawMaterial.getAll.invalidate();
+        await utils.purchase.getById.invalidate({ id: initialData?.id });
+
+        setActiveAction(null);
+      },
+      onError: (error) => {
+        toast.error("Gagal ubah status", {
+          description: error.message || "Tidak bisa mengubah status purchase.",
+        });
+        setActiveAction(null);
+      },
+    });
 
   useEffect(() => {
     if (user?.id) form.setFieldValue("userId", user.id);
@@ -171,15 +207,36 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
       form.reset();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, initialData?.id]);
-
-  const isLoading = isPendingCreate || isPendingUpdate || isPendingUpdateStatus;
+  }, [mode, initialData?.id, initialData?.supplierId, suppliers?.length]);
 
   const currentStatus: PurchaseStatus | undefined = initialData?.status;
 
-  const canSetOngoing = mode === "edit" && (currentStatus === "DRAFT");
-  const canSetFinished = mode === "edit" && (currentStatus === "DRAFT" || currentStatus === "ONGOING");
-  const canCancel = mode === "edit" && (currentStatus === "DRAFT" || currentStatus === "ONGOING");
+  const isReadOnlyByStatus =
+    mode === "edit" &&
+    (currentStatus === "FINISHED" || currentStatus === "CANCELED");
+
+  const isSubmitting =
+    activeAction === "submit" && (isPendingCreate || isPendingUpdate);
+  const isSetOngoing = activeAction === "set-ongoing" && isPendingUpdateStatus;
+  const isSetFinished =
+    activeAction === "set-finished" && isPendingUpdateStatus;
+  const isSetCanceled =
+    activeAction === "set-canceled" && isPendingUpdateStatus;
+
+  const lockUI =
+    (isPendingCreate || isPendingUpdate || isPendingUpdateStatus) &&
+    activeAction !== null;
+
+  const disableFormInputs = lockUI || isReadOnlyByStatus;
+  const disableSubmit = lockUI || (mode === "edit" && isReadOnlyByStatus);
+
+  const canSetOngoing = mode === "edit" && currentStatus === "DRAFT";
+  const canSetFinished =
+    mode === "edit" &&
+    (currentStatus === "DRAFT" || currentStatus === "ONGOING");
+  const canCancel =
+    mode === "edit" &&
+    (currentStatus === "DRAFT" || currentStatus === "ONGOING");
 
   return (
     <div className="py-6">
@@ -194,7 +251,8 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <form.Field name="purchaseNo">
               {(field) => {
-                const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
                 return (
                   <Field data-invalid={isInvalid}>
                     <FieldLabel className="text-base">
@@ -207,7 +265,7 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
                         className="col-span-6 h-12 rounded-xl border-2"
                         value={field.state.value}
                         onChange={(e) => field.handleChange(e.target.value)}
-                        disabled={mode === "edit"}
+                        disabled={mode === "edit" || disableFormInputs}
                       />
 
                       <Button
@@ -215,14 +273,18 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
                         variant="outline"
                         size="icon-lg"
                         className="py-5"
-                        onClick={() => field.handleChange(generateRandomCode("PB"))}
-                        disabled={mode === "edit"}
+                        onClick={() =>
+                          field.handleChange(generateRandomCode("PB"))
+                        }
+                        disabled={mode === "edit" || disableFormInputs}
                       >
                         <Wand className="size-5" strokeWidth={2.5} />
                       </Button>
                     </div>
 
-                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
                   </Field>
                 );
               }}
@@ -230,14 +292,19 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
 
             <form.Field name="supplierId">
               {(field) => {
-                const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
                 return (
                   <Field data-invalid={isInvalid}>
                     <FieldLabel className="text-base">
                       Supplier <IsRequired />
                     </FieldLabel>
 
-                    <Select value={String(field.state.value ?? "")} onValueChange={field.handleChange}>
+                    <Select
+                      value={String(field.state.value ?? "")}
+                      onValueChange={field.handleChange}
+                      disabled={disableFormInputs}
+                    >
                       <SelectTrigger className="h-12 border-2">
                         <SelectValue placeholder="Pilih supplier" />
                       </SelectTrigger>
@@ -250,7 +317,9 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
                       </SelectContent>
                     </Select>
 
-                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
                   </Field>
                 );
               }}
@@ -261,12 +330,15 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
             <form.Field name="receivedNote">
               {(field) => (
                 <Field>
-                  <FieldLabel className="text-base">No. Surat Jalan (opsional)</FieldLabel>
+                  <FieldLabel className="text-base">
+                    No. Surat Jalan (opsional)
+                  </FieldLabel>
                   <Input
                     placeholder="SJ-001"
                     className="h-12 rounded-xl border-2"
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
+                    disabled={disableFormInputs}
                   />
                 </Field>
               )}
@@ -275,32 +347,42 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
             <form.Field name="notes">
               {(field) => (
                 <Field>
-                  <FieldLabel className="text-base">Catatan (opsional)</FieldLabel>
+                  <FieldLabel className="text-base">
+                    Catatan (opsional)
+                  </FieldLabel>
                   <Input
                     placeholder="Catatan pembelian..."
                     className="h-12 rounded-xl border-2"
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
+                    disabled={disableFormInputs}
                   />
                 </Field>
               )}
             </form.Field>
           </div>
 
-          {/* ITEMS (reactive subtotal + total) */}
           <form.Field name="items">
             {(field) => {
-              const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+              const isInvalid =
+                field.state.meta.isTouched && !field.state.meta.isValid;
               const items = field.state.value ?? [];
 
-              const total = items.reduce((acc, it) => acc + toNumber(it.qty) * toNumber(it.unitPrice), 0);
+              const total = items.reduce(
+                (acc, it) => acc + toNumber(it.qty) * toNumber(it.unitPrice),
+                0,
+              );
 
               const addMaterial = (rawMaterialId: string) => {
+                if (disableFormInputs) return;
+
                 if (items.some((x) => x.rawMaterialId === rawMaterialId)) {
                   toast.info("Bahan baku sudah dipilih!");
                   return;
                 }
-                const rm = rawMaterials?.find((r: any) => r.id === rawMaterialId);
+                const rm = rawMaterials?.find(
+                  (r: any) => r.id === rawMaterialId,
+                );
 
                 field.handleChange([
                   ...items,
@@ -315,11 +397,17 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
               };
 
               const removeMaterial = (rawMaterialId: string) => {
-                field.handleChange(items.filter((x) => x.rawMaterialId !== rawMaterialId));
+                if (disableFormInputs) return;
+                field.handleChange(
+                  items.filter((x) => x.rawMaterialId !== rawMaterialId),
+                );
               };
 
               const updateLine = (idx: number, patch: Partial<Line>) => {
-                const next = items.map((it, i) => (i === idx ? { ...it, ...patch } : it));
+                if (disableFormInputs) return;
+                const next = items.map((it, i) =>
+                  i === idx ? { ...it, ...patch } : it,
+                );
                 field.handleChange(next);
               };
 
@@ -329,17 +417,23 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
                     Pilih Bahan Baku <IsRequired />
                   </FieldLabel>
 
-                  <Popover open={openMaterialPicker} onOpenChange={setOpenMaterialPicker}>
+                  <Popover
+                    open={openMaterialPicker}
+                    onOpenChange={setOpenMaterialPicker}
+                  >
                     <PopoverTrigger asChild>
                       <Button
                         type="button"
                         variant="outline"
                         className="h-auto min-h-12 w-full justify-start rounded-xl border-2"
+                        disabled={disableFormInputs}
                       >
                         {items.length > 0 ? (
                           <span>{items.length} bahan baku dipilih</span>
                         ) : (
-                          <span className="text-muted-foreground">Pilih bahan baku...</span>
+                          <span className="text-muted-foreground">
+                            Pilih bahan baku...
+                          </span>
                         )}
                       </Button>
                     </PopoverTrigger>
@@ -351,9 +445,14 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
                           <CommandEmpty>Tidak ada bahan baku.</CommandEmpty>
                           <CommandGroup>
                             {rawMaterials?.map((rm: any) => {
-                              const selected = items.some((i) => i.rawMaterialId === rm.id);
+                              const selected = items.some(
+                                (i) => i.rawMaterialId === rm.id,
+                              );
                               return (
-                                <CommandItem key={rm.id} onSelect={() => addMaterial(rm.id)}>
+                                <CommandItem
+                                  key={rm.id}
+                                  onSelect={() => addMaterial(rm.id)}
+                                >
                                   <Check
                                     className={cn(
                                       "mr-2 h-4 w-4",
@@ -373,31 +472,51 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
 
                   <div className="mt-3 space-y-2">
                     {items.map((line, idx) => {
-                      const rm = rawMaterials?.find((r: any) => r.id === line.rawMaterialId);
+                      const rm = rawMaterials?.find(
+                        (r: any) => r.id === line.rawMaterialId,
+                      );
 
                       const qtyNum = toNumber(line.qty);
                       const unitPriceNum = toNumber(line.unitPrice);
                       const subtotal = qtyNum * unitPriceNum;
 
                       return (
-                        <div key={line.rawMaterialId} className="rounded-xl border-2 p-3">
+                        <div
+                          key={line.rawMaterialId}
+                          className="rounded-xl border-2 p-3"
+                        >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="truncate font-medium">{rm?.name ?? "Unknown"}</p>
+                              <p className="truncate font-medium">
+                                {rm?.name ?? "Unknown"}
+                              </p>
                               <p className="text-muted-foreground text-xs">
                                 Supplier: {rm?.supplier?.name ?? "-"} • Stok:{" "}
                                 {rm?.qty ? Number(rm.qty).toFixed(2) : "0.00"}
                               </p>
                             </div>
 
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              onClick={() => removeMaterial(line.rawMaterialId)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <ConfirmActionDialog
+                              trigger={
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  disabled={disableFormInputs}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              }
+                              variant="destructive"
+                              title="Batalkan bahan baku ini?"
+                              description="Anda akan menghapus bahan baku ini dari daftar pembelian. Tindakan ini tidak dapat dibatalkan."
+                              confirmText="Ya, hapus"
+                              cancelText="Kembali"
+                              icon={<TriangleAlert className="size-6" />}
+                              isLoading={disableFormInputs}
+                              onConfirm={() =>
+                                removeMaterial(line.rawMaterialId)
+                              }
+                            />
                           </div>
 
                           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -407,22 +526,32 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
                                 className="h-11 rounded-xl border-2"
                                 inputMode="decimal"
                                 value={String(line.qty ?? "")}
-                                onChange={(e) => updateLine(idx, { qty: e.target.value })}
+                                onChange={(e) =>
+                                  updateLine(idx, { qty: e.target.value })
+                                }
+                                disabled={disableFormInputs}
                               />
                             </div>
 
                             <div>
-                              <FieldLabel className="text-sm">Harga / Unit</FieldLabel>
+                              <FieldLabel className="text-sm">
+                                Harga / Unit
+                              </FieldLabel>
                               <Input
                                 className="h-11 rounded-xl border-2"
                                 inputMode="decimal"
                                 value={String(line.unitPrice ?? "")}
-                                onChange={(e) => updateLine(idx, { unitPrice: e.target.value })}
+                                onChange={(e) =>
+                                  updateLine(idx, { unitPrice: e.target.value })
+                                }
+                                disabled={disableFormInputs}
                               />
                             </div>
 
                             <div>
-                              <FieldLabel className="text-sm">Subtotal</FieldLabel>
+                              <FieldLabel className="text-sm">
+                                Subtotal
+                              </FieldLabel>
                               <Input
                                 className="bg-muted h-11 rounded-xl border-2"
                                 readOnly
@@ -453,8 +582,12 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
         </FieldGroup>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <Button type="submit" disabled={isLoading} className="font-medium">
-            {isLoading ? (
+          <Button
+            type="submit"
+            disabled={disableSubmit}
+            className="font-medium"
+          >
+            {isSubmitting ? (
               <Loader className="h-4 w-4 animate-spin" />
             ) : mode === "create" ? (
               "Simpan Pembelian (Draft)"
@@ -464,40 +597,21 @@ export function PurchaseRawMaterialForm({ mode, initialData }: PurchaseRawMateri
           </Button>
 
           {mode === "edit" && initialData?.id && (
-            <>
-              {canSetOngoing && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isLoading}
-                  onClick={() => updateStatus({ id: initialData.id, status: "ONGOING" })}
-                >
-                  Set Ongoing
-                </Button>
-              )}
-
-              {canSetFinished && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isLoading}
-                  onClick={() => updateStatus({ id: initialData.id, status: "FINISHED" })}
-                >
-                  Finish (Tambah Stok)
-                </Button>
-              )}
-
-              {canCancel && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={isLoading}
-                  onClick={() => updateStatus({ id: initialData.id, status: "CANCELED" })}
-                >
-                  Cancel
-                </Button>
-              )}
-            </>
+            <PurchaseRawMaterialFormAction
+              props={{
+                lockUI,
+                isReadOnlyByStatus,
+                canSetOngoing,
+                canSetFinished,
+                canCancel,
+                isSetOngoing,
+                isSetFinished,
+                isSetCanceled,
+                setActiveAction: (a) => setActiveAction(a),
+                updateStatus: ({ id, status }) => updateStatus({ id, status }),
+                initialData: { id: initialData.id },
+              }}
+            />
           )}
         </div>
       </form>

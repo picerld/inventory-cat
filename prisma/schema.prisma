@@ -146,6 +146,8 @@ model SemiFinishedGood {
     createdAt              DateTime                 @default(now())
     updatedAt              DateTime                 @updatedAt
 
+    stockMovements StockMovement[] @relation("SFGStockMovements")
+
     @@index([paintGradeId])
 }
 
@@ -180,7 +182,8 @@ model FinishedGood {
     createdAt           DateTime             @default(now())
     updatedAt           DateTime             @updatedAt
 
-    saleItems SaleItem[]
+    saleItems      SaleItem[]
+    stockMovements StockMovement[] @relation("FGStockMovements")
 
     @@index([paintGradeId])
 }
@@ -222,17 +225,18 @@ model PaintAccessories {
 }
 
 model ReturnedItem {
-    id             String       @id @default(uuid())
+    id             String          @id @default(uuid())
     // itemType    ItemType
     userId         String
-    user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
     finishedGoodId String
-    finishedGood   FinishedGood @relation(fields: [finishedGoodId], references: [id], onDelete: Cascade)
-    qty            Decimal      @db.Decimal(10, 2)
+    finishedGood   FinishedGood    @relation(fields: [finishedGoodId], references: [id], onDelete: Cascade)
+    qty            Decimal         @db.Decimal(10, 2)
     from           String
     description    String?
-    createdAt      DateTime     @default(now())
-    updatedAt      DateTime     @updatedAt
+    createdAt      DateTime        @default(now())
+    updatedAt      DateTime        @updatedAt
+    stockMovements StockMovement[]
 
     @@index([finishedGoodId])
 }
@@ -255,8 +259,9 @@ model Purchase {
 
     items PurchaseItem[]
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    createdAt      DateTime        @default(now())
+    updatedAt      DateTime        @updatedAt
+    stockMovements StockMovement[]
 
     @@index([supplierId])
     @@index([purchasedAt])
@@ -309,8 +314,9 @@ model Sale {
 
     items SaleItem[]
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    createdAt      DateTime        @default(now())
+    updatedAt      DateTime        @updatedAt
+    stockMovements StockMovement[]
 
     @@index([customerId])
     @@index([soldAt])
@@ -352,8 +358,19 @@ model StockMovement {
     qty      Decimal  @db.Decimal(10, 2)
 
     refPurchaseId String?
-    refSaleId     String?
-    refReturnId   String?
+    refPurchase   Purchase? @relation(fields: [refPurchaseId], references: [id], onDelete: SetNull)
+
+    refSaleId String?
+    refSale   Sale?   @relation(fields: [refSaleId], references: [id], onDelete: SetNull)
+
+    refReturnId String?
+    refReturn   ReturnedItem? @relation(fields: [refReturnId], references: [id], onDelete: SetNull)
+
+    refSemiFinishedGoodId String?
+    refSemiFinishedGood   SemiFinishedGood? @relation("SFGStockMovements", fields: [refSemiFinishedGoodId], references: [id], onDelete: SetNull)
+
+    refFinishedGoodId String?
+    refFinishedGood   FinishedGood? @relation("FGStockMovements", fields: [refFinishedGoodId], references: [id], onDelete: SetNull)
 
     userId String
     user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -364,4 +381,6 @@ model StockMovement {
     @@index([refPurchaseId])
     @@index([refSaleId])
     @@index([refReturnId])
+    @@index([refSemiFinishedGoodId])
+    @@index([refFinishedGoodId])
 }

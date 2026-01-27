@@ -3,6 +3,7 @@ import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { finishedGoodFormSchema } from "~/components/features/finished/form/finished-good";
+import { toNumber } from "~/lib/utils";
 
 export const finishedGoodRouter = createTRPCRouter({
   getPaginated: protectedProcedure
@@ -167,7 +168,7 @@ export const finishedGoodRouter = createTRPCRouter({
                 select: {
                   name: true,
                   qty: true,
-                }
+                },
               },
               rawMaterial: {
                 select: {
@@ -228,148 +229,513 @@ export const finishedGoodRouter = createTRPCRouter({
   create: protectedProcedure
     .input(finishedGoodFormSchema)
     .mutation(async ({ ctx, input }) => {
-      return await ctx.db.$transaction(async (tx) => {
-        if (input.sourceType === "raw_material" && input.materials) {
-          const finished = await tx.finishedGood.create({
-            data: {
-              userId: input.userId,
-              paintGradeId: input.paintGradeId,
-              name: input.name,
-              qty: input.qty,
-              productionCode: input.productionCode,
-              batchNumber: input.batchNumber,
-              dateProduced: input.dateProduced,
-              sourceType: input.sourceType.toUpperCase() as "RAW_MATERIAL",
-              finishedGoodDetails: {
-                create: input.materials.map((material) => ({
-                  rawMaterialId: material.rawMaterialId,
-                  qty: material.qty,
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                })),
-              },
-            },
-            include: {
-              user: true,
-              paintGrade: true,
-              finishedGoodDetails: {
-                include: {
-                  rawMaterial: true,
-                },
-              },
-            },
-          });
+      const userId = ctx.user?.id ?? input.userId;
 
-          // Decrement raw material stock
-          for (const material of input.materials) {
-            await tx.rawMaterial.update({
-              where: { id: material.rawMaterialId },
-              data: {
-                qty: {
-                  decrement: material.qty,
-                },
-              },
+      return ctx.db.$transaction(async (tx) => {
+        // =============================
+        // 1) VALIDATE + PREPARE CONSUMPTION
+        // =============================
+        const sourceTypeUpper = input.sourceType.toUpperCase() as
+          | "RAW_MATERIAL"
+          | "SEMI_FINISHED";
+
+        // konsumsi raw materials final (untuk detail)
+        let aggregatedMaterials: { rawMaterialId: string; qty: number }[] = [];
+
+        // konsumsi semi finished untuk decrement
+        let consumedSemiFinished: {
+          semiFinishedGoodId: string;
+          qty: number;
+        }[] = [];
+
+        if (input.sourceType === "raw_material") {
+          if (!input.materials?.length) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Materials wajib untuk source raw_material",
             });
           }
 
-          return finished;
+          // validate stok raw cukup
+          for (const m of input.materials) {
+            const rm = await tx.rawMaterial.findUnique({
+              where: { id: m.rawMaterialId },
+              select: { id: true, name: true, qty: true },
+            });
+            if (!rm) {
+              throw new TRPCError({
+                code: "NOT_FOUND",
+                message: "Raw material tidak ditemukan",
+              });
+            }
+            if (toNumber(rm.qty) < toNumber(m.qty)) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: `Stok ${rm.name} tidak cukup. Tersedia ${rm.qty}, butuh ${m.qty}`,
+              });
+            }
+          }
+
+          aggregatedMaterials = input.materials.map((m) => ({
+            rawMaterialId: m.rawMaterialId,
+            qty: toNumber(m.qty),
+          }));
         }
 
-        // Handle semi-finished source
-        if (input.sourceType === "semi_finished" && input.semiFinishedGoods) {
-          // Get all raw materials from semi-finished goods
+        if (input.sourceType === "semi_finished") {
+          if (!input.semiFinishedGoods?.length) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "semiFinishedGoods wajib untuk source semi_finished",
+            });
+          }
+
+          // validate stok semi finished cukup
+          for (const sf of input.semiFinishedGoods) {
+            const sfg = await tx.semiFinishedGood.findUnique({
+              where: { id: sf.semiFinishedGoodId },
+              select: { id: true, name: true, qty: true },
+            });
+            if (!sfg) {
+              throw new TRPCError({
+                code: "NOT_FOUND",
+                message: "Semi finished good tidak ditemukan",
+              });
+            }
+            if (toNumber(sfg.qty) < toNumber(sf.qty)) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: `Stok ${sfg.name} tidak cukup. Tersedia ${sfg.qty}, butuh ${sf.qty}`,
+              });
+            }
+          }
+
+          consumedSemiFinished = input.semiFinishedGoods.map((sf) => ({
+            semiFinishedGoodId: sf.semiFinishedGoodId,
+            qty: toNumber(sf.qty),
+          }));
+
+          // Ambil detail raw material dari SFG untuk membentuk FinishedGoodDetail (audit BOM)
+          const sfgIds = input.semiFinishedGoods.map(
+            (x) => x.semiFinishedGoodId,
+          );
+
           const semiFinishedWithDetails = await tx.semiFinishedGood.findMany({
-            where: {
-              id: {
-                in: input.semiFinishedGoods.map((sf) => sf.semiFinishedGoodId),
-              },
-            },
-            include: {
-              SemiFinishedGoodDetail: {
-                include: {
-                  rawMaterial: true,
-                },
-              },
-            },
+            where: { id: { in: sfgIds } },
+            include: { SemiFinishedGoodDetail: true },
           });
 
-          // Aggregate raw materials from all semi-finished goods
-          const rawMaterialMap = new Map<string, number>();
+          const rmMap = new Map<string, number>();
 
-          for (const sfgInput of input.semiFinishedGoods) {
+          for (const sf of input.semiFinishedGoods) {
             const sfg = semiFinishedWithDetails.find(
-              (s) => s.id === sfgInput.semiFinishedGoodId,
+              (x) => x.id === sf.semiFinishedGoodId,
             );
             if (!sfg) continue;
 
-            // For each semi-finished good, add its raw materials proportionally
-            for (const detail of sfg.SemiFinishedGoodDetail) {
-              const proportionalQty = (detail.qty / sfg.qty) * sfgInput.qty;
-              const currentQty = rawMaterialMap.get(detail.rawMaterialId) ?? 0;
-              rawMaterialMap.set(
-                detail.rawMaterialId,
-                currentQty + proportionalQty,
+            // NOTE: qty SFG kamu itu "jumlah baris detail", bukan output unit.
+            // Jadi proporsional detail.qty / sfg.qty bisa tidak meaningful.
+            // Aku ambil pendekatan: pakai proporsi berdasarkan qty detail langsung dikalikan sf.qty (asumsi sf.qty = jumlah batch)
+            // Kalau kamu punya rumus sendiri, ganti di sini.
+            for (const d of sfg.SemiFinishedGoodDetail) {
+              const add = toNumber(d.qty) * toNumber(sf.qty);
+              rmMap.set(
+                d.rawMaterialId,
+                (rmMap.get(d.rawMaterialId) ?? 0) + add,
               );
             }
           }
 
-          // Convert map to array
-          const aggregatedMaterials = Array.from(rawMaterialMap.entries()).map(
+          aggregatedMaterials = Array.from(rmMap.entries()).map(
             ([rawMaterialId, qty]) => ({
               rawMaterialId,
-              qty: Math.ceil(qty), // Round up to ensure we have enough
+              qty: qty, // decimal ok
             }),
           );
+        }
 
-          const finished = await tx.finishedGood.create({
-            data: {
-              userId: input.userId,
-              paintGradeId: input.paintGradeId,
-              name: input.name,
-              qty: input.qty,
-              productionCode: input.productionCode,
-              sourceType: input.sourceType.toUpperCase() as "SEMI_FINISHED",
-              batchNumber: input.batchNumber,
-              dateProduced: input.dateProduced,
-              finishedGoodDetails: {
-                create: aggregatedMaterials.map((material) => ({
-                  rawMaterialId: material.rawMaterialId,
-                  qty: material.qty,
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                })),
-              },
+        // =============================
+        // 2) CREATE FINISHED GOOD + DETAILS
+        // =============================
+        const finished = await tx.finishedGood.create({
+          data: {
+            userId: input.userId,
+            paintGradeId: input.paintGradeId,
+            name: input.name,
+            qty: input.qty,
+            productionCode: input.productionCode,
+            batchNumber: input.batchNumber,
+            dateProduced: input.dateProduced,
+            sourceType: sourceTypeUpper,
+            finishedGoodDetails: {
+              create: aggregatedMaterials.map((m) => ({
+                rawMaterialId: m.rawMaterialId,
+                qty: m.qty,
+              })),
             },
-            include: {
-              user: true,
-              paintGrade: true,
-              finishedGoodDetails: {
-                include: {
-                  rawMaterial: true,
-                },
-              },
-            },
-          });
+          },
+          include: {
+            user: true,
+            paintGrade: true,
+            finishedGoodDetails: { include: { rawMaterial: true } },
+          },
+        });
 
-          // Decrement semi-finished goods stock
-          for (const sfg of input.semiFinishedGoods) {
-            await tx.semiFinishedGood.update({
-              where: { id: sfg.semiFinishedGoodId },
+        // =============================
+        // 3) APPLY STOCK OUT (SOURCE)
+        // =============================
+        if (input.sourceType === "raw_material") {
+          for (const m of aggregatedMaterials) {
+            await tx.rawMaterial.update({
+              where: { id: m.rawMaterialId },
+              data: { qty: { decrement: m.qty } },
+            });
+
+            // movement: production out raw material
+            await tx.stockMovement.create({
               data: {
-                qty: {
-                  decrement: sfg.qty,
-                },
+                type: "PRODUCTION_OUT",
+                itemType: "RAW_MATERIAL",
+                itemId: m.rawMaterialId,
+                qty: m.qty,
+                userId,
+                refFinishedGoodId: finished.id,
               },
             });
           }
-
-          return finished;
         }
 
+        if (input.sourceType === "semi_finished") {
+          for (const sf of consumedSemiFinished) {
+            await tx.semiFinishedGood.update({
+              where: { id: sf.semiFinishedGoodId },
+              data: { qty: { decrement: sf.qty } },
+            });
+
+            // movement: production out semi finished
+            await tx.stockMovement.create({
+              data: {
+                type: "PRODUCTION_OUT",
+                itemType: "SEMI_FINISHED_GOOD",
+                itemId: sf.semiFinishedGoodId,
+                qty: sf.qty,
+                userId,
+                refFinishedGoodId: finished.id,
+                refSemiFinishedGoodId: sf.semiFinishedGoodId,
+              },
+            });
+          }
+        }
+
+        // =============================
+        // 4) PRODUCTION IN (FINISHED GOOD)
+        // =============================
+        await tx.stockMovement.create({
+          data: {
+            type: "PRODUCTION_IN",
+            itemType: "FINISHED_GOOD",
+            itemId: finished.id,
+            qty: toNumber(input.qty),
+            userId,
+            refFinishedGoodId: finished.id,
+          },
+        });
+
+        return finished;
+      });
+    }),
+
+  update: protectedProcedure
+    .input(finishedGoodFormSchema)
+    .mutation(async ({ ctx, input }) => {
+      if (!input.id) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Invalid source type or missing materials",
+          message: "ID is required for update operation",
         });
+      }
+
+      const userId = ctx.user?.id ?? input.userId;
+
+      return ctx.db.$transaction(async (tx) => {
+        // =============================
+        // 0) LOAD EXISTING (for restore)
+        // =============================
+        const existing = await tx.finishedGood.findUnique({
+          where: { id: input.id },
+          include: {
+            finishedGoodDetails: true,
+          },
+        });
+
+        if (!existing) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Finished good not found",
+          });
+        }
+
+        // =============================
+        // 1) RESTORE OLD STOCK (IMPORTANT)
+        // =============================
+        // Restore raw materials that were consumed by old FG details
+        for (const d of existing.finishedGoodDetails) {
+          await tx.rawMaterial.update({
+            where: { id: d.rawMaterialId },
+            data: { qty: { increment: d.qty } },
+          });
+
+          await tx.stockMovement.create({
+            data: {
+              type: "ADJUSTMENT",
+              itemType: "RAW_MATERIAL",
+              itemId: d.rawMaterialId,
+              qty: d.qty,
+              userId,
+              refFinishedGoodId: existing.id,
+            },
+          });
+        }
+
+        // If old source was SEMI_FINISHED, restore semi finished consumption too
+        // NOTE: kalau kamu belum nyimpen mapping konsumsi SFG di detail, opsi paling aman:
+        // - restore hanya raw material via finishedGoodDetails (di atas)
+        // - dan untuk semi finished, kamu perlu record konsumsi via StockMovement PRODUCTION_OUT itemType SEMI_FINISHED_GOOD refFinishedGoodId=...
+        // Jadi kita restore via stockMovement query:
+        if (existing.sourceType === "SEMI_FINISHED") {
+          const oldSfMoves = await tx.stockMovement.findMany({
+            where: {
+              refFinishedGoodId: existing.id,
+              itemType: "SEMI_FINISHED_GOOD",
+              type: "PRODUCTION_OUT",
+            },
+            select: { itemId: true, qty: true },
+          });
+
+          for (const mv of oldSfMoves) {
+            await tx.semiFinishedGood.update({
+              where: { id: mv.itemId },
+              data: { qty: { increment: mv.qty } },
+            });
+
+            await tx.stockMovement.create({
+              data: {
+                type: "ADJUSTMENT",
+                itemType: "SEMI_FINISHED_GOOD",
+                itemId: mv.itemId,
+                qty: mv.qty,
+                userId,
+                refFinishedGoodId: existing.id,
+                refSemiFinishedGoodId: mv.itemId,
+              },
+            });
+          }
+        }
+
+        // =============================
+        // 2) DELETE OLD DETAILS
+        // =============================
+        await tx.finishedGoodDetail.deleteMany({
+          where: { finishedGoodId: input.id },
+        });
+
+        // =============================
+        // 3) RE-COMPUTE NEW CONSUMPTION
+        // =============================
+        const sourceTypeUpper = input.sourceType.toUpperCase() as
+          | "RAW_MATERIAL"
+          | "SEMI_FINISHED";
+
+        let aggregatedMaterials: { rawMaterialId: string; qty: number }[] = [];
+        let consumedSemiFinished: {
+          semiFinishedGoodId: string;
+          qty: number;
+        }[] = [];
+
+        if (input.sourceType === "raw_material") {
+          if (!input.materials?.length) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Materials wajib untuk source raw_material",
+            });
+          }
+
+          for (const m of input.materials) {
+            const rm = await tx.rawMaterial.findUnique({
+              where: { id: m.rawMaterialId },
+              select: { id: true, name: true, qty: true },
+            });
+            if (!rm)
+              throw new TRPCError({
+                code: "NOT_FOUND",
+                message: "Raw material not found",
+              });
+
+            // stok sudah direstore ke raw material sebelumnya, jadi validasi aman dilakukan sekarang
+            if (toNumber(rm.qty) < toNumber(m.qty)) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: `Stok ${rm.name} tidak cukup. Tersedia ${rm.qty}, butuh ${m.qty}`,
+              });
+            }
+          }
+
+          aggregatedMaterials = input.materials.map((m) => ({
+            rawMaterialId: m.rawMaterialId,
+            qty: toNumber(m.qty),
+          }));
+        }
+
+        if (input.sourceType === "semi_finished") {
+          if (!input.semiFinishedGoods?.length) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "semiFinishedGoods wajib untuk source semi_finished",
+            });
+          }
+
+          for (const sf of input.semiFinishedGoods) {
+            const sfg = await tx.semiFinishedGood.findUnique({
+              where: { id: sf.semiFinishedGoodId },
+              select: { id: true, name: true, qty: true },
+            });
+            if (!sfg)
+              throw new TRPCError({
+                code: "NOT_FOUND",
+                message: "Semi finished not found",
+              });
+
+            if (toNumber(sfg.qty) < toNumber(sf.qty)) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: `Stok ${sfg.name} tidak cukup. Tersedia ${sfg.qty}, butuh ${sf.qty}`,
+              });
+            }
+          }
+
+          consumedSemiFinished = input.semiFinishedGoods.map((sf) => ({
+            semiFinishedGoodId: sf.semiFinishedGoodId,
+            qty: toNumber(sf.qty),
+          }));
+
+          const sfgIds = input.semiFinishedGoods.map(
+            (x) => x.semiFinishedGoodId,
+          );
+
+          const semiFinishedWithDetails = await tx.semiFinishedGood.findMany({
+            where: { id: { in: sfgIds } },
+            include: { SemiFinishedGoodDetail: true },
+          });
+
+          const rmMap = new Map<string, number>();
+          for (const sf of input.semiFinishedGoods) {
+            const sfg = semiFinishedWithDetails.find(
+              (x) => x.id === sf.semiFinishedGoodId,
+            );
+            if (!sfg) continue;
+
+            for (const d of sfg.SemiFinishedGoodDetail) {
+              const add = toNumber(d.qty) * toNumber(sf.qty);
+              rmMap.set(
+                d.rawMaterialId,
+                (rmMap.get(d.rawMaterialId) ?? 0) + add,
+              );
+            }
+          }
+
+          aggregatedMaterials = Array.from(rmMap.entries()).map(
+            ([rawMaterialId, qty]) => ({
+              rawMaterialId,
+              qty,
+            }),
+          );
+        }
+
+        // =============================
+        // 4) UPDATE FINISHED GOOD + NEW DETAILS
+        // =============================
+        const updated = await tx.finishedGood.update({
+          where: { id: input.id },
+          data: {
+            userId: input.userId,
+            paintGradeId: input.paintGradeId,
+            name: input.name,
+            qty: input.qty,
+            productionCode: input.productionCode,
+            batchNumber: input.batchNumber,
+            dateProduced: input.dateProduced,
+            sourceType: sourceTypeUpper,
+            finishedGoodDetails: {
+              create: aggregatedMaterials.map((m) => ({
+                rawMaterialId: m.rawMaterialId,
+                qty: m.qty,
+              })),
+            },
+          },
+          include: {
+            user: true,
+            paintGrade: true,
+            finishedGoodDetails: { include: { rawMaterial: true } },
+          },
+        });
+
+        // =============================
+        // 5) APPLY NEW STOCK OUT + MOVEMENTS
+        // =============================
+        if (input.sourceType === "raw_material") {
+          for (const m of aggregatedMaterials) {
+            await tx.rawMaterial.update({
+              where: { id: m.rawMaterialId },
+              data: { qty: { decrement: m.qty } },
+            });
+
+            await tx.stockMovement.create({
+              data: {
+                type: "PRODUCTION_OUT",
+                itemType: "RAW_MATERIAL",
+                itemId: m.rawMaterialId,
+                qty: m.qty,
+                userId,
+                refFinishedGoodId: updated.id,
+              },
+            });
+          }
+        }
+
+        if (input.sourceType === "semi_finished") {
+          for (const sf of consumedSemiFinished) {
+            await tx.semiFinishedGood.update({
+              where: { id: sf.semiFinishedGoodId },
+              data: { qty: { decrement: sf.qty } },
+            });
+
+            await tx.stockMovement.create({
+              data: {
+                type: "PRODUCTION_OUT",
+                itemType: "SEMI_FINISHED_GOOD",
+                itemId: sf.semiFinishedGoodId,
+                qty: sf.qty,
+                userId,
+                refFinishedGoodId: updated.id,
+                refSemiFinishedGoodId: sf.semiFinishedGoodId,
+              },
+            });
+          }
+        }
+
+        // PRODUCTION IN (log latest as movement; audit trail)
+        await tx.stockMovement.create({
+          data: {
+            type: "PRODUCTION_IN",
+            itemType: "FINISHED_GOOD",
+            itemId: updated.id,
+            qty: toNumber(input.qty),
+            userId,
+            refFinishedGoodId: updated.id,
+          },
+        });
+
+        return updated;
       });
     }),
 
@@ -408,138 +774,6 @@ export const finishedGoodRouter = createTRPCRouter({
 
       return ctx.db.finishedGood.deleteMany({
         where: { id: { in: input.ids } },
-      });
-    }),
-
-  update: protectedProcedure
-    .input(finishedGoodFormSchema)
-    .mutation(async ({ ctx, input }) => {
-      if (!input.id) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "ID is required for update operation",
-        });
-      }
-
-      return await ctx.db.$transaction(async (tx) => {
-        // Delete existing details
-        await tx.finishedGoodDetail.deleteMany({
-          where: { finishedGoodId: input.id },
-        });
-
-        // Handle raw material source
-        if (input.sourceType === "raw_material" && input.materials) {
-          const updated = await tx.finishedGood.update({
-            where: { id: input.id },
-            data: {
-              userId: input.userId,
-              paintGradeId: input.paintGradeId,
-              name: input.name,
-              qty: input.qty,
-              productionCode: input.productionCode,
-              batchNumber: input.batchNumber,
-              dateProduced: input.dateProduced,
-              finishedGoodDetails: {
-                create: input.materials.map((material) => ({
-                  rawMaterialId: material.rawMaterialId,
-                  qty: material.qty,
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                })),
-              },
-            },
-            include: {
-              user: true,
-              paintGrade: true,
-              finishedGoodDetails: {
-                include: {
-                  rawMaterial: true,
-                },
-              },
-            },
-          });
-
-          return updated;
-        }
-
-        if (input.sourceType === "semi_finished" && input.semiFinishedGoods) {
-          const semiFinishedWithDetails = await tx.semiFinishedGood.findMany({
-            where: {
-              id: {
-                in: input.semiFinishedGoods.map((sf) => sf.semiFinishedGoodId),
-              },
-            },
-            include: {
-              SemiFinishedGoodDetail: {
-                include: {
-                  rawMaterial: true,
-                },
-              },
-            },
-          });
-
-          const rawMaterialMap = new Map<string, number>();
-
-          for (const sfgInput of input.semiFinishedGoods) {
-            const sfg = semiFinishedWithDetails.find(
-              (s) => s.id === sfgInput.semiFinishedGoodId,
-            );
-            if (!sfg) continue;
-
-            for (const detail of sfg.SemiFinishedGoodDetail) {
-              const proportionalQty = (detail.qty / sfg.qty) * sfgInput.qty;
-              const currentQty = rawMaterialMap.get(detail.rawMaterialId) ?? 0;
-              rawMaterialMap.set(
-                detail.rawMaterialId,
-                currentQty + proportionalQty,
-              );
-            }
-          }
-
-          const aggregatedMaterials = Array.from(rawMaterialMap.entries()).map(
-            ([rawMaterialId, qty]) => ({
-              rawMaterialId,
-              qty: Math.ceil(qty),
-            }),
-          );
-
-          const updated = await tx.finishedGood.update({
-            where: { id: input.id },
-            data: {
-              userId: input.userId,
-              paintGradeId: input.paintGradeId,
-              name: input.name,
-              qty: input.qty,
-              productionCode: input.productionCode,
-              batchNumber: input.batchNumber,
-              dateProduced: input.dateProduced,
-              finishedGoodDetails: {
-                create: aggregatedMaterials.map((material) => ({
-                  rawMaterialId: material.rawMaterialId,
-                  qty: material.qty,
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                })),
-              },
-            },
-            include: {
-              user: true,
-              paintGrade: true,
-              finishedGoodDetails: {
-                include: {
-                  rawMaterial: true,
-                },
-              },
-            },
-          });
-
-          return updated;
-        }
-
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Invalid source type or missing materials",
-        });
       });
     }),
 });

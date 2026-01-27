@@ -6,7 +6,7 @@ import { trpc } from "~/utils/trpc";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { cn } from "~/lib/utils";
+import { cn, statusBadge, toRupiah } from "~/lib/utils";
 import {
   Calendar,
   Package,
@@ -14,26 +14,15 @@ import {
   User,
   FileText,
   Printer,
+  CheckCircle2,
+  TriangleAlert,
+  PackageCheck,
+  SquarePen,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
-import Link from "next/link";
-
-type PurchaseStatus = "DRAFT" | "ONGOING" | "FINISHED" | "CANCELED";
-
-function formatIDR(value: number) {
-  return `Rp ${Math.round(value).toLocaleString("id-ID")}`;
-}
-
-function statusBadge(status: PurchaseStatus) {
-  const map: Record<PurchaseStatus, { label: string; className: string }> = {
-    DRAFT: { label: "Draft", className: "bg-muted text-foreground" },
-    ONGOING: { label: "Ongoing", className: "bg-sky-500 text-white" },
-    FINISHED: { label: "Finished", className: "bg-emerald-500 text-white" },
-    CANCELED: { label: "Canceled", className: "bg-destructive text-white" },
-  };
-
-  return map[status];
-}
+import { ConfirmActionDialog } from "~/components/dialog/ConfirmActionDialog";
+import type { PurchaseStatus } from "../../config/purchase";
 
 export default function PurchaseRawMaterialDetail() {
   const router = useRouter();
@@ -189,7 +178,7 @@ export default function PurchaseRawMaterialDetail() {
           <div className="bg-muted/40 rounded-xl border p-4">
             <p className="text-muted-foreground text-xs">Total Amount</p>
             <p className="mt-1 text-2xl font-semibold">
-              {formatIDR(summary.totalAmount)}
+              {toRupiah(summary.totalAmount)}
             </p>
           </div>
         </div>
@@ -197,20 +186,28 @@ export default function PurchaseRawMaterialDetail() {
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           {isLocked ? (
             <Button variant="outline" disabled>
-              Status locked ({status})
+              <Lock className="size-4" /> Status locked ({status})
             </Button>
           ) : (
             <>
               {canCancel && (
-                <Button
-                  variant="outline"
-                  disabled={isUpdating}
-                  onClick={() =>
-                    updateStatus({ id: purchase.id, status: "CANCELED" })
+                <ConfirmActionDialog
+                  trigger={
+                    <Button variant="outline" disabled={isUpdating}>
+                      <TriangleAlert className="size-4" /> Cancel
+                    </Button>
                   }
-                >
-                  Cancel
-                </Button>
+                  variant="destructive"
+                  title="Batalkan pembelian ini?"
+                  description="Status akan berubah menjadi CANCELED. Tindakan ini tidak bisa dibatalkan."
+                  confirmText="Ya, batalkan"
+                  cancelText="Kembali"
+                  icon={<TriangleAlert className="size-6" />}
+                  isLoading={isUpdating}
+                  onConfirm={async () => {
+                    updateStatus({ id: purchase.id, status: "CANCELED" });
+                  }}
+                />
               )}
 
               {canOngoing && (
@@ -226,28 +223,40 @@ export default function PurchaseRawMaterialDetail() {
               )}
 
               {canFinish && (
-                <Button
-                  disabled={isUpdating}
-                  onClick={() =>
-                    updateStatus({ id: purchase.id, status: "FINISHED" })
+                <ConfirmActionDialog
+                  trigger={
+                    <Button disabled={isUpdating}>
+                      <PackageCheck className="size-4" />
+                      {isUpdating ? "Finishing..." : "Finish (Tambah Stok)"}
+                    </Button>
                   }
-                >
-                  {isUpdating ? "Finishing..." : "Finish (Tambah Stok)"}
-                </Button>
+                  title="Selesaikan pembelian & tambah stok?"
+                  description="Aksi ini akan mengubah status menjadi FINISHED dan menambah stok raw material."
+                  confirmText="Ya, selesai & tambah stok"
+                  cancelText="Kembali"
+                  icon={<CheckCircle2 className="size-6" />}
+                  isLoading={isUpdating}
+                  onConfirm={async () => {
+                    updateStatus({ id: purchase.id, status: "FINISHED" });
+                  }}
+                />
               )}
             </>
           )}
 
-          <Button variant={"outline"} disabled={isLocked} asChild>
-            <Link
-              href={`/purchases/raw-materials/${purchase.id}/edit`}
-              aria-disabled={isLocked}
-              onClick={(e) => {
-                if (isLocked) e.preventDefault();
-              }}
-            >
-              Edit
-            </Link>
+          <Button
+            variant={"outline"}
+            disabled={isLocked}
+            onClick={async (e) => {
+              if (isLocked) e.preventDefault();
+
+              await router.replace(
+                `/purchases/raw-materials/${purchase.id}/edit`,
+              );
+              router.reload();
+            }}
+          >
+            <SquarePen className="size-4" /> Edit
           </Button>
         </div>
       </div>
@@ -269,8 +278,8 @@ export default function PurchaseRawMaterialDetail() {
                   {it.rawMaterial?.name ?? "Raw Material (deleted)"}
                 </p>
                 <p className="text-muted-foreground mt-1 text-sm">
-                  Unit: {formatIDR(it.unitPrice)} • Subtotal:{" "}
-                  {formatIDR(it.subtotal)}
+                  Unit: {toRupiah(it.unitPrice)} • Subtotal:{" "}
+                  {toRupiah(it.subtotal)}
                 </p>
               </div>
 
