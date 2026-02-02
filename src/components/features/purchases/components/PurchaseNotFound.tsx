@@ -2,8 +2,12 @@ import Link from "next/link";
 import { Button } from "~/components/ui/button";
 
 export const PurchaseNotFound = ({
+  text,
+  href,
   resetFilter,
 }: {
+  text?: string;
+  href?: string;
   resetFilter: () => void;
 }) => {
   return (
@@ -18,8 +22,8 @@ export const PurchaseNotFound = ({
           Reset Filter
         </Button>
         <Button asChild>
-          <Link href="/purchases/raw-materials/create">
-            Buat Pembelian Baru
+          <Link href={href ?? "/purchase/raw-materials/create"}>
+            {text ?? "Buat Data Pembelian Baru"}
           </Link>
         </Button>
       </div>

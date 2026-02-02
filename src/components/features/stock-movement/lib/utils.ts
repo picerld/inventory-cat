@@ -41,36 +41,69 @@ export const movementTypeLabel = (t: StockMovementType) => {
   }
 };
 
+export function badgeClassByType(t: StockMovementType) {
+  switch (t) {
+    case "PURCHASE_IN":
+    case "PRODUCTION_IN":
+    case "RETURN_IN":
+      return "bg-emerald-500 text-white";
+    case "SALE_OUT":
+    case "PRODUCTION_OUT":
+      return "bg-rose-500 text-white";
+    case "ADJUSTMENT":
+      return "bg-muted text-foreground";
+  }
+}
+
+export function topBorderByType(type: string) {
+  switch (type) {
+    case "PURCHASE_IN":
+      return "border-t-emerald-500";
+    case "SALE_OUT":
+      return "border-t-rose-500";
+    case "PRODUCTION_IN":
+      return "border-t-blue-500";
+    case "PRODUCTION_OUT":
+      return "border-t-orange-500";
+    case "RETURN_IN":
+      return "border-t-purple-500";
+    case "ADJUSTMENT":
+      return "border-t-zinc-500";
+    default:
+      return "border-t-border";
+  }
+}
+
 export const movementTypeBadge = (t: StockMovementType) => {
   switch (t) {
     case "PURCHASE_IN":
       return {
-        label: "Purchase In",
+        label: "Pembelian Masuk",
         className: "bg-emerald-500 text-white",
       };
     case "SALE_OUT":
       return {
-        label: "Sale Out",
+        label: "Penjualan Keluar",
         className: "bg-rose-500 text-white",
       };
     case "PRODUCTION_IN":
       return {
-        label: "Production In",
+        label: "Produksi Masuk",
         className: "bg-blue-500 text-white",
       };
     case "PRODUCTION_OUT":
       return {
-        label: "Production Out",
+        label: "Produksi Keluar",
         className: "bg-orange-500 text-white",
       };
     case "RETURN_IN":
       return {
-        label: "Return In",
+        label: "Retur Masuk",
         className: "bg-purple-500 text-white",
       };
     case "ADJUSTMENT":
       return {
-        label: "Adjustment",
+        label: "Penyesuaian",
         className: "bg-muted text-foreground",
       };
   }

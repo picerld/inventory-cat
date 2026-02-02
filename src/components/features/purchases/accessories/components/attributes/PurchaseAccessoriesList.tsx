@@ -1,21 +1,27 @@
-import { Calendar, ChevronDown, Info, Package, ReceiptText } from "lucide-react";
-import { cn, toNumber, toRupiah } from "~/lib/utils";
+import type { PurchaseAccessoriesFull } from "~/types/purchase";
 import type { PurchaseStatus } from "../../../config/purchase";
-import { Badge } from "~/components/ui/badge";
+import { cn, toNumber, toRupiah } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
 import Link from "next/link";
-import type { PurchaseRawMaterialFull } from "~/types/purchase";
+import {
+  Calendar,
+  ChevronDown,
+  Info,
+  Package,
+  ReceiptText,
+} from "lucide-react";
+import { Badge } from "~/components/ui/badge";
 import { useState } from "react";
 
-type PurchaseRawMaterialListProps = {
-  data: PurchaseRawMaterialFull[];
+type PurchaseAccessoriesListProps = {
+  data: PurchaseAccessoriesFull[];
   statusBadge: (status: PurchaseStatus) => { label: string; className: string };
 };
 
-export const PurchaseRawMaterialList = ({
+export const PurchaseAccessoriesList = ({
   data,
   statusBadge,
-}: PurchaseRawMaterialListProps) => {
+}: PurchaseAccessoriesListProps) => {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const toggleExpand = (id: string) => {
@@ -79,7 +85,9 @@ export const PurchaseRawMaterialList = ({
                   </div>
                 </div>
 
-                <Badge className={cn("rounded-full px-3 py-1", badge.className)}>
+                <Badge
+                  className={cn("rounded-full px-3 py-1", badge.className)}
+                >
                   {badge.label}
                 </Badge>
               </div>
@@ -108,7 +116,7 @@ export const PurchaseRawMaterialList = ({
               {hasItems && (
                 <button
                   onClick={() => toggleExpand(p.id)}
-                  className="bg-muted/30 cursor-pointer hover:bg-muted/50 mt-4 flex w-full items-center justify-between rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors"
+                  className="bg-muted/30 hover:bg-muted/50 mt-4 flex w-full cursor-pointer items-center justify-between rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors"
                 >
                   <span className="text-muted-foreground">
                     {p.items.length} Item Bahan Baku
@@ -116,7 +124,7 @@ export const PurchaseRawMaterialList = ({
                   <ChevronDown
                     className={cn(
                       "text-muted-foreground h-4 w-4 transition-transform duration-200",
-                      isExpanded && "rotate-180"
+                      isExpanded && "rotate-180",
                     )}
                   />
                 </button>
@@ -129,26 +137,28 @@ export const PurchaseRawMaterialList = ({
                   "grid transition-all duration-300 ease-in-out",
                   isExpanded
                     ? "grid-rows-[1fr] opacity-100"
-                    : "grid-rows-[0fr] opacity-0"
+                    : "grid-rows-[0fr] opacity-0",
                 )}
               >
                 <div className="overflow-hidden">
-                  <div className="border-t bg-muted/20 px-5 py-4">
+                  <div className="bg-muted/20 border-t px-5 py-4">
                     <div className="space-y-2">
                       {p.items.map((it: any) => (
                         <div
                           key={it.id}
-                          className="flex items-center justify-between rounded-lg border bg-card p-3 text-sm transition-colors hover:bg-muted/30"
+                          className="bg-card hover:bg-muted/30 flex items-center justify-between rounded-lg border p-3 text-sm transition-colors"
                         >
                           <div className="min-w-0 flex-1">
                             <p className="truncate font-medium">
-                              {it.rawMaterial?.name ?? "Bahan Baku (dihapus)"}
+                              {it.accessory.name ?? "Unnamed Accessory"}
                             </p>
                             <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                               <span>
                                 Harga: {toRupiah(toNumber(it.unitPrice))}
                               </span>
-                              <span className="text-muted-foreground/50">•</span>
+                              <span className="text-muted-foreground/50">
+                                •
+                              </span>
                               <span>
                                 Subtotal: {toRupiah(toNumber(it.subtotal))}
                               </span>
@@ -159,9 +169,7 @@ export const PurchaseRawMaterialList = ({
                             <p className="text-base font-semibold">
                               {toNumber(it.qty).toLocaleString("id-ID")}
                             </p>
-                            <p className="text-muted-foreground text-xs">
-                              qty
-                            </p>
+                            <p className="text-muted-foreground text-xs">qty</p>
                           </div>
                         </div>
                       ))}
@@ -171,9 +179,9 @@ export const PurchaseRawMaterialList = ({
               </div>
             )}
 
-            <div className="border-t bg-muted/10 px-5 py-3">
+            <div className="bg-muted/10 border-t px-5 py-3">
               <Button className="w-full" variant="default" asChild>
-                <Link href={`/purchases/raw-materials/${p.id}`}>
+                <Link href={`/purchases/accessories/${p.id}`}>
                   <Info className="h-4 w-4" /> Detail
                 </Link>
               </Button>

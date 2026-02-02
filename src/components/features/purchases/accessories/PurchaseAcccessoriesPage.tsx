@@ -1,22 +1,40 @@
 import GuardedLayout from "~/components/layout/GuardedLayout";
 import { HeadMetaData } from "~/components/meta/HeadMetaData";
 import { Header } from "~/components/container/Header";
-import { Wallet } from "lucide-react";
-import { Button } from "~/components/ui/button";
+import PurchaseAccessoriesCards from "./components/PurchaseAccessoriesCards";
+import { ChartNoAxesCombined, Plus } from "lucide-react";
+import { Button, buttonVariants } from "~/components/ui/button";
+import Link from "next/link";
 
-export default function PurchaseAcccessoriesPage() {
+export default function PurchaseAccessoriesPage() {
   return (
     <GuardedLayout>
-      <HeadMetaData title="Aksesoris" />
+      <HeadMetaData title="Pembelian Accessories" />
+
       <Header
-        title="Pembelian Aksesoris"
-        subtitle="Manage your Pembelian Aksesoris network and track performance"
+        title="Pembelian Accessories"
+        subtitle="Catat pembelian accessories dan update stok saat diposting"
       >
-        <Button size={"icon-lg"} variant={"outline"}>
-          <Wallet className="size-6" />
-        </Button>
+        <div className="flex gap-2">
+          <Link
+            href="/purchases/accessories/create"
+            className={buttonVariants({
+              variant: "outline",
+              className: "mb-4",
+              size: "lg",
+            })}
+          >
+            <Plus className="h-4 w-4" />
+            Tambah Pembelian Accessories
+          </Link>
+
+          <Button size={"icon-lg"} variant={"outline"}>
+            <ChartNoAxesCombined className="size-6" />
+          </Button>
+        </div>
       </Header>
-      Pembelian Aksesoris
+
+      <PurchaseAccessoriesCards />
     </GuardedLayout>
   );
 }

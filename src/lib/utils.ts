@@ -41,7 +41,7 @@ export function generateRandomCode(prefix: string, length = 4) {
 export function statusBadge(status: PurchaseStatus) {
   const map: Record<PurchaseStatus, { label: string; className: string }> = {
     DRAFT: { label: "Draft", className: "bg-muted text-foreground" },
-    ONGOING: { label: "Ongoing", className: "bg-sky-500 text-white" },
+    ONGOING: { label: "Ongoing", className: "bg-blue-700 text-white" },
     FINISHED: { label: "Finished", className: "bg-emerald-500 text-white" },
     CANCELED: { label: "Canceled", className: "bg-destructive text-white" },
   };

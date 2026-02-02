@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { purchaseRawMaterialFormSchema } from "~/components/features/purchases/raw-material/form/purchase-raw-material";
+import { purchaseAccessoriesFormSchema } from "~/components/features/purchases/accessories/form/purchase-accessories";
 
 const purchaseStatusEnum = z.enum(["DRAFT", "ONGOING", "FINISHED", "CANCELED"]);
 type PurchaseStatus = z.infer<typeof purchaseStatusEnum>;
@@ -72,6 +73,71 @@ export const purchaseRouter = createTRPCRouter({
             totalItemsLine,
           },
         };
+      });
+
+      return {
+        data: mapped,
+        meta: { currentPage: page, lastPage, perPage, totalItems },
+      };
+    }),
+
+  getAccessoriesPaginated: protectedProcedure
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        perPage: z.number().min(1).max(50).default(10),
+        search: z.string().optional().default(""),
+        status: purchaseStatusEnum.optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { page, perPage, search, status } = input;
+
+      const where: Prisma.PurchaseWhereInput = {
+        ...(status ? { status } : {}),
+        ...(search
+          ? {
+              OR: [
+                { purchaseNo: { contains: search, mode: "insensitive" } },
+                { receivedNote: { contains: search, mode: "insensitive" } },
+                { notes: { contains: search, mode: "insensitive" } },
+                {
+                  supplier: { name: { contains: search, mode: "insensitive" } },
+                },
+              ],
+            }
+          : {}),
+        items: { some: { itemType: "PAINT_ACCESSORIES" } },
+      };
+
+      const totalItems = await ctx.db.purchase.count({ where });
+      const lastPage = Math.ceil(totalItems / perPage);
+
+      const data = await ctx.db.purchase.findMany({
+        where,
+        skip: (page - 1) * perPage,
+        take: perPage,
+        orderBy: { purchasedAt: "desc" },
+        include: {
+          supplier: true,
+          user: true,
+          items: {
+            where: { itemType: "PAINT_ACCESSORIES" },
+            include: { accessory: true },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      });
+
+      const mapped = data.map((p) => {
+        const totalAmount = p.items.reduce(
+          (sum, it) => sum + (it.subtotal ?? 0),
+          0,
+        );
+        const totalQty = p.items.reduce((sum, it) => sum + Number(it.qty), 0);
+        const totalItemsLine = p.items.length;
+
+        return { ...p, summary: { totalAmount, totalQty, totalItemsLine } };
       });
 
       return {
@@ -194,6 +260,49 @@ export const purchaseRouter = createTRPCRouter({
       return { purchase, summary: { totalAmount, totalQty } };
     }),
 
+  getByIdAccessories: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const purchase = await ctx.db.purchase.findUnique({
+        where: { id: input.id },
+        include: {
+          supplier: true,
+          user: true,
+          items: {
+            where: { itemType: "PAINT_ACCESSORIES" },
+            include: { accessory: true },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      });
+
+      if (!purchase) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Purchase not found",
+        });
+      }
+
+      if (purchase.items.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Purchase ini bukan pembelian accessories (PAINT_ACCESSORIES).",
+        });
+      }
+
+      const totalAmount = purchase.items.reduce(
+        (sum, it) => sum + (it.subtotal ?? 0),
+        0,
+      );
+      const totalQty = purchase.items.reduce(
+        (sum, it) => sum + Number(it.qty),
+        0,
+      );
+
+      return { purchase, summary: { totalAmount, totalQty } };
+    }),
+
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -281,6 +390,68 @@ export const purchaseRouter = createTRPCRouter({
       });
     }),
 
+  createAccessories: protectedProcedure
+    .input(purchaseAccessoriesFormSchema)
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.user?.id ?? "";
+
+      const exists = await ctx.db.purchase.findUnique({
+        where: { purchaseNo: input.purchaseNo },
+        select: { id: true },
+      });
+      if (exists) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Nomor pembelian sudah digunakan.",
+        });
+      }
+
+      if (!input.items || input.items.length < 1) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Minimal pilih 1 accessories.",
+        });
+      }
+
+      const accessoryIds = input.items.map((i) => i.accessoryId);
+      const accs = await ctx.db.paintAccessories.findMany({
+        where: { id: { in: accessoryIds } },
+        select: { id: true },
+      });
+      if (accs.length !== accessoryIds.length) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Ada accessories yang tidak valid / tidak ditemukan.",
+        });
+      }
+
+      return ctx.db.purchase.create({
+        data: {
+          purchaseNo: input.purchaseNo,
+          supplierId: input.supplierId,
+          receivedNote: input.receivedNote ?? null,
+          notes: input.notes ?? null,
+          status: "DRAFT",
+          userId,
+          items: {
+            create: input.items.map((it) => {
+              const qty = Number(it.qty);
+              const unitPrice = Number(it.unitPrice);
+              return {
+                itemType: "PAINT_ACCESSORIES",
+                rawMaterialId: null,
+                accessoryId: it.accessoryId,
+                qty,
+                unitPrice,
+                subtotal: qty * unitPrice,
+              };
+            }),
+          },
+        },
+        include: { supplier: true, user: true, items: true },
+      });
+    }),
+
   update: protectedProcedure
     .input(purchaseRawMaterialFormSchema)
     .mutation(async ({ ctx, input }) => {
@@ -356,6 +527,98 @@ export const purchaseRouter = createTRPCRouter({
             items: {
               include: { rawMaterial: { include: { supplier: true } } },
             },
+          },
+        });
+      });
+    }),
+
+  updateAccessories: protectedProcedure
+    .input(purchaseAccessoriesFormSchema)
+    .mutation(async ({ ctx, input }) => {
+      if (!input.id) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "ID purchase wajib.",
+        });
+      }
+
+      const existing = await ctx.db.purchase.findUnique({
+        where: { id: input.id },
+        select: { id: true, status: true },
+      });
+
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Purchase tidak ditemukan",
+        });
+      }
+
+      if (existing.status !== "DRAFT") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Hanya purchase DRAFT yang boleh diedit.",
+        });
+      }
+
+      if (!input.items || input.items.length < 1) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Minimal pilih 1 accessories.",
+        });
+      }
+
+      const accessoryIds = input.items.map((i) => i.accessoryId);
+
+      const accs = await ctx.db.paintAccessories.findMany({
+        where: { id: { in: accessoryIds } },
+        select: { id: true, supplierId: true },
+      });
+
+      if (accs.length !== accessoryIds.length) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Ada accessories yang tidak valid / tidak ditemukan.",
+        });
+      }
+
+      const mismatch = accs.some((a) => a.supplierId !== input.supplierId);
+      if (mismatch) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Accessories yang dipilih tidak sesuai dengan supplier yang dipilih.",
+        });
+      }
+
+      return ctx.db.$transaction(async (tx) => {
+        await tx.purchaseItem.deleteMany({ where: { purchaseId: input.id! } });
+
+        return tx.purchase.update({
+          where: { id: input.id! },
+          data: {
+            supplierId: input.supplierId,
+            receivedNote: input.receivedNote ?? null,
+            notes: input.notes ?? null,
+            items: {
+              create: input.items.map((it) => {
+                const qty = Number(it.qty);
+                const unitPrice = Number(it.unitPrice);
+                return {
+                  itemType: "PAINT_ACCESSORIES",
+                  rawMaterialId: null,
+                  accessoryId: it.accessoryId,
+                  qty,
+                  unitPrice,
+                  subtotal: qty * unitPrice,
+                };
+              }),
+            },
+          },
+          include: {
+            supplier: true,
+            user: true,
+            items: { include: { accessory: true } },
           },
         });
       });

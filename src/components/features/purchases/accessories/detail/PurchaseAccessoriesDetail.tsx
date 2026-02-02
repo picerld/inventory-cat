@@ -1,32 +1,15 @@
-"use client";
-
-import * as React from "react";
 import { useRouter } from "next/router";
-import { trpc } from "~/utils/trpc";
-import { Skeleton } from "~/components/ui/skeleton";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { cn, statusBadge, toRupiah } from "~/lib/utils";
-import {
-  Calendar,
-  Package,
-  ReceiptText,
-  User,
-  FileText,
-  Printer,
-  CheckCircle2,
-  TriangleAlert,
-  PackageCheck,
-  SquarePen,
-  Lock,
-  ShieldAlert,
-  Truck,
-} from "lucide-react";
 import { toast } from "sonner";
-import { ConfirmActionDialog } from "~/components/dialog/ConfirmActionDialog";
+import { Skeleton } from "~/components/ui/skeleton";
+import { cn, statusBadge, toRupiah } from "~/lib/utils";
+import { trpc } from "~/utils/trpc";
 import type { PurchaseStatus } from "../../config/purchase";
+import { Calendar, CheckCircle2, FileText, Lock, Package, PackageCheck, Printer, ReceiptText, ShieldAlert, SquarePen, TriangleAlert, Truck, User } from "lucide-react";
+import { Button } from "~/components/ui/button";
+import { Badge } from "~/components/ui/badge";
+import { ConfirmActionDialog } from "~/components/dialog/ConfirmActionDialog";
 
-export default function PurchaseRawMaterialDetail() {
+export default function PurchaseAccessoriesDetail() {
   const router = useRouter();
   const id = router.query.id as string | undefined;
 
@@ -39,18 +22,18 @@ export default function PurchaseRawMaterialDetail() {
           description: "Status pembelian berhasil diperbarui.",
         });
 
-        await utils.purchase.getByIdRawMaterial.invalidate({ id });
+        await utils.purchase.getByIdAccessories.invalidate({ id });
         await utils.purchase.getPaginated?.invalidate?.();
-        await utils.purchase.getRawMaterialPaginated?.invalidate?.();
-        await utils.rawMaterial.getAll.invalidate();
-        await utils.rawMaterial.getPaginated.invalidate();
+        await utils.purchase.getAccessoriesPaginated?.invalidate?.();
+        await utils.accessories.getAll.invalidate();
+        await utils.accessories.getPaginated.invalidate();
       },
       onError: (e) =>
         toast.error("Gagal update status", { description: e.message }),
     });
 
   const { data, isLoading, isError, error } =
-    trpc.purchase.getByIdRawMaterial.useQuery(
+    trpc.purchase.getByIdAccessories.useQuery(
       { id: id ?? "" },
       { enabled: !!id },
     );
@@ -259,7 +242,7 @@ export default function PurchaseRawMaterialDetail() {
               if (isLocked) e.preventDefault();
 
               await router.replace(
-                `/purchases/raw-materials/${purchase.id}/edit`,
+                `/purchases/accessories/${purchase.id}/edit`,
               );
               router.reload();
             }}
@@ -272,7 +255,7 @@ export default function PurchaseRawMaterialDetail() {
       <div className="bg-card rounded-2xl border p-6 shadow-sm">
         <h3 className="text-base font-semibold">Items (Bahan Baku)</h3>
         <p className="text-muted-foreground mt-1 text-sm">
-          Daftar item RAW_MATERIAL yang dibeli.
+          Daftar item aksesoris yang dibeli.
         </p>
 
         <div className="mt-4 space-y-2">
@@ -283,7 +266,7 @@ export default function PurchaseRawMaterialDetail() {
             >
               <div className="min-w-0">
                 <p className="truncate font-medium">
-                  {it.rawMaterial?.name ?? "Raw Material (deleted)"}
+                  {it.accessory?.name ?? "Aksesoris (deleted)"}
                 </p>
                 <p className="text-muted-foreground mt-1 text-sm">
                   Unit: {toRupiah(it.unitPrice)} • Subtotal:{" "}

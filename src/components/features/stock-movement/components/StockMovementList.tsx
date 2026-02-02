@@ -5,7 +5,6 @@ import { trpc } from "~/utils/trpc";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
-import { Skeleton } from "~/components/ui/skeleton";
 import { cn } from "~/lib/utils";
 import {
   Select,
@@ -17,67 +16,21 @@ import {
 
 import type { ItemType, StockMovementType } from "~/types/stock-movement";
 import {
+  badgeClassByType,
   formatQty,
   getRefLabel,
   itemTypeLabel,
   movementTypeLabel,
+  topBorderByType,
 } from "../lib/utils";
 import useDebounce from "~/hooks/use-debounce";
 import Link from "next/link";
 import { Calendar, RotateCcw } from "lucide-react";
-
-const movementTypes: StockMovementType[] = [
-  "PURCHASE_IN",
-  "SALE_OUT",
-  "PRODUCTION_IN",
-  "PRODUCTION_OUT",
-  "RETURN_IN",
-  "ADJUSTMENT",
-];
-
-const itemTypes: ItemType[] = [
-  "RAW_MATERIAL",
-  "SEMI_FINISHED_GOOD",
-  "FINISHED_GOOD",
-  "PAINT_ACCESSORIES",
-];
-
-function badgeClassByType(t: StockMovementType) {
-  switch (t) {
-    case "PURCHASE_IN":
-    case "PRODUCTION_IN":
-    case "RETURN_IN":
-      return "bg-emerald-500 text-white";
-    case "SALE_OUT":
-    case "PRODUCTION_OUT":
-      return "bg-rose-500 text-white";
-    case "ADJUSTMENT":
-      return "bg-muted text-foreground";
-  }
-}
-
-function topBorderByType(type: string) {
-  switch (type) {
-    case "PURCHASE_IN":
-      return "border-t-emerald-500";
-    case "SALE_OUT":
-      return "border-t-rose-500";
-    case "PRODUCTION_IN":
-      return "border-t-blue-500";
-    case "PRODUCTION_OUT":
-      return "border-t-orange-500";
-    case "RETURN_IN":
-      return "border-t-purple-500";
-    case "ADJUSTMENT":
-      return "border-t-zinc-500";
-    default:
-      return "border-t-border";
-  }
-}
+import { itemTypes, movementTypes } from "../types/stock-item";
 
 export function StockMovementList() {
-  const [page, setPage] = React.useState(1);
-  const [search, setSearch] = React.useState("");
+  const [page, setPage] = React.useState<number>(1);
+  const [search, setSearch] = React.useState<string>("");
   const [type, setType] = React.useState<StockMovementType | "ALL">("ALL");
   const [itemType, setItemType] = React.useState<ItemType | "ALL">("ALL");
   const [groupBy, setGroupBy] = React.useState<"none" | "day" | "month">("day");

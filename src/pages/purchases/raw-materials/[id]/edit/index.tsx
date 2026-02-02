@@ -33,7 +33,7 @@ export default function PurchaseRawMaterialEditPage() {
       <HeadMetaData title="Edit Pembelian Bahan Baku" />
 
       <Link
-        href="/purchases/raw-materials"
+        href={`/purchases/raw-materials/${id}`}
         className={buttonVariants({ variant: "outline", className: "mb-4" })}
       >
         <ChevronLeft className="mr-2 h-4 w-4" /> Kembali

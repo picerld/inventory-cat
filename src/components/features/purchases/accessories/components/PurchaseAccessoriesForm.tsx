@@ -35,21 +35,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { purchaseRawMaterialFormSchema } from "../form/purchase-raw-material";
-import type { PurchaseRawMaterialFull } from "~/types/purchase";
-import type { PurchaseStatus } from "../../config/purchase";
-import { ConfirmActionDialog } from "~/components/dialog/ConfirmActionDialog";
-import { PurchaseRawMaterialFormAction } from "./PurchaseRawMaterialFormAction";
 import { Textarea } from "~/components/ui/textarea";
 import { useRouter } from "next/router";
+import { ConfirmActionDialog } from "~/components/dialog/ConfirmActionDialog";
+import { purchaseAccessoriesFormSchema } from "~/components/features/purchases/accessories/form/purchase-accessories";
 
-type PurchaseRawMaterialFormProps = {
+type PurchaseAccessoriesFormProps = {
   mode: "create" | "edit";
-  initialData?: PurchaseRawMaterialFull | null;
+  initialData?: any | null; // replace with your Purchase type if you have it
 };
 
 type Line = {
-  rawMaterialId: string;
+  accessoryId: string;
   qty: number | string;
   unitPrice: number | string;
 };
@@ -61,19 +58,19 @@ type ActionKey =
   | "set-canceled"
   | null;
 
-export function PurchaseRawMaterialForm({
+export function PurchaseAccessoriesForm({
   mode,
   initialData,
-}: PurchaseRawMaterialFormProps) {
+}: PurchaseAccessoriesFormProps) {
   const router = useRouter();
-
   const utils = trpc.useUtils();
 
   const { data: user } = trpc.auth.authMe.useQuery();
   const { data: suppliers } = trpc.supplier.getAll.useQuery();
-  const { data: rawMaterials } = trpc.rawMaterial.getAll.useQuery();
 
-  const [openMaterialPicker, setOpenMaterialPicker] = useState<boolean>(false);
+  const { data: accessories } = trpc.accessories.getAll.useQuery();
+
+  const [openPicker, setOpenPicker] = useState(false);
   const [activeAction, setActiveAction] = useState<ActionKey>(null);
 
   const form = useForm({
@@ -88,13 +85,13 @@ export function PurchaseRawMaterialForm({
     },
 
     // @ts-expect-error tanstack form
-    validators: { onSubmit: purchaseRawMaterialFormSchema },
+    validators: { onSubmit: purchaseAccessoriesFormSchema },
 
     onSubmit: async ({ value }) => {
       setActiveAction("submit");
 
       const itemsPayload = (value.items ?? []).map((l) => ({
-        rawMaterialId: l.rawMaterialId,
+        accessoryId: l.accessoryId,
         qty: toNumber(l.qty),
         unitPrice: toNumber(l.unitPrice),
       }));
@@ -109,23 +106,20 @@ export function PurchaseRawMaterialForm({
         items: itemsPayload,
       };
 
-      if (mode === "create") {
-        createPurchase(payload);
-      } else {
-        updatePurchase(payload);
-      }
+      if (mode === "create") createPurchase(payload);
+      else updatePurchase(payload);
     },
   });
 
   const { mutate: createPurchase, isPending: isPendingCreate } =
-    trpc.purchase.create.useMutation({
+    trpc.purchase.createAccessories.useMutation({
       onSuccess: async () => {
         toast.success("Berhasil!!", {
-          description: "Pembelian bahan baku berhasil dibuat",
+          description: "Pembelian accessories berhasil dibuat",
         });
 
         await utils.purchase.getPaginated.invalidate();
-        await utils.purchase.getRawMaterialPaginated?.invalidate?.();
+        await utils.purchase.getAccessoriesPaginated?.invalidate?.();
 
         form.reset();
         router.reload();
@@ -144,18 +138,17 @@ export function PurchaseRawMaterialForm({
     });
 
   const { mutate: updatePurchase, isPending: isPendingUpdate } =
-    trpc.purchase.update.useMutation({
+    trpc.purchase.updateAccessories.useMutation({
       onSuccess: async () => {
         toast.success("Berhasil!!", {
-          description: "Pembelian bahan baku berhasil diperbarui!",
+          description: "Pembelian accessories berhasil diperbarui!",
         });
 
         await utils.purchase.getPaginated.invalidate();
-        await utils.purchase.getRawMaterialPaginated?.invalidate?.();
+        await utils.purchase.getAccessoriesPaginated?.invalidate?.();
         await utils.purchase.getById.invalidate({ id: initialData?.id });
 
         setActiveAction(null);
-
         router.reload();
       },
       onError: (error) => {
@@ -169,6 +162,7 @@ export function PurchaseRawMaterialForm({
       },
     });
 
+  // (optional) keep status mutation same as your raw material form
   const { mutate: updateStatus, isPending: isPendingUpdateStatus } =
     trpc.purchase.updateStatus.useMutation({
       onSuccess: async () => {
@@ -177,12 +171,11 @@ export function PurchaseRawMaterialForm({
         });
 
         await utils.purchase.getPaginated.invalidate();
-        await utils.purchase.getRawMaterialPaginated?.invalidate?.();
-        await utils.rawMaterial.getAll.invalidate();
+        await utils.purchase.getAccessoriesPaginated?.invalidate?.();
+        await utils.accessories.invalidate();
         await utils.purchase.getById.invalidate({ id: initialData?.id });
 
         setActiveAction(null);
-
         router.reload();
       },
       onError: (error) => {
@@ -207,11 +200,13 @@ export function PurchaseRawMaterialForm({
       form.setFieldValue("notes", initialData.notes ?? "");
       form.setFieldValue(
         "items",
-        (initialData.items ?? []).map((it) => ({
-          rawMaterialId: it.rawMaterialId,
-          qty: typeof it.qty === "string" ? toNumber(it.qty) : it.qty,
-          unitPrice: it.unitPrice,
-        })),
+        (initialData.items ?? [])
+          .filter((it: any) => it.itemType === "PAINT_ACCESSORIES")
+          .map((it: any) => ({
+            accessoryId: it.accessoryId,
+            qty: typeof it.qty === "string" ? toNumber(it.qty) : it.qty,
+            unitPrice: it.unitPrice,
+          })),
       );
     } else if (mode === "create") {
       form.reset();
@@ -219,19 +214,15 @@ export function PurchaseRawMaterialForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, initialData?.id, initialData?.supplierId, suppliers?.length]);
 
-  const currentStatus: PurchaseStatus | undefined = initialData?.status;
+  const currentStatus = initialData?.status as
+    | "DRAFT"
+    | "ONGOING"
+    | "FINISHED"
+    | "CANCELED"
+    | undefined;
 
   const isReadOnlyByStatus =
-    mode === "edit" &&
-    (currentStatus === "FINISHED" || currentStatus === "CANCELED");
-
-  const isSubmitting =
-    activeAction === "submit" && (isPendingCreate || isPendingUpdate);
-  const isSetOngoing = activeAction === "set-ongoing" && isPendingUpdateStatus;
-  const isSetFinished =
-    activeAction === "set-finished" && isPendingUpdateStatus;
-  const isSetCanceled =
-    activeAction === "set-canceled" && isPendingUpdateStatus;
+    mode === "edit" && (currentStatus === "FINISHED" || currentStatus === "CANCELED");
 
   const lockUI =
     (isPendingCreate || isPendingUpdate || isPendingUpdateStatus) &&
@@ -239,14 +230,6 @@ export function PurchaseRawMaterialForm({
 
   const disableFormInputs = lockUI || isReadOnlyByStatus;
   const disableSubmit = lockUI || (mode === "edit" && isReadOnlyByStatus);
-
-  const canSetOngoing = mode === "edit" && currentStatus === "DRAFT";
-  const canSetFinished =
-    mode === "edit" &&
-    (currentStatus === "DRAFT" || currentStatus === "ONGOING");
-  const canCancel =
-    mode === "edit" &&
-    (currentStatus === "DRAFT" || currentStatus === "ONGOING");
 
   return (
     <div className="py-6">
@@ -271,7 +254,7 @@ export function PurchaseRawMaterialForm({
 
                     <div className="grid grid-cols-7 gap-2">
                       <Input
-                        placeholder="PB0001"
+                        placeholder="PA0001"
                         className="col-span-6 h-12 rounded-xl border-2"
                         value={field.state.value}
                         onChange={(e) => field.handleChange(e.target.value)}
@@ -283,18 +266,14 @@ export function PurchaseRawMaterialForm({
                         variant="outline"
                         size="icon-lg"
                         className="py-5"
-                        onClick={() =>
-                          field.handleChange(generateRandomCode("PB"))
-                        }
+                        onClick={() => field.handleChange(generateRandomCode("PA"))}
                         disabled={mode === "edit" || disableFormInputs}
                       >
                         <Wand className="size-5" strokeWidth={2.5} />
                       </Button>
                     </div>
 
-                    {isInvalid && (
-                      <FieldError errors={field.state.meta.errors} />
-                    )}
+                    {isInvalid && <FieldError errors={field.state.meta.errors} />}
                   </Field>
                 );
               }}
@@ -333,7 +312,7 @@ export function PurchaseRawMaterialForm({
                     onValueChange={field.handleChange}
                     disabled={disableFormInputs}
                   >
-                    <SelectTrigger className="min-h-12 border-2 rounded-2xl">
+                    <SelectTrigger className="min-h-12 rounded-2xl border-2">
                       <SelectValue placeholder="Pilih supplier" />
                     </SelectTrigger>
                     <SelectContent>
@@ -352,27 +331,19 @@ export function PurchaseRawMaterialForm({
           </form.Field>
 
           <form.Field name="notes">
-            {(field) => {
-              const isInvalid =
-                field.state.meta.isTouched && !field.state.meta.isValid;
-
-              return (
-                <Field>
-                  <FieldLabel className="text-base">
-                    Catatan (opsional)
-                  </FieldLabel>
-                  <Textarea
-                    placeholder="Masukkan catatan untuk pembelian ini..."
-                    rows={4}
-                    className="h-32"
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-
-                  {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                </Field>
-              );
-            }}
+            {(field) => (
+              <Field>
+                <FieldLabel className="text-base">Catatan (opsional)</FieldLabel>
+                <Textarea
+                  placeholder="Masukkan catatan..."
+                  rows={4}
+                  className="h-32"
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  disabled={disableFormInputs}
+                />
+              </Field>
+            )}
           </form.Field>
 
           <form.Field name="items">
@@ -386,54 +357,46 @@ export function PurchaseRawMaterialForm({
                 0,
               );
 
-              const addMaterial = (rawMaterialId: string) => {
+              const addAccessory = (accessoryId: string) => {
                 if (disableFormInputs) return;
 
-                if (items.some((x) => x.rawMaterialId === rawMaterialId)) {
-                  toast.info("Bahan baku sudah dipilih!");
+                if (items.some((x) => x.accessoryId === accessoryId)) {
+                  toast.info("Accessory sudah dipilih!");
                   return;
                 }
-                const rm = rawMaterials?.find(
-                  (r) => r.id === rawMaterialId,
-                );
+
+                const acc = accessories?.find((a: any) => a.id === accessoryId);
 
                 field.handleChange([
                   ...items,
                   {
-                    rawMaterialId,
+                    accessoryId,
                     qty: 1,
-                    unitPrice: rm?.supplierPrice ?? 0,
+                    unitPrice: acc?.supplierPrice ?? 0,
                   },
                 ]);
 
-                setOpenMaterialPicker(false);
+                setOpenPicker(false);
               };
 
-              const removeMaterial = (rawMaterialId: string) => {
+              const removeAccessory = (accessoryId: string) => {
                 if (disableFormInputs) return;
-                field.handleChange(
-                  items.filter((x) => x.rawMaterialId !== rawMaterialId),
-                );
+                field.handleChange(items.filter((x) => x.accessoryId !== accessoryId));
               };
 
               const updateLine = (idx: number, patch: Partial<Line>) => {
                 if (disableFormInputs) return;
-                const next = items.map((it, i) =>
-                  i === idx ? { ...it, ...patch } : it,
-                );
+                const next = items.map((it, i) => (i === idx ? { ...it, ...patch } : it));
                 field.handleChange(next);
               };
 
               return (
                 <Field data-invalid={isInvalid}>
                   <FieldLabel className="text-base">
-                    Pilih Bahan Baku <IsRequired />
+                    Pilih Accessories <IsRequired />
                   </FieldLabel>
 
-                  <Popover
-                    open={openMaterialPicker}
-                    onOpenChange={setOpenMaterialPicker}
-                  >
+                  <Popover open={openPicker} onOpenChange={setOpenPicker}>
                     <PopoverTrigger asChild>
                       <Button
                         type="button"
@@ -442,10 +405,10 @@ export function PurchaseRawMaterialForm({
                         disabled={disableFormInputs}
                       >
                         {items.length > 0 ? (
-                          <span>{items.length} bahan baku dipilih</span>
+                          <span>{items.length} accessories dipilih</span>
                         ) : (
                           <span className="text-muted-foreground">
-                            Pilih bahan baku...
+                            Pilih accessories...
                           </span>
                         )}
                       </Button>
@@ -453,27 +416,22 @@ export function PurchaseRawMaterialForm({
 
                     <PopoverContent className="w-full p-0" align="start">
                       <Command>
-                        <CommandInput placeholder="Cari bahan baku..." />
+                        <CommandInput placeholder="Cari accessories..." />
                         <CommandList>
-                          <CommandEmpty>Tidak ada bahan baku.</CommandEmpty>
+                          <CommandEmpty>Tidak ada accessories.</CommandEmpty>
                           <CommandGroup>
-                            {rawMaterials?.map((rm) => {
-                              const selected = items.some(
-                                (i) => i.rawMaterialId === rm.id,
-                              );
+                            {accessories?.map((acc: any) => {
+                              const selected = items.some((i) => i.accessoryId === acc.id);
                               return (
-                                <CommandItem
-                                  key={rm.id}
-                                  onSelect={() => addMaterial(rm.id)}
-                                >
+                                <CommandItem key={acc.id} onSelect={() => addAccessory(acc.id)}>
                                   <Check
                                     className={cn(
                                       "mr-2 h-4 w-4",
                                       selected ? "opacity-100" : "opacity-0",
                                     )}
                                   />
-                                  {rm.name} ({rm.supplier?.name ?? "-"}) — Stok:{" "}
-                                  {Number(rm.qty).toFixed(2)}
+                                  {acc.name} ({acc.supplier?.name ?? "-"}) — Stok:{" "}
+                                  {Number(acc.qty ?? 0).toFixed(2)}
                                 </CommandItem>
                               );
                             })}
@@ -485,27 +443,20 @@ export function PurchaseRawMaterialForm({
 
                   <div className="mt-3 space-y-2">
                     {items.map((line, idx) => {
-                      const rm = rawMaterials?.find(
-                        (r) => r.id === line.rawMaterialId,
-                      );
+                      const acc = accessories?.find((a: any) => a.id === line.accessoryId);
 
                       const qtyNum = toNumber(line.qty);
                       const unitPriceNum = toNumber(line.unitPrice);
                       const subtotal = qtyNum * unitPriceNum;
 
                       return (
-                        <div
-                          key={line.rawMaterialId}
-                          className="rounded-xl border-2 p-3"
-                        >
+                        <div key={line.accessoryId} className="rounded-xl border-2 p-3">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="truncate font-medium">
-                                {rm?.name ?? "Unknown"}
-                              </p>
+                              <p className="truncate font-medium">{acc?.name ?? "Unknown"}</p>
                               <p className="text-muted-foreground text-xs">
-                                Supplier: {rm?.supplier?.name ?? "-"} • Stok:{" "}
-                                {rm?.qty ? Number(rm.qty).toFixed(2) : "0.00"}
+                                Supplier: {acc?.supplier?.name ?? "-"} • Stok:{" "}
+                                {Number(acc?.qty ?? 0).toFixed(2)}
                               </p>
                             </div>
 
@@ -520,15 +471,13 @@ export function PurchaseRawMaterialForm({
                                 </Button>
                               }
                               variant="destructive"
-                              title="Batalkan bahan baku ini?"
-                              description="Anda akan menghapus bahan baku ini dari daftar pembelian. Tindakan ini tidak dapat dibatalkan."
+                              title="Hapus accessories ini?"
+                              description="Anda akan menghapus accessories ini dari daftar pembelian."
                               confirmText="Ya, hapus"
                               cancelText="Kembali"
                               icon={<TriangleAlert className="size-6" />}
                               isLoading={disableFormInputs}
-                              onConfirm={() =>
-                                removeMaterial(line.rawMaterialId)
-                              }
+                              onConfirm={() => removeAccessory(line.accessoryId)}
                             />
                           </div>
 
@@ -539,17 +488,13 @@ export function PurchaseRawMaterialForm({
                                 className="h-11 rounded-xl border-2"
                                 inputMode="decimal"
                                 value={String(line.qty ?? "")}
-                                onChange={(e) =>
-                                  updateLine(idx, { qty: e.target.value })
-                                }
+                                onChange={(e) => updateLine(idx, { qty: e.target.value })}
                                 disabled={disableFormInputs}
                               />
                             </div>
 
                             <div>
-                              <FieldLabel className="text-sm">
-                                Harga / Unit
-                              </FieldLabel>
+                              <FieldLabel className="text-sm">Harga / Unit</FieldLabel>
                               <Input
                                 className="h-11 rounded-xl border-2"
                                 inputMode="decimal"
@@ -562,9 +507,7 @@ export function PurchaseRawMaterialForm({
                             </div>
 
                             <div>
-                              <FieldLabel className="text-sm">
-                                Subtotal
-                              </FieldLabel>
+                              <FieldLabel className="text-sm">Subtotal</FieldLabel>
                               <Input
                                 className="bg-muted h-11 rounded-xl border-2"
                                 readOnly
@@ -595,12 +538,8 @@ export function PurchaseRawMaterialForm({
         </FieldGroup>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <Button
-            type="submit"
-            disabled={disableSubmit}
-            className="font-medium"
-          >
-            {isSubmitting ? (
+          <Button type="submit" disabled={disableSubmit} className="font-medium">
+            {activeAction === "submit" && (isPendingCreate || isPendingUpdate) ? (
               <Loader className="h-4 w-4 animate-spin" />
             ) : mode === "create" ? (
               "Simpan Pembelian (Draft)"
@@ -609,23 +548,8 @@ export function PurchaseRawMaterialForm({
             )}
           </Button>
 
-          {/* {mode === "edit" && initialData?.id && (
-            <PurchaseRawMaterialFormAction
-              props={{
-                lockUI,
-                isReadOnlyByStatus,
-                canSetOngoing,
-                canSetFinished,
-                canCancel,
-                isSetOngoing,
-                isSetFinished,
-                isSetCanceled,
-                setActiveAction: (a) => setActiveAction(a),
-                updateStatus: ({ id, status }) => updateStatus({ id, status }),
-                initialData: { id: initialData.id },
-              }}
-            />
-          )} */}
+          {/* If you want the same actions as raw material, you can re-enable your PurchaseRawMaterialFormAction logic,
+              but wired to updateStatus({ id, status }) exactly like you already have. */}
         </div>
       </form>
     </div>

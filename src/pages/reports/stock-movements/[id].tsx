@@ -26,6 +26,7 @@ import {
 import {
   itemTypeLabel,
   movementTypeBadge,
+  movementTypeLabel,
 } from "~/components/features/stock-movement/lib/utils";
 
 function qtySign(type: string) {
@@ -218,7 +219,7 @@ export default function StockMovementDetailPage() {
                           Movement Type
                         </span>
                         <Badge variant="outline" className="font-mono text-xs">
-                          {m.type}
+                          {movementTypeLabel(m.type)}
                         </Badge>
                       </div>
                       <div className="flex items-center justify-between rounded-xl bg-muted/50 p-3">
@@ -301,7 +302,7 @@ export default function StockMovementDetailPage() {
                   </p>
                   <div className="flex gap-2">
                     <Button variant="outline" asChild>
-                      <Link href="/stock-movements">View All Movements</Link>
+                      <Link href="/reports/stock-movements">View All Movements</Link>
                     </Button>
                   </div>
                 </div>
