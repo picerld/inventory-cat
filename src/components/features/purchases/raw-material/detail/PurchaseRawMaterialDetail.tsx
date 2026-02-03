@@ -13,7 +13,6 @@ import {
   ReceiptText,
   User,
   FileText,
-  Printer,
   CheckCircle2,
   TriangleAlert,
   PackageCheck,
@@ -25,6 +24,7 @@ import {
 import { toast } from "sonner";
 import { ConfirmActionDialog } from "~/components/dialog/ConfirmActionDialog";
 import type { PurchaseStatus } from "../../config/purchase";
+import { InvoicePreviewDialog } from "../invoice/InvoicePreviewDialog";
 
 export default function PurchaseRawMaterialDetail() {
   const router = useRouter();
@@ -154,17 +154,16 @@ export default function PurchaseRawMaterialDetail() {
           </div>
 
           <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={() => {
-                toast.info("Oops!", {
-                  description: "Fitur ini sedang dikembangkan!",
-                });
-              }}
-            >
-              <Printer className="h-4 w-4" />
-              Cetak Laporan
-            </Button>
+            <InvoicePreviewDialog
+              purchase={purchase}
+              summary={summary}
+              trigger={
+                <Button variant="outline">
+                  <FileText className="h-4 w-4" />
+                  Lihat Invoice
+                </Button>
+              }
+            />
             <Badge className={cn("rounded-full px-3 py-1", badge.className)}>
               {badge.label}
             </Badge>

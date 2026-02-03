@@ -1,3 +1,4 @@
+import { Package, TrendingDown, TrendingUp } from "lucide-react";
 import type { ItemType, StockMovementRow, StockMovementType } from "~/types/stock-movement";
 
 export const toNumber = (v: unknown) => {
@@ -118,3 +119,15 @@ export const getRefLabel = (m: StockMovementRow) => {
     return `FG: ${m.refFinishedGood.productionCode} • ${m.refFinishedGood.name}`;
   return "-";
 };
+
+export function qtySign(type: string) {
+  if (type.endsWith("_OUT")) return "-";
+  if (type.endsWith("_IN")) return "+";
+  return "";
+}
+
+export function getMovementIcon(type: string) {
+  if (type.endsWith("_IN")) return TrendingUp;
+  if (type.endsWith("_OUT")) return TrendingDown;
+  return Package;
+}

@@ -4,10 +4,12 @@ import { Button } from "~/components/ui/button";
 export const PurchaseNotFound = ({
   text,
   href,
+  withHrefButton = true,
   resetFilter,
 }: {
   text?: string;
   href?: string;
+  withHrefButton?: boolean;
   resetFilter: () => void;
 }) => {
   return (
@@ -21,11 +23,13 @@ export const PurchaseNotFound = ({
         <Button variant="outline" onClick={resetFilter}>
           Reset Filter
         </Button>
-        <Button asChild>
-          <Link href={href ?? "/purchase/raw-materials/create"}>
-            {text ?? "Buat Data Pembelian Baru"}
-          </Link>
-        </Button>
+        {withHrefButton && (
+          <Button asChild>
+            <Link href={href ?? "/purchase/raw-materials/create"}>
+              {text ?? "Buat Data Pembelian Baru"}
+            </Link>
+          </Button>
+        )}
       </div>
     </div>
   );

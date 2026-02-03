@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { finishedGoodFormSchema } from "~/components/features/finished/form/finished-good";
 import { toNumber } from "~/lib/utils";
+import { calculateFinishedGoodCost } from "~/server/service/costing";
 
 export const finishedGoodRouter = createTRPCRouter({
   getPaginated: protectedProcedure
@@ -224,6 +225,30 @@ export const finishedGoodRouter = createTRPCRouter({
           },
         },
       });
+    }),
+
+  getByProductionCode: protectedProcedure
+    .input(z.object({ productionCode: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const fg = await ctx.db.finishedGood.findUnique({
+        where: { productionCode: input.productionCode },
+        include: { paintGrade: true },
+      });
+
+      if (!fg) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Barang jadi tidak ditemukan dari barcode/productionCode.",
+        });
+      }
+      return fg;
+    }),
+
+  getCostPrice: protectedProcedure
+    .input(z.object({ finishedGoodId: z.string() }))
+    .query(async ({ input }) => {
+      const cost = await calculateFinishedGoodCost(input.finishedGoodId);
+      return { cost };
     }),
 
   create: protectedProcedure

@@ -4,7 +4,6 @@ import type { User } from "./user";
 import type { Supplier } from "./supplier";
 import type { PaintAccessories } from "@prisma/client";
 
-// RAW MATERIAL PURCHASE TYPES
 export type PurchaseRawMaterial = {
   id: string;
   purchaseNo: string;

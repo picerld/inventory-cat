@@ -31,6 +31,8 @@ export type StockMovementRow = {
   itemType: ItemType;
   itemId: string;
 
+  itemName: string;
+
   qty: string | number; // prisma decimal can be string
   createdAt: string | Date;
 

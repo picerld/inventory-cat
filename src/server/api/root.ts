@@ -12,6 +12,8 @@ import { dashboardRouter } from "~/server/api/routers/dashboard";
 import { purchaseRouter } from "./routers/purchase";
 import { profileRouter } from "./routers/profile";
 import { stockMovementRouter } from "./routers/stock-movement";
+import { saleRouter } from "./routers/sale";
+import { customerRouter } from "./routers/customer";
 
 /**
  * This is the primary router for your server.
@@ -31,6 +33,8 @@ export const appRouter = createTRPCRouter({
   accessories: accessoriesRouter,
   returnGood: returnGoodRouter,
   purchase: purchaseRouter,
+  sale: saleRouter,
+  customer: customerRouter,
   stockMovement: stockMovementRouter,
 });
 

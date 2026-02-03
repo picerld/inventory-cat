@@ -97,7 +97,7 @@ export default function GuardedLayout({
       children: [
         {
           name: "Penjualan Barang Jadi",
-          href: "/sales/finished",
+          href: "/sales/finished-goods",
           active: false,
         },
         {

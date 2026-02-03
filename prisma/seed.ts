@@ -12,6 +12,14 @@ async function main() {
     },
   });
 
+  await prisma.user.create({
+    data: {
+      name: "Rafi",
+      username: "rafi",
+      password: bcrypt.hashSync("password", 10),
+    },
+  });
+
   console.log("Seed completed");
 }
 
