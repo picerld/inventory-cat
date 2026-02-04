@@ -257,17 +257,12 @@ export const finishedGoodRouter = createTRPCRouter({
       const userId = ctx.user?.id ?? input.userId;
 
       return ctx.db.$transaction(async (tx) => {
-        // =============================
-        // 1) VALIDATE + PREPARE CONSUMPTION
-        // =============================
         const sourceTypeUpper = input.sourceType.toUpperCase() as
           | "RAW_MATERIAL"
           | "SEMI_FINISHED";
 
-        // konsumsi raw materials final (untuk detail)
         let aggregatedMaterials: { rawMaterialId: string; qty: number }[] = [];
 
-        // konsumsi semi finished untuk decrement
         let consumedSemiFinished: {
           semiFinishedGoodId: string;
           qty: number;
@@ -281,7 +276,6 @@ export const finishedGoodRouter = createTRPCRouter({
             });
           }
 
-          // validate stok raw cukup
           for (const m of input.materials) {
             const rm = await tx.rawMaterial.findUnique({
               where: { id: m.rawMaterialId },
@@ -315,7 +309,6 @@ export const finishedGoodRouter = createTRPCRouter({
             });
           }
 
-          // validate stok semi finished cukup
           for (const sf of input.semiFinishedGoods) {
             const sfg = await tx.semiFinishedGood.findUnique({
               where: { id: sf.semiFinishedGoodId },
@@ -340,7 +333,6 @@ export const finishedGoodRouter = createTRPCRouter({
             qty: toNumber(sf.qty),
           }));
 
-          // Ambil detail raw material dari SFG untuk membentuk FinishedGoodDetail (audit BOM)
           const sfgIds = input.semiFinishedGoods.map(
             (x) => x.semiFinishedGoodId,
           );
@@ -358,10 +350,6 @@ export const finishedGoodRouter = createTRPCRouter({
             );
             if (!sfg) continue;
 
-            // NOTE: qty SFG kamu itu "jumlah baris detail", bukan output unit.
-            // Jadi proporsional detail.qty / sfg.qty bisa tidak meaningful.
-            // Aku ambil pendekatan: pakai proporsi berdasarkan qty detail langsung dikalikan sf.qty (asumsi sf.qty = jumlah batch)
-            // Kalau kamu punya rumus sendiri, ganti di sini.
             for (const d of sfg.SemiFinishedGoodDetail) {
               const add = toNumber(d.qty) * toNumber(sf.qty);
               rmMap.set(
@@ -374,14 +362,11 @@ export const finishedGoodRouter = createTRPCRouter({
           aggregatedMaterials = Array.from(rmMap.entries()).map(
             ([rawMaterialId, qty]) => ({
               rawMaterialId,
-              qty: qty, // decimal ok
+              qty: qty,
             }),
           );
         }
 
-        // =============================
-        // 2) CREATE FINISHED GOOD + DETAILS
-        // =============================
         const finished = await tx.finishedGood.create({
           data: {
             userId: input.userId,
@@ -406,9 +391,6 @@ export const finishedGoodRouter = createTRPCRouter({
           },
         });
 
-        // =============================
-        // 3) APPLY STOCK OUT (SOURCE)
-        // =============================
         if (input.sourceType === "raw_material") {
           for (const m of aggregatedMaterials) {
             await tx.rawMaterial.update({
@@ -416,7 +398,6 @@ export const finishedGoodRouter = createTRPCRouter({
               data: { qty: { decrement: m.qty } },
             });
 
-            // movement: production out raw material
             await tx.stockMovement.create({
               data: {
                 type: "PRODUCTION_OUT",
@@ -437,7 +418,6 @@ export const finishedGoodRouter = createTRPCRouter({
               data: { qty: { decrement: sf.qty } },
             });
 
-            // movement: production out semi finished
             await tx.stockMovement.create({
               data: {
                 type: "PRODUCTION_OUT",
@@ -452,9 +432,6 @@ export const finishedGoodRouter = createTRPCRouter({
           }
         }
 
-        // =============================
-        // 4) PRODUCTION IN (FINISHED GOOD)
-        // =============================
         await tx.stockMovement.create({
           data: {
             type: "PRODUCTION_IN",
@@ -483,9 +460,6 @@ export const finishedGoodRouter = createTRPCRouter({
       const userId = ctx.user?.id ?? input.userId;
 
       return ctx.db.$transaction(async (tx) => {
-        // =============================
-        // 0) LOAD EXISTING (for restore)
-        // =============================
         const existing = await tx.finishedGood.findUnique({
           where: { id: input.id },
           include: {
@@ -500,10 +474,6 @@ export const finishedGoodRouter = createTRPCRouter({
           });
         }
 
-        // =============================
-        // 1) RESTORE OLD STOCK (IMPORTANT)
-        // =============================
-        // Restore raw materials that were consumed by old FG details
         for (const d of existing.finishedGoodDetails) {
           await tx.rawMaterial.update({
             where: { id: d.rawMaterialId },
@@ -522,11 +492,6 @@ export const finishedGoodRouter = createTRPCRouter({
           });
         }
 
-        // If old source was SEMI_FINISHED, restore semi finished consumption too
-        // NOTE: kalau kamu belum nyimpen mapping konsumsi SFG di detail, opsi paling aman:
-        // - restore hanya raw material via finishedGoodDetails (di atas)
-        // - dan untuk semi finished, kamu perlu record konsumsi via StockMovement PRODUCTION_OUT itemType SEMI_FINISHED_GOOD refFinishedGoodId=...
-        // Jadi kita restore via stockMovement query:
         if (existing.sourceType === "SEMI_FINISHED") {
           const oldSfMoves = await tx.stockMovement.findMany({
             where: {
@@ -557,16 +522,10 @@ export const finishedGoodRouter = createTRPCRouter({
           }
         }
 
-        // =============================
-        // 2) DELETE OLD DETAILS
-        // =============================
         await tx.finishedGoodDetail.deleteMany({
           where: { finishedGoodId: input.id },
         });
 
-        // =============================
-        // 3) RE-COMPUTE NEW CONSUMPTION
-        // =============================
         const sourceTypeUpper = input.sourceType.toUpperCase() as
           | "RAW_MATERIAL"
           | "SEMI_FINISHED";
@@ -596,7 +555,6 @@ export const finishedGoodRouter = createTRPCRouter({
                 message: "Raw material not found",
               });
 
-            // stok sudah direstore ke raw material sebelumnya, jadi validasi aman dilakukan sekarang
             if (toNumber(rm.qty) < toNumber(m.qty)) {
               throw new TRPCError({
                 code: "BAD_REQUEST",
@@ -676,9 +634,6 @@ export const finishedGoodRouter = createTRPCRouter({
           );
         }
 
-        // =============================
-        // 4) UPDATE FINISHED GOOD + NEW DETAILS
-        // =============================
         const updated = await tx.finishedGood.update({
           where: { id: input.id },
           data: {
@@ -704,9 +659,6 @@ export const finishedGoodRouter = createTRPCRouter({
           },
         });
 
-        // =============================
-        // 5) APPLY NEW STOCK OUT + MOVEMENTS
-        // =============================
         if (input.sourceType === "raw_material") {
           for (const m of aggregatedMaterials) {
             await tx.rawMaterial.update({
@@ -748,7 +700,6 @@ export const finishedGoodRouter = createTRPCRouter({
           }
         }
 
-        // PRODUCTION IN (log latest as movement; audit trail)
         await tx.stockMovement.create({
           data: {
             type: "PRODUCTION_IN",

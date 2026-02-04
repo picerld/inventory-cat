@@ -1,13 +1,13 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import type { PurchaseStatus } from "~/components/features/purchases/config/purchase";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 export function sleep(ms: number = 1000) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export const formatPrice = (value: number) => {
@@ -23,15 +23,32 @@ export const toRupiah = (value: number) => {
   }).format(value);
 };
 
+export const formatRupiah = (value?: number | string) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "";
+  return "Rp" + n.toLocaleString("id-ID");
+};
+
+export const parseRupiah = (value: string) => {
+  return Number(value.replace(/^Rp\s?/, "").replace(/\D/g, ""));
+};
+
+export function formatDateID(d: Date | string) {
+  const date = typeof d === "string" ? new Date(d) : d;
+  return date.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 export const toNumber = (v: unknown) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
-}
+};
 
 export function generateRandomCode(prefix: string, length = 4) {
-  const randomNumber = Math.floor(
-    Math.random() * Math.pow(10, length)
-  )
+  const randomNumber = Math.floor(Math.random() * Math.pow(10, length))
     .toString()
     .padStart(length, "0");
 
@@ -47,4 +64,13 @@ export function statusBadge(status: PurchaseStatus) {
   };
 
   return map[status];
+}
+
+export function escapeHtml(s: string) {
+  return s
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }

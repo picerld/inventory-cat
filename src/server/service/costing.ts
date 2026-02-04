@@ -2,12 +2,6 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-/**
- * Calculate cost price of FinishedGood
- * Includes:
- * - Raw materials
- * - Semi finished goods (recursive)
- */
 export async function calculateFinishedGoodCost(
   finishedGoodId: string,
 ): Promise<number> {
@@ -33,21 +27,23 @@ export async function calculateFinishedGoodCost(
 
   if (!fg) throw new Error("FinishedGood not found");
 
-  let totalCost = 0;
+  let totalCostBatch = 0;
 
   for (const d of fg.finishedGoodDetails) {
-    // Direct raw material
     if (d.rawMaterial) {
-      totalCost += Number(d.qty) * d.rawMaterial.supplierPrice;
+      totalCostBatch += Number(d.qty) * d.rawMaterial.supplierPrice;
     }
 
-    // Semi finished good → explode to raw materials
     if (d.semiFinishedGood) {
       for (const sfgd of d.semiFinishedGood.SemiFinishedGoodDetail) {
-        totalCost += Number(sfgd.qty) * sfgd.rawMaterial.supplierPrice;
+        totalCostBatch += Number(sfgd.qty) * sfgd.rawMaterial.supplierPrice;
       }
     }
   }
 
-  return totalCost;
+  const fgQty = Number(fg.qty ?? 0);
+  if (!fgQty) return 0;
+
+  const costPerUnit = totalCostBatch / fgQty;
+  return Number.isFinite(costPerUnit) ? costPerUnit : 0;
 }

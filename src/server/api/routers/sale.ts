@@ -3,17 +3,257 @@ import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { saleFinishedGoodFormSchema } from "~/components/features/sales/finished-good/form/sale-finished-good";
+import { escapeHtml, formatDateID, toNumber, toRupiah } from "~/lib/utils";
+import { generateInvoiceNo } from "~/components/features/sales/lib/utils";
 
 const saleStatusEnum = z.enum(["DRAFT", "ONGOING", "FINISHED", "CANCELED"]);
 type SaleStatus = z.infer<typeof saleStatusEnum>;
 
-const toNumber = (v: unknown) => {
-  if (typeof v === "number") return v;
-  if (typeof v === "string") return Number(v);
-  return Number(v ?? 0);
-};
+export function renderInvoiceHtml(payload: {
+  invoiceNo: string;
+  saleNo: string;
+  soldAt: Date;
+  customerName: string;
+  customerPhone?: string | null;
+  customerAddress?: string | null;
+  items: Array<{
+    name: string;
+    qty: number;
+    unitPrice: number;
+    subtotal: number;
+  }>;
+  notes?: string | null;
+}) {
+  const totalQty = payload.items.reduce((a, b) => a + (Number(b.qty) || 0), 0);
+  const totalAmount = payload.items.reduce(
+    (a, b) => a + (Number(b.subtotal) || 0),
+    0,
+  );
+
+  const style = `
+    @page { size: A4; margin: 12mm; }
+    @media print { .no-print { display: none !important; } }
+    .invoice-root { font-family: ui-sans-serif, system-ui; color: #111; }
+    .row { display: flex; justify-content: space-between; gap: 16px; }
+    .muted { color: #555; }
+    .title { font-size: 18px; font-weight: 800; margin: 0; }
+    .badge { display:inline-block; padding: 4px 10px; border:1px solid #ddd; border-radius: 999px; font-size: 12px; }
+    .card { border: 1px solid #e5e5e5; border-radius: 12px; padding: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border-bottom: 1px solid #eee; padding: 10px 6px; text-align: left; font-size: 12px; vertical-align: top; }
+    th { font-weight: 700; }
+    .right { text-align: right; }
+    .totals { margin-top: 12px; display:flex; justify-content:flex-end; }
+    .totals .box { min-width: 280px; }
+    .totals .line { display:flex; justify-content:space-between; padding: 6px 0; font-size: 12px; }
+    .totals .grand { font-weight: 800; font-size: 14px; border-top: 1px solid #ddd; padding-top: 10px; margin-top: 8px; }
+    .foot { margin-top: 18px; font-size: 11px; color:#666; }
+  `;
+
+  const rows = payload.items
+    .map((it, idx) => {
+      const qty = Number(it.qty || 0).toLocaleString("id-ID", {
+        maximumFractionDigits: 2,
+      });
+      return `
+        <tr>
+          <td>
+            <div style="font-weight:600;">${idx + 1}. ${escapeHtml(it.name)}</div>
+          </td>
+          <td class="right">${escapeHtml(qty)}</td>
+          <td class="right">${escapeHtml(toRupiah(it.unitPrice))}</td>
+          <td class="right">${escapeHtml(toRupiah(it.subtotal))}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(payload.invoiceNo)}</title>
+</head>
+
+<body>
+  <div class="invoice-root">
+    <style>${style}</style>
+
+    <div class="row">
+      <div>
+        <p class="title">INVOICE PENJUALAN</p>
+        <p class="muted" style="margin-top:6px;">
+          Invoice No: <b>${escapeHtml(payload.invoiceNo)}</b>
+        </p>
+        <p class="muted" style="margin-top:4px;">
+          Sale No: <b>${escapeHtml(payload.saleNo)}</b>
+        </p>
+      </div>
+
+      <div style="text-align:right;">
+        <span class="badge">Tanggal: ${escapeHtml(formatDateID(payload.soldAt))}</span>
+        <div class="muted" style="margin-top:8px; font-size:12px;">
+          Dicetak: <b>${escapeHtml(formatDateID(new Date()))}</b>
+        </div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:12px;">
+      <div class="card" style="flex:1;">
+        <div style="font-weight:700; margin-bottom:6px;">Customer</div>
+        <div><b>${escapeHtml(payload.customerName)}</b></div>
+        ${
+          payload.customerPhone
+            ? `<div class="muted" style="margin-top:6px; font-size:12px;">${escapeHtml(payload.customerPhone)}</div>`
+            : ""
+        }
+        ${
+          payload.customerAddress
+            ? `<div class="muted" style="margin-top:6px; font-size:12px;">${escapeHtml(payload.customerAddress)}</div>`
+            : ""
+        }
+      </div>
+
+      ${
+        payload.notes
+          ? `
+            <div class="card" style="flex:1;">
+              <div style="font-weight:700; margin-bottom:6px;">Catatan</div>
+              <div class="muted" style="font-size:12px; white-space:pre-wrap;">${escapeHtml(payload.notes)}</div>
+            </div>
+          `
+          : `
+            <div class="card" style="flex:1;">
+              <div style="font-weight:700; margin-bottom:6px;">Keterangan</div>
+              <div class="muted" style="font-size:12px;">-</div>
+            </div>
+          `
+      }
+    </div>
+
+    <div class="card" style="margin-top:12px;">
+      <div style="font-weight:700;">Daftar Item</div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:44%;">Item</th>
+            <th class="right" style="width:14%;">Qty</th>
+            <th class="right" style="width:21%;">Harga Satuan</th>
+            <th class="right" style="width:21%;">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows || `<tr><td colspan="4" class="muted">Tidak ada item</td></tr>`}
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <div class="box">
+          <div class="line">
+            <span class="muted">Total Qty</span>
+            <span><b>${escapeHtml(totalQty.toLocaleString("id-ID", { maximumFractionDigits: 2 }))}</b></span>
+          </div>
+          <div class="line grand">
+            <span>Total Amount</span>
+            <span>${escapeHtml(toRupiah(totalAmount))}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="foot">
+        Dokumen ini di-generate oleh sistem.
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return html;
+}
 
 export const saleRouter = createTRPCRouter({
+  generateInvoicePreview: protectedProcedure
+    .input(
+      z.object({
+        saleId: z.string(),
+        // kalau user sudah isi invoiceNo manual, boleh kirim ini
+        invoiceNo: z.string().optional().nullable(),
+        // kalau true: paksa bikin nomor baru
+        forceRegenerate: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const sale = await ctx.db.sale.findUnique({
+        where: { id: input.saleId },
+        include: {
+          customer: true,
+          items: {
+            include: {
+              finishedGood: true,
+              accessory: true,
+            },
+          },
+        },
+      });
+
+      if (!sale) throw new Error("Sale not found");
+
+      // Tentukan invoiceNo:
+      // - Prioritas: input.invoiceNo (kalau user isi)
+      // - Kalau belum ada: generate baru
+      // - Kalau sudah ada dan tidak force: pakai yang ada
+      let nextInvoiceNo =
+        (input.invoiceNo ?? "").trim() || (sale.invoiceNo ?? "").trim();
+
+      const shouldGenerate = input.forceRegenerate === true || !nextInvoiceNo;
+
+      if (shouldGenerate) {
+        // generate dan pastikan unik (karena invoiceNo @unique)
+        for (let i = 0; i < 5; i++) {
+          const candidate = generateInvoiceNo();
+          const exists = await ctx.db.sale.findFirst({
+            where: { invoiceNo: candidate },
+            select: { id: true },
+          });
+          if (!exists) {
+            nextInvoiceNo = candidate;
+            break;
+          }
+        }
+        if (!nextInvoiceNo) throw new Error("Failed to generate invoiceNo");
+      }
+
+      // ✅ Simpan ke DB (ini yang kamu mau)
+      await ctx.db.sale.update({
+        where: { id: sale.id },
+        data: { invoiceNo: nextInvoiceNo },
+      });
+
+      const items = (sale.items ?? []).map((it) => {
+        const name = it.finishedGood?.name ?? it.accessory?.name ?? "Item";
+
+        const qty = Number(it.qty ?? 0);
+        const unitPrice = Number(it.unitPrice ?? 0);
+        const subtotal = qty * unitPrice;
+
+        return { name, qty, unitPrice, subtotal };
+      });
+
+      const html = renderInvoiceHtml({
+        invoiceNo: nextInvoiceNo,
+        saleNo: sale.saleNo,
+        soldAt: sale.soldAt,
+        customerName: sale.customer?.name ?? "-",
+        customerPhone: sale.customer?.phone ?? null,
+        customerAddress: sale.customer?.address ?? null,
+        items,
+        notes: sale.notes ?? null,
+      });
+
+      return { invoiceNo: nextInvoiceNo, html };
+    }),
+
   getPaginated: protectedProcedure
     .input(
       z.object({

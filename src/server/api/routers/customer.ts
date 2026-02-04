@@ -1,43 +1,54 @@
-import z from "zod";
-import { createTRPCRouter, protectedProcedure } from "../trpc";
-import type { Prisma } from "@prisma/client";
+import { z } from "zod";
+import { customerCreateSchema, customerUpdateSchema } from "~/components/features/customer/form/customer";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 
 export const customerRouter = createTRPCRouter({
-  getPaginated: protectedProcedure
-    .input(
-      z.object({
-        page: z.number().min(1).default(1),
-        pageSize: z.number().min(1).max(100).default(10),
-        search: z.string().optional(),
-      }),
-    )
-    .query(async ({ input, ctx }) => {
-      const { page, pageSize, search } = input;
-
-      const where: Prisma.CustomerWhereInput = search
-        ? {
-            name: {
-              contains: search,
-              mode: "insensitive",
-            },
-          }
-        : {};
-
-      const totalItems = await ctx.db.customer.count({ where });
-      const lastPage = Math.ceil(totalItems / pageSize);
-      const data = await ctx.db.customer.findMany({
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        where,
-        orderBy: { createdAt: "desc" },
-      });
-      return { data, lastPage };
-    }),
-
-  getAll: protectedProcedure.query(async ({ ctx }) => {
-    const data = await ctx.db.customer.findMany({
+  getAll: protectedProcedure.query(({ ctx }) => {
+    return ctx.db.customer.findMany({
       orderBy: { createdAt: "desc" },
     });
-    return data;
   }),
+
+  getById: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(({ ctx, input }) => {
+      return ctx.db.customer.findUnique({
+        where: { id: input.id },
+      });
+    }),
+
+  create: protectedProcedure
+    .input(customerCreateSchema)
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.customer.create({
+        data: {
+          name: input.name,
+          phone: input.phone ?? null,
+          address: input.address ?? null,
+        },
+      });
+    }),
+
+  update: protectedProcedure
+    .input(customerUpdateSchema)
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.customer.update({
+        where: { id: input.id },
+        data: {
+          name: input.name,
+          phone: input.phone ?? null,
+          address: input.address ?? null,
+        },
+      });
+    }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // NOTE: because Customer has `sales` with onDelete: Cascade in your schema,
+      // deleting a customer will delete related sales. Confirm business rule.
+      return ctx.db.customer.delete({
+        where: { id: input.id },
+      });
+    }),
 });

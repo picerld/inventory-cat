@@ -1,30 +1,28 @@
+import { ChartNoAxesCombined, ChevronLeft, Plus } from "lucide-react";
+import { Header } from "~/components/container/Header";
 import GuardedLayout from "~/components/layout/GuardedLayout";
 import { HeadMetaData } from "~/components/meta/HeadMetaData";
-import { Header } from "~/components/container/Header";
-import { ChartNoAxesCombined, Plus } from "lucide-react";
 import { Button, buttonVariants } from "~/components/ui/button";
+import { CustomerForm } from "./components/CustomerForm";
 import Link from "next/link";
-import SaleFinishedGoodCardsOngoing from "./components/SaleFinishedGoodCardsOngoing";
 
-export default function SaleFinishedGoodPage() {
+export default function CustomerCreatePage() {
   return (
     <GuardedLayout>
-      <HeadMetaData title="Penjualan Barang Jadi" />
+      <HeadMetaData title="Customer" />
       <Header
-        title="Penjualan Barang Jadi"
-        subtitle="Catat pembelian barang jadi dan update stok saat diposting"
+        title="Customer"
+        subtitle="Manage your customer network and track performance"
       >
         <div className="flex gap-2">
           <Link
-            href="/sales/finished-goods/create"
+            href="/customers"
             className={buttonVariants({
               variant: "outline",
               className: "mb-4",
-              size: "lg",
             })}
           >
-            <Plus className="h-4 w-4" />
-            Tambah Penjualan Barang Jadi
+            <ChevronLeft className="mr-2 h-4 w-4" /> Kembali
           </Link>
 
           <Button size={"icon-lg"} variant={"outline"}>
@@ -32,8 +30,7 @@ export default function SaleFinishedGoodPage() {
           </Button>
         </div>
       </Header>
-      
-      <SaleFinishedGoodCardsOngoing />
+      <CustomerForm mode="create" />
     </GuardedLayout>
   );
 }
