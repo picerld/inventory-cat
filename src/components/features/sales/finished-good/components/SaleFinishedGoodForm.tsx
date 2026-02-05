@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { useRouter } from "next/router";
 import { toast } from "sonner";
@@ -77,6 +77,7 @@ import { SaleFinishedGoodHeader } from "./attributes/SaleFinishedGoodHeader";
 import { SaleFinishedGoodSummarySection } from "./attributes/actions/SaleFinishedGoodSummarySection";
 import { SaleFinishedGoodActionsSection } from "./attributes/actions/SaleFinishedGoodActionsSection";
 import { SaleFinishedGoodGeneratedInvoice } from "./attributes/SaleFinishedGoodGeneratedInvoice";
+import { StockValidationAlert } from "../../components/StockValidationAlert";
 
 type SaleFinishedGoodFormProps = {
   mode: "create" | "edit";
@@ -104,6 +105,33 @@ export function SaleFinishedGoodForm({
   const [invoiceHtml, setInvoiceHtml] = useState<string>("");
   const [invoiceNoPreview, setInvoiceNoPreview] = useState<string>("");
 
+  const [stockAlert, setStockAlert] = useState<{
+    open: boolean;
+    productName: string;
+    requestedQty: number;
+    availableStock: number;
+    lineIndex: number;
+  } | null>(null);
+
+  const validateStockQuantity = (
+    requestedQty: number,
+    availableStock: number,
+    productName: string,
+    lineIndex: number,
+  ): boolean => {
+    if (requestedQty > availableStock) {
+      setStockAlert({
+        open: true,
+        productName,
+        requestedQty,
+        availableStock,
+        lineIndex,
+      });
+      return false;
+    }
+    return true;
+  };
+
   const invalidateCaches = async (saleId?: string) => {
     await Promise.all([
       utils.sale.getFinishedGoodPaginated.invalidate(),
@@ -126,10 +154,8 @@ export function SaleFinishedGoodForm({
       notes: "",
       items: [] as Line[],
     },
-
     // @ts-expect-error tanstack form
     validators: { onSubmit: saleFinishedGoodFormSchema },
-
     onSubmit: async ({ value }) => {
       setActiveAction("submit");
 
@@ -161,6 +187,7 @@ export function SaleFinishedGoodForm({
         toast.success("Berhasil!!", {
           description: "Penjualan barang jadi dibuat (DRAFT).",
         });
+
         await invalidateCaches();
         router.reload();
         setActiveAction(null);
@@ -323,11 +350,6 @@ export function SaleFinishedGoodForm({
     return Number.isFinite(unit) ? unit : 0;
   };
 
-  // =========================
-  // FIX 1: Proper init for edit & create
-  // - set basic fields immediately
-  // - items will be hydrated async in the next effect
-  // =========================
   useEffect(() => {
     if (mode === "edit" && initialData) {
       form.setFieldValue("id", initialData.id);
@@ -351,7 +373,6 @@ export function SaleFinishedGoodForm({
             finishedGoodId: it.finishedGoodId,
             qty,
             unitPrice,
-            // placeholders - will be replaced by hydrate effect
             costPrice: Number((it as any)?.costPrice ?? 0) || 0,
             marginPct: 0,
             lineTotal: qty * unitPrice,
@@ -536,7 +557,46 @@ export function SaleFinishedGoodForm({
         setInvoiceOpen={setInvoiceOpen}
       />
 
-      <SaleFinishedGoodHeader statusConfig={statusConfig} mode={mode} />
+      <StockValidationAlert
+        open={stockAlert?.open ?? false}
+        onOpenChange={(open) => {
+          if (!open) setStockAlert(null);
+        }}
+        productName={stockAlert?.productName ?? ""}
+        requestedQty={stockAlert?.requestedQty ?? 0}
+        availableStock={stockAlert?.availableStock ?? 0}
+        onConfirm={() => {
+          if (stockAlert) {
+            // Auto-adjust the quantity to available stock
+            const lines = form.state.values.items ?? [];
+            const idx = stockAlert.lineIndex;
+            const line = lines[idx];
+
+            if (line) {
+              const unitPriceNum = Math.max(0, toNumber(line.unitPrice));
+              const adjustedQty = stockAlert.availableStock;
+              const nextSubtotal = adjustedQty * unitPriceNum;
+
+              const nextLines = lines.map((it, i) =>
+                i === idx
+                  ? {
+                      ...it,
+                      qty: adjustedQty,
+                      lineTotal: nextSubtotal,
+                    }
+                  : it,
+              );
+
+              form.setFieldValue("items", nextLines);
+            }
+          }
+          setStockAlert(null);
+        }}
+      />
+
+      {statusConfig && (
+        <SaleFinishedGoodHeader statusConfig={statusConfig} mode={mode} />
+      )}
 
       <form
         onSubmit={async (e) => {
@@ -847,51 +907,52 @@ export function SaleFinishedGoodForm({
                                 : "Tambah barang jadi ke cart"}
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent
-                            className="w-[520px] p-0"
-                            align="start"
-                          >
+                          <PopoverContent className="w-130 p-0" align="start">
                             <Command>
                               <CommandInput placeholder="Cari barang..." />
                               <CommandList>
                                 <CommandEmpty>Tidak ada barang.</CommandEmpty>
                                 <CommandGroup>
-                                  {(finishedGoods ?? []).map((fg: any) => {
-                                    const selected = lines.some(
-                                      (i) => i.finishedGoodId === fg.id,
-                                    );
-                                    return (
-                                      <CommandItem
-                                        key={fg.id}
-                                        value={`${fg.name ?? ""} ${fg.productionCode ?? ""} ${fg.batchNumber ?? ""} ${fg.paintGrade?.name ?? ""}`}
-                                        onSelect={() => addFinishedGood(fg.id)}
-                                      >
-                                        <Check
-                                          className={cn(
-                                            "mr-2 h-4 w-4",
-                                            selected
-                                              ? "opacity-100"
-                                              : "opacity-0",
-                                          )}
-                                        />
-                                        <div className="flex-1">
-                                          <div className="font-medium">
-                                            {fg.name}{" "}
-                                            <span className="text-muted-foreground text-xs">
-                                              ({fg.sourceType ?? "-"})
-                                            </span>
+                                  {(finishedGoods ?? [])
+                                    .filter((f) => Number(f.qty) > 0)
+                                    .map((fg: any) => {
+                                      const selected = lines.some(
+                                        (i) => i.finishedGoodId === fg.id,
+                                      );
+                                      return (
+                                        <CommandItem
+                                          key={fg.id}
+                                          value={`${fg.name ?? ""} ${fg.productionCode ?? ""} ${fg.batchNumber ?? ""} ${fg.paintGrade?.name ?? ""}`}
+                                          onSelect={() =>
+                                            addFinishedGood(fg.id)
+                                          }
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4",
+                                              selected
+                                                ? "opacity-100"
+                                                : "opacity-0",
+                                            )}
+                                          />
+                                          <div className="flex-1">
+                                            <div className="font-medium">
+                                              {fg.name}{" "}
+                                              <span className="text-muted-foreground text-xs">
+                                                ({fg.sourceType ?? "-"})
+                                              </span>
+                                            </div>
+                                            <div className="text-muted-foreground text-xs">
+                                              Code: {fg.productionCode} • Batch:{" "}
+                                              {fg.batchNumber} • Grade:{" "}
+                                              {fg.paintGrade?.name ?? "-"} •
+                                              Stock:{" "}
+                                              {Number(fg.qty ?? 0).toFixed(2)}
+                                            </div>
                                           </div>
-                                          <div className="text-muted-foreground text-xs">
-                                            Code: {fg.productionCode} • Batch:{" "}
-                                            {fg.batchNumber} • Grade:{" "}
-                                            {fg.paintGrade?.name ?? "-"} •
-                                            Stock:{" "}
-                                            {Number(fg.qty ?? 0).toFixed(2)}
-                                          </div>
-                                        </div>
-                                      </CommandItem>
-                                    );
-                                  })}
+                                        </CommandItem>
+                                      );
+                                    })}
                                 </CommandGroup>
                               </CommandList>
                             </Command>
@@ -915,10 +976,8 @@ export function SaleFinishedGoodForm({
                                 Number(line.costPrice ?? 0),
                               );
 
-                              // IMPORTANT: selalu hitung subtotal dari qty * unitPrice (bukan dari lineTotal)
                               const subtotal = qtyNum * unitPriceNum;
 
-                              // costTotal dari qty * costPrice
                               const costTotal = qtyNum * cost;
 
                               const profit = subtotal - costTotal;
@@ -1025,24 +1084,41 @@ export function SaleFinishedGoodForm({
                                     <Separator />
 
                                     <div className="grid gap-3 sm:grid-cols-4">
-                                      {/* Qty */}
                                       <div className="space-y-2">
                                         <FieldLabel className="text-xs">
                                           Qty
                                         </FieldLabel>
                                         <Input
+                                          type="number"
                                           inputMode="decimal"
-                                          value={String(line.qty ?? "")}
+                                          min={0}
+                                          value={line.qty ?? ""}
                                           onChange={(e) => {
                                             const nextQty = Math.max(
                                               0,
-                                              toNumber(e.target.value),
+                                              Number(e.target.value || 0),
                                             );
+
+                                            const availableStock = Number(
+                                              line.stock ?? fg?.qty ?? 0,
+                                            );
+
+                                            if (nextQty > availableStock) {
+                                              validateStockQuantity(
+                                                nextQty,
+                                                availableStock,
+                                                line.name ??
+                                                  fg?.name ??
+                                                  "Unknown",
+                                                idx,
+                                              );
+                                              return;
+                                            }
+
                                             const nextSubtotal =
                                               nextQty * unitPriceNum;
                                             updateLine(idx, {
-                                              qty: e.target.value,
-                                              // biar konsisten, simpan lineTotal sebagai subtotal juga
+                                              qty: nextQty,
                                               lineTotal: nextSubtotal,
                                             });
                                           }}
@@ -1050,7 +1126,6 @@ export function SaleFinishedGoodForm({
                                         />
                                       </div>
 
-                                      {/* Margin % */}
                                       <div className="space-y-2">
                                         <FieldLabel className="text-xs">
                                           Margin %
@@ -1063,7 +1138,6 @@ export function SaleFinishedGoodForm({
                                               e.target.value || 0,
                                             );
 
-                                            // Kalau cost 0, jangan “maksa” unitPrice jadi 0
                                             if (!cost) {
                                               updateLine(idx, { marginPct: m });
                                               return;

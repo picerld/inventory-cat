@@ -4,7 +4,7 @@ import { Header } from "~/components/container/Header";
 import { ChartNoAxesCombined, Plus } from "lucide-react";
 import { Button, buttonVariants } from "~/components/ui/button";
 import Link from "next/link";
-import SaleFinishedGoodCardsOngoing from "./components/SaleFinishedGoodCardsOngoing";
+import SaleFinishedGoodListContainer from "./components/SaleFinishedGoodListContainer";
 
 export default function SaleFinishedGoodPage() {
   return (
@@ -33,7 +33,7 @@ export default function SaleFinishedGoodPage() {
         </div>
       </Header>
       
-      <SaleFinishedGoodCardsOngoing />
+      <SaleFinishedGoodListContainer />
     </GuardedLayout>
   );
 }

@@ -1,4 +1,5 @@
 export type SaleStatus = "DRAFT" | "ONGOING" | "FINISHED" | "CANCELED";
+export type StatusFilter = SaleStatus | "ALL";
 
 export type SaleFinishedGoodItem = {
   id: string;
@@ -18,5 +19,6 @@ export type SaleFinishedGoodFull = {
   invoiceNo: string | null;
   notes: string | null;
   status: "DRAFT" | "ONGOING" | "FINISHED" | "CANCELED";
-  items: SaleFinishedGoodItem[]
+  customer: { name: string; phone?: string | null; address?: string | null };
+  items: SaleFinishedGoodItem[];
 };
