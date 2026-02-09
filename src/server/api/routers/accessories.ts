@@ -4,31 +4,87 @@ import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { accessoriesFormSchema } from "~/components/features/accessories/form/accessories";
 
+const emptyToUndefined = z
+  .string()
+  .trim()
+  .transform((v) => (v === "" ? undefined : v))
+  .optional();
+
+const sortItemSchema = z.object({
+  id: z.string(),
+  desc: z.boolean().optional().default(false),
+});
+
 export const accessoriesRouter = createTRPCRouter({
   getPaginated: protectedProcedure
     .input(
       z.object({
         page: z.number().min(1).default(1),
         perPage: z.number().min(1).max(100).default(10),
-        search: z.string().optional().default(""),
+        search: emptyToUndefined,
+        filters: z
+          .object({
+            name: emptyToUndefined,
+            supplierId: z.array(z.string()).optional(),
+          })
+          .optional(),
+        sort: z.array(sortItemSchema).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { page, perPage, search } = input;
+      const { page, perPage, search, filters, sort } = input;
 
       const where: Prisma.PaintAccessoriesWhereInput = {
         ...(search
           ? {
-              name: {
-                contains: search,
-                mode: "insensitive",
-              },
+              OR: [
+                { name: { contains: search, mode: "insensitive" } },
+                {
+                  supplier: { name: { contains: search, mode: "insensitive" } },
+                },
+                { user: { name: { contains: search, mode: "insensitive" } } },
+              ],
             }
+          : {}),
+
+        ...(filters?.name
+          ? { name: { contains: filters.name, mode: "insensitive" } }
+          : {}),
+
+        ...(filters?.supplierId?.length
+          ? { supplierId: { in: filters.supplierId } }
           : {}),
       };
 
+      const ORDERABLE: Record<
+        string,
+        (dir: "asc" | "desc") => Prisma.PaintAccessoriesOrderByWithRelationInput
+      > = {
+        createdAt: (dir) => ({ createdAt: dir }),
+        updatedAt: (dir) => ({ updatedAt: dir }),
+        name: (dir) => ({ name: dir }),
+        qty: (dir) => ({ qty: dir }),
+        supplierPrice: (dir) => ({ supplierPrice: dir }),
+        sellingPrice: (dir) => ({ sellingPrice: dir }),
+        supplier: (dir) => ({ supplier: { name: dir } }),
+        user: (dir) => ({ user: { name: dir } }),
+      };
+
+      const orderBy: Prisma.PaintAccessoriesOrderByWithRelationInput[] =
+        sort?.length
+          ? (sort
+              .map((s) => {
+                const dir: "asc" | "desc" = s.desc ? "desc" : "asc";
+                const fn = ORDERABLE[s.id];
+                return fn ? fn(dir) : null;
+              })
+              .filter(
+                Boolean,
+              ) as Prisma.PaintAccessoriesOrderByWithRelationInput[])
+          : [{ createdAt: "desc" }];
+
       const totalItems = await ctx.db.paintAccessories.count({ where });
-      const lastPage = Math.ceil(totalItems / perPage);
+      const lastPage = Math.max(1, Math.ceil(totalItems / perPage));
 
       const data = await ctx.db.paintAccessories.findMany({
         skip: (page - 1) * perPage,
@@ -38,7 +94,7 @@ export const accessoriesRouter = createTRPCRouter({
           supplier: true,
           user: true,
         },
-        orderBy: { createdAt: "desc" },
+        orderBy,
       });
 
       return {
@@ -156,7 +212,7 @@ export const accessoriesRouter = createTRPCRouter({
     return ctx.db.paintAccessories.findMany({
       include: {
         supplier: true,
-      }
+      },
     });
   }),
 

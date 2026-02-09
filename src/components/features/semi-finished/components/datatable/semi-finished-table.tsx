@@ -1,16 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   type SortingState,
   type VisibilityState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
   useReactTable,
   type ColumnFiltersState,
 } from "@tanstack/react-table";
@@ -51,27 +46,52 @@ import { Button } from "~/components/ui/button";
 import { useSemiFinishedGoods } from "./semi-finished-provider";
 import type { SemiFinishedGood } from "~/types/semi-finished-good";
 
+/**
+ * URL conventions:
+ * - page, pageSize
+ * - search
+ * - name (column filter string)
+ * - userId (comma list)
+ * - sort (multi-sort): "name.asc,createdAt.desc"
+ */
+
+function parseSortParam(sortParam: string | null): SortingState {
+  if (!sortParam) return [];
+  return sortParam
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const [id, dir] = part.split(".");
+      return { id, desc: dir === "desc" };
+    });
+}
+
+function serializeSortParam(sorting: SortingState): string | undefined {
+  if (!sorting.length) return undefined;
+  return sorting.map((s) => `${s.id}.${s.desc ? "desc" : "asc"}`).join(",");
+}
+
 export function SemiFinishedGoodsTable() {
   const { setOpen } = useSemiFinishedGoods();
 
   const [rowSelection, setRowSelection] = useState({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [sorting, setSorting] = useState<SortingState>([]);
 
   const router = useRouter();
   const pathName = usePathname();
   const searchParams = useSearchParams();
 
+  // ---- Parse URL -> search object (typed-ish)
   const searchObj = useMemo<Record<string, unknown>>(() => {
     const entries = Array.from(searchParams?.entries() ?? []).map(([k, v]) => {
-      if (k === "supplierId") {
-        if (v === "" || v === "all") return [k, undefined];
-        return [k, v.split(",")];
-      }
-
       if (k === "userId") {
         if (v === "" || v === "all") return [k, undefined];
-        return [k, v.split(",")];
+        return [k, v.split(",").filter(Boolean)];
+      }
+
+      if (k === "sort") {
+        return [k, v];
       }
 
       const n = Number(v);
@@ -90,7 +110,9 @@ export function SemiFinishedGoodsTable() {
       const nextParams = new URLSearchParams();
 
       Object.entries(next).forEach(([k, v]) => {
-        if (v !== undefined && v !== null) nextParams.set(k, String(v));
+        if (v !== undefined && v !== null && String(v) !== "") {
+          nextParams.set(k, String(v));
+        }
       });
 
       replace
@@ -102,7 +124,9 @@ export function SemiFinishedGoodsTable() {
     if (typeof search === "object" && search !== null) {
       const nextParams = new URLSearchParams();
       Object.entries(search).forEach(([k, v]) => {
-        if (v !== undefined && v !== null) nextParams.set(k, String(v));
+        if (v !== undefined && v !== null && String(v) !== "") {
+          nextParams.set(k, String(v));
+        }
       });
 
       replace
@@ -116,6 +140,7 @@ export function SemiFinishedGoodsTable() {
       : router.push(`${pathName}?${params.toString()}`);
   };
 
+  // ---- URL state (pagination + global + columnFilters)
   const {
     columnFilters,
     onColumnFiltersChange,
@@ -123,6 +148,7 @@ export function SemiFinishedGoodsTable() {
     onPaginationChange,
     ensurePageInRange,
     globalFilter,
+    onGlobalFilterChange,
   } = useTableUrlState({
     search: searchObj,
     navigate,
@@ -134,15 +160,59 @@ export function SemiFinishedGoodsTable() {
     ],
   });
 
+  const [sorting, setSorting] = useState<SortingState>(() => {
+    const raw = searchObj.sort;
+    return typeof raw === "string" ? parseSortParam(raw) : [];
+  });
+
+  useEffect(() => {
+    const raw = searchObj.sort;
+    const next = typeof raw === "string" ? parseSortParam(raw) : [];
+    if (JSON.stringify(next) !== JSON.stringify(sorting)) setSorting(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchObj.sort]);
+
+  const onSortingChange = useCallback(
+    (updater: SortingState | ((prev: SortingState) => SortingState)) => {
+      setSorting((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        const sortParam = serializeSortParam(next);
+
+        navigate({
+          search: (prevSearch) => ({
+            ...prevSearch,
+            page: undefined,
+            sort: sortParam,
+          }),
+        });
+
+        return next;
+      });
+    },
+    [navigate],
+  );
+
   const searchTerm = typeof globalFilter === "string" ? globalFilter : "";
 
   const { data: users } = trpc.user.getAll.useQuery();
+
+  const filterPayload = useMemo(() => {
+    const obj: Record<string, unknown> = {};
+    for (const f of columnFilters) obj[f.id] = f.value;
+
+    return {
+      name: typeof obj.name === "string" ? obj.name : undefined,
+      userId: Array.isArray(obj.userId) ? (obj.userId as string[]) : undefined,
+    };
+  }, [columnFilters]);
 
   const { data, isLoading } = trpc.semiFinishedGood.getPaginated.useQuery(
     {
       page: pagination.pageIndex + 1,
       perPage: pagination.pageSize,
       search: searchTerm,
+      filters: filterPayload,
+      sort: sorting.map((s) => ({ id: s.id, desc: s.desc })),
     },
     {
       refetchOnWindowFocus: false,
@@ -153,7 +223,6 @@ export function SemiFinishedGoodsTable() {
   useEffect(() => {
     if (data) ensurePageInRange(data.meta.lastPage);
   }, [data, ensurePageInRange]);
-
 
   // @ts-expect-error type
   const tableData: SemiFinishedGood[] =
@@ -172,26 +241,25 @@ export function SemiFinishedGoodsTable() {
       rowSelection,
       columnFilters,
       columnVisibility,
+      globalFilter: searchTerm,
     },
     enableRowSelection: true,
     onPaginationChange,
     onColumnFiltersChange,
+    onSortingChange,
+    onGlobalFilterChange,
     onRowSelectionChange: setRowSelection,
-    onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
-    getPaginationRowModel: getPaginationRowModel(),
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
     manualPagination: true,
+    manualFiltering: true,
+    manualSorting: true,
     pageCount: data?.meta.lastPage ?? 1,
+    getCoreRowModel: getCoreRowModel(),
   });
 
   if (isLoading) return <OnLoadItem isLoading={isLoading} />;
 
-  if (!data || tableData.length === 0) {
+  if (!data) {
     return (
       <Empty>
         <EmptyHeader>

@@ -1,24 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   type SortingState,
   type VisibilityState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
   useReactTable,
-  type ColumnFiltersState,
 } from "@tanstack/react-table";
-
 import { cn } from "~/lib/utils";
 import { useTableUrlState } from "~/hooks/use-table-url-state";
 import { trpc } from "~/utils/trpc";
-
 import {
   Table,
   TableBody,
@@ -27,17 +19,13 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-
 import { DataTablePagination } from "~/components/datatable/data-table-pagination";
 import { DataTableToolbar } from "~/components/datatable/data-table-toolbar";
 import { DataTableBulkActions } from "./data-table-bulk-action";
-
 import { rawMaterialsColumns as columns } from "./raw-materials-column";
 import { OnLoadItem } from "~/components/dialog/OnLoadItem";
-
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { NavigateFn } from "~/hooks/use-table-url-state";
-
 import {
   Empty,
   EmptyContent,
@@ -46,19 +34,33 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "~/components/ui/empty";
-
 import { ArrowUpRightIcon, Folder, Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
-
 import { useRawMaterials } from "./raw-materials-provider";
 import type { RawMaterial } from "~/types/raw-material";
+
+function parseSortParam(sortParam: string | null): SortingState {
+  if (!sortParam) return [];
+  return sortParam
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => {
+      const [id, dir] = p.split(".");
+      return { id, desc: dir === "desc" };
+    });
+}
+
+function serializeSortParam(sorting: SortingState): string | undefined {
+  if (!sorting.length) return undefined;
+  return sorting.map((s) => `${s.id}.${s.desc ? "desc" : "asc"}`).join(",");
+}
 
 export function RawMaterialsTable() {
   const { setOpen } = useRawMaterials();
 
   const [rowSelection, setRowSelection] = useState({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [sorting, setSorting] = useState<SortingState>([]);
 
   const router = useRouter();
   const pathName = usePathname();
@@ -66,20 +68,12 @@ export function RawMaterialsTable() {
 
   const searchObj = useMemo<Record<string, unknown>>(() => {
     const entries = Array.from(searchParams?.entries() ?? []).map(([k, v]) => {
-      if (k === "supplierId") {
+      if (k === "supplierId" || k === "userId" || k === "paintGradeId") {
         if (v === "" || v === "all") return [k, undefined];
-        return [k, v.split(",")];
+        return [k, v.split(",").filter(Boolean)];
       }
 
-      if (k === "userId") {
-        if (v === "" || v === "all") return [k, undefined];
-        return [k, v.split(",")];
-      }
-
-      if (k === "paintGradeId") {
-        if (v === "" || v === "all") return [k, undefined];
-        return [k, v.split(",")];
-      }
+      if (k === "sort") return [k, v];
 
       const n = Number(v);
       return [k, !isNaN(n) && String(n) === v ? n : v];
@@ -97,7 +91,9 @@ export function RawMaterialsTable() {
       const nextParams = new URLSearchParams();
 
       Object.entries(next).forEach(([k, v]) => {
-        if (v !== undefined && v !== null) nextParams.set(k, String(v));
+        if (v !== undefined && v !== null && String(v) !== "") {
+          nextParams.set(k, String(v));
+        }
       });
 
       replace
@@ -109,7 +105,9 @@ export function RawMaterialsTable() {
     if (typeof search === "object" && search !== null) {
       const nextParams = new URLSearchParams();
       Object.entries(search).forEach(([k, v]) => {
-        if (v !== undefined && v !== null) nextParams.set(k, String(v));
+        if (v !== undefined && v !== null && String(v) !== "") {
+          nextParams.set(k, String(v));
+        }
       });
 
       replace
@@ -130,6 +128,7 @@ export function RawMaterialsTable() {
     onPaginationChange,
     ensurePageInRange,
     globalFilter,
+    onGlobalFilterChange,
   } = useTableUrlState({
     search: searchObj,
     navigate,
@@ -138,6 +137,7 @@ export function RawMaterialsTable() {
     columnFilters: [
       { columnId: "name", searchKey: "name", type: "string" },
       { columnId: "supplierId", searchKey: "supplierId", type: "array" },
+      // uncomment if you expose these filters in toolbar:
       // { columnId: "userId", searchKey: "userId", type: "array" },
       // { columnId: "paintGradeId", searchKey: "paintGradeId", type: "array" },
     ],
@@ -145,15 +145,62 @@ export function RawMaterialsTable() {
 
   const searchTerm = typeof globalFilter === "string" ? globalFilter : "";
 
+  const [sorting, setSorting] = useState<SortingState>(() => {
+    const raw = searchObj.sort;
+    return typeof raw === "string" ? parseSortParam(raw) : [];
+  });
+
+  useEffect(() => {
+    const raw = searchObj.sort;
+    const next = typeof raw === "string" ? parseSortParam(raw) : [];
+    if (JSON.stringify(next) !== JSON.stringify(sorting)) setSorting(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchObj.sort]);
+
+  const onSortingChange = useCallback(
+    (updater: SortingState | ((prev: SortingState) => SortingState)) => {
+      setSorting((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        navigate({
+          search: (prevSearch) => ({
+            ...prevSearch,
+            page: undefined,
+            sort: serializeSortParam(next),
+          }),
+        });
+        return next;
+      });
+    },
+    [navigate],
+  );
+
   const { data: suppliers } = trpc.supplier.getAll.useQuery();
   const { data: users } = trpc.user.getAll.useQuery();
   const { data: grades } = trpc.paintGrade.getAll.useQuery();
+
+  const filterPayload = useMemo(() => {
+    const obj: Record<string, unknown> = {};
+    for (const f of columnFilters) obj[f.id] = f.value;
+
+    return {
+      name: typeof obj.name === "string" ? obj.name : undefined,
+      supplierId: Array.isArray(obj.supplierId)
+        ? (obj.supplierId as string[])
+        : undefined,
+      userId: Array.isArray(obj.userId) ? (obj.userId as string[]) : undefined,
+      paintGradeId: Array.isArray(obj.paintGradeId)
+        ? (obj.paintGradeId as string[])
+        : undefined,
+    };
+  }, [columnFilters]);
 
   const { data, isLoading } = trpc.rawMaterial.getPaginated.useQuery(
     {
       page: pagination.pageIndex + 1,
       perPage: pagination.pageSize,
       search: searchTerm,
+      filters: filterPayload,
+      sort: sorting.map((s) => ({ id: s.id, desc: s.desc })),
     },
     {
       refetchOnWindowFocus: false,
@@ -186,26 +233,25 @@ export function RawMaterialsTable() {
       rowSelection,
       columnFilters,
       columnVisibility,
+      globalFilter: searchTerm,
     },
     enableRowSelection: true,
     onPaginationChange,
     onColumnFiltersChange,
+    onSortingChange,
+    onGlobalFilterChange,
     onRowSelectionChange: setRowSelection,
-    onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
-    getPaginationRowModel: getPaginationRowModel(),
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
     manualPagination: true,
+    manualFiltering: true,
+    manualSorting: true,
     pageCount: data?.meta.lastPage ?? 1,
+    getCoreRowModel: getCoreRowModel(),
   });
 
   if (isLoading) return <OnLoadItem isLoading={isLoading} />;
 
-  if (!data || tableData.length === 0) {
+  if (!data) {
     return (
       <Empty>
         <EmptyHeader>
@@ -257,23 +303,17 @@ export function RawMaterialsTable() {
               value: supplier.id,
             })),
           },
+
+          // optional:
           // {
           //   columnId: "userId",
           //   title: "Pengguna",
-          //   options: users?.map((user) => ({
-          //     label: user.name,
-          //     value: user.id,
-          //     icon: UserCheck,
-          //   })),
+          //   options: users?.map((user) => ({ label: user.name, value: user.id })),
           // },
           // {
           //   columnId: "paintGradeId",
           //   title: "Grade",
-          //   options: grades?.map((grade) => ({
-          //     label: grade.name,
-          //     value: grade.id,
-          //     icon: CircleStar,
-          //   })),
+          //   options: grades?.map((grade) => ({ label: grade.name, value: grade.id })),
           // },
         ]}
       />

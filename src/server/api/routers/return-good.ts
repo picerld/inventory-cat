@@ -5,44 +5,91 @@ import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { returnedGoodFormSchema } from "~/components/features/return/form/returned-good";
 import { toNumber } from "~/lib/utils";
 
+const emptyToUndefined = z
+  .string()
+  .trim()
+  .transform((v) => (v === "" ? undefined : v))
+  .optional();
+
+const sortItemSchema = z.object({
+  id: z.string(),
+  desc: z.boolean().optional().default(false),
+});
+
 export const returnGoodRouter = createTRPCRouter({
   getPaginated: protectedProcedure
     .input(
       z.object({
         page: z.number().min(1).default(1),
         perPage: z.number().min(1).max(100).default(10),
-        search: z.string().optional().default(""),
+        search: emptyToUndefined,
+        filters: z
+          .object({
+            finishedGoodId: emptyToUndefined,
+            from: emptyToUndefined,
+          })
+          .optional(),
+        sort: z.array(sortItemSchema).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { page, perPage, search } = input;
+      const { page, perPage, search, filters, sort } = input;
 
-      const where: Prisma.ReturnedItemWhereInput = search
-        ? {
-            OR: [
-              { from: { contains: search, mode: "insensitive" } },
-              { description: { contains: search, mode: "insensitive" } },
-              {
-                finishedGood: {
-                  name: { contains: search, mode: "insensitive" },
+      const where: Prisma.ReturnedItemWhereInput = {
+        ...(search
+          ? {
+              OR: [
+                { from: { contains: search, mode: "insensitive" } },
+                { description: { contains: search, mode: "insensitive" } },
+                {
+                  finishedGood: {
+                    name: { contains: search, mode: "insensitive" },
+                  },
                 },
-              },
-            ],
-          }
-        : {};
+              ],
+            }
+          : {}),
+
+        ...(filters?.finishedGoodId
+          ? { finishedGoodId: filters.finishedGoodId }
+          : {}),
+        ...(filters?.from
+          ? { from: { contains: filters.from, mode: "insensitive" } }
+          : {}),
+      };
+
+      const ORDERABLE: Record<
+        string,
+        (dir: "asc" | "desc") => Prisma.ReturnedItemOrderByWithRelationInput
+      > = {
+        createdAt: (dir) => ({ createdAt: dir }),
+        updatedAt: (dir) => ({ updatedAt: dir }),
+        from: (dir) => ({ from: dir }),
+        qty: (dir) => ({ qty: dir }),
+        finishedGood: (dir) => ({ finishedGood: { name: dir } }),
+        user: (dir) => ({ user: { name: dir } }),
+      };
+
+      const orderBy: Prisma.ReturnedItemOrderByWithRelationInput[] =
+        sort?.length
+          ? (sort
+              .map((s) => {
+                const dir: "asc" | "desc" = s.desc ? "desc" : "asc";
+                const fn = ORDERABLE[s.id];
+                return fn ? fn(dir) : null;
+              })
+              .filter(Boolean) as Prisma.ReturnedItemOrderByWithRelationInput[])
+          : [{ createdAt: "desc" }];
 
       const totalItems = await ctx.db.returnedItem.count({ where });
-      const lastPage = Math.ceil(totalItems / perPage);
+      const lastPage = Math.max(1, Math.ceil(totalItems / perPage));
 
       const data = await ctx.db.returnedItem.findMany({
         skip: (page - 1) * perPage,
         take: perPage,
         where,
-        include: {
-          user: true,
-          finishedGood: true,
-        },
-        orderBy: { createdAt: "desc" },
+        include: { user: true, finishedGood: true },
+        orderBy,
       });
 
       return {

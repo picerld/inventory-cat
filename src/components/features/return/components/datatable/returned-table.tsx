@@ -1,16 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   type SortingState,
   type VisibilityState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
   useReactTable,
 } from "@tanstack/react-table";
 
@@ -26,14 +21,16 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+
 import { DataTablePagination } from "~/components/datatable/data-table-pagination";
-import { DataTableToolbar } from "~/components/datatable/data-table-toolbar";
+import { DataTableToolbar } from "~/components/datatable/data-table-toolbar"; // <-- pakai versi fixed di atas
 import { DataTableBulkActions } from "./data-table-bulk-action";
 import { returnGoodsColumns as columns } from "./returned-column";
 import { OnLoadItem } from "~/components/dialog/OnLoadItem";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { NavigateFn } from "~/hooks/use-table-url-state";
+
 import {
   Empty,
   EmptyContent,
@@ -42,17 +39,33 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "~/components/ui/empty";
+
 import { ArrowUpRightIcon, Folder, Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { useReturnedGoods } from "./returned-provider";
 import type { ReturnGood } from "~/types/return-good";
+
+function parseSortParam(sortParam: string | null): SortingState {
+  if (!sortParam) return [];
+  return sortParam
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => {
+      const [id, dir] = p.split(".");
+      return { id, desc: dir === "desc" };
+    });
+}
+function serializeSortParam(sorting: SortingState): string | undefined {
+  if (!sorting.length) return undefined;
+  return sorting.map((s) => `${s.id}.${s.desc ? "desc" : "asc"}`).join(",");
+}
 
 export function ReturnedGoodsTable() {
   const { setOpen } = useReturnedGoods();
 
   const [rowSelection, setRowSelection] = useState({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [sorting, setSorting] = useState<SortingState>([]);
 
   const router = useRouter();
   const pathName = usePathname();
@@ -60,6 +73,8 @@ export function ReturnedGoodsTable() {
 
   const searchObj = useMemo<Record<string, unknown>>(() => {
     const entries = Array.from(searchParams?.entries() ?? []).map(([k, v]) => {
+      if (k === "sort") return [k, v];
+
       const n = Number(v);
       return [k, !isNaN(n) && String(n) === v ? n : v];
     });
@@ -69,11 +84,7 @@ export function ReturnedGoodsTable() {
   const navigate: NavigateFn = ({ search, replace }) => {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
 
-    const applyNavigate = (nextParams: URLSearchParams) => {
-      if (nextParams.toString() === params.toString()) {
-        return;
-      }
-
+    const go = (nextParams: URLSearchParams) => {
       replace
         ? router.replace(`${pathName}?${nextParams.toString()}`)
         : router.push(`${pathName}?${nextParams.toString()}`);
@@ -82,25 +93,29 @@ export function ReturnedGoodsTable() {
     if (typeof search === "function") {
       const prev = Object.fromEntries(params.entries());
       const next = search(prev);
-
       const nextParams = new URLSearchParams();
+
       Object.entries(next).forEach(([k, v]) => {
-        if (v !== undefined && v !== null) nextParams.set(k, String(v));
+        if (v !== undefined && v !== null && String(v) !== "") {
+          nextParams.set(k, String(v));
+        }
       });
 
-      return applyNavigate(nextParams);
+      return go(nextParams);
     }
 
     if (typeof search === "object" && search !== null) {
       const nextParams = new URLSearchParams();
       Object.entries(search).forEach(([k, v]) => {
-        if (v !== undefined && v !== null) nextParams.set(k, String(v));
+        if (v !== undefined && v !== null && String(v) !== "") {
+          nextParams.set(k, String(v));
+        }
       });
 
-      return applyNavigate(nextParams);
+      return go(nextParams);
     }
 
-    return applyNavigate(params);
+    return go(params);
   };
 
   const {
@@ -110,21 +125,69 @@ export function ReturnedGoodsTable() {
     onPaginationChange,
     ensurePageInRange,
     globalFilter,
+    onGlobalFilterChange,
   } = useTableUrlState({
     search: searchObj,
     navigate,
     pagination: { defaultPage: 1, defaultPageSize: 5 },
     globalFilter: { enabled: true, key: "search", trim: true },
-    columnFilters: [{ columnId: "finishedGoodId", searchKey: "finishedGoodId", type: "string" }],
+    columnFilters: [
+      {
+        columnId: "finishedGoodId",
+        searchKey: "finishedGoodId",
+        type: "string",
+      },
+    ],
   });
 
   const searchTerm = typeof globalFilter === "string" ? globalFilter : "";
+
+  const [sorting, setSorting] = useState<SortingState>(() => {
+    const raw = searchObj.sort;
+    return typeof raw === "string" ? parseSortParam(raw) : [];
+  });
+
+  useEffect(() => {
+    const raw = searchObj.sort;
+    const next = typeof raw === "string" ? parseSortParam(raw) : [];
+    if (JSON.stringify(next) !== JSON.stringify(sorting)) setSorting(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchObj.sort]);
+
+  const onSortingChange = useCallback(
+    (updater: SortingState | ((prev: SortingState) => SortingState)) => {
+      setSorting((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        navigate({
+          search: (prevSearch) => ({
+            ...prevSearch,
+            page: undefined,
+            sort: serializeSortParam(next),
+          }),
+        });
+        return next;
+      });
+    },
+    [navigate],
+  );
+
+  const filterPayload = useMemo(() => {
+    const obj: Record<string, unknown> = {};
+    for (const f of columnFilters) obj[f.id] = f.value;
+
+    return {
+      finishedGoodId:
+        typeof obj.finishedGoodId === "string" ? obj.finishedGoodId : undefined,
+    };
+  }, [columnFilters]);
 
   const { data, isLoading } = trpc.returnGood.getPaginated.useQuery(
     {
       page: pagination.pageIndex + 1,
       perPage: pagination.pageSize,
       search: searchTerm,
+      filters: filterPayload,
+      sort: sorting.map((s) => ({ id: s.id, desc: s.desc })),
     },
     {
       refetchOnWindowFocus: false,
@@ -136,7 +199,6 @@ export function ReturnedGoodsTable() {
     if (data) ensurePageInRange(data.meta.lastPage);
   }, [data, ensurePageInRange]);
 
-  // @ts-expect-error type
   const tableData: ReturnGood[] =
     data?.data.map((item) => ({
       ...item,
@@ -154,26 +216,25 @@ export function ReturnedGoodsTable() {
       rowSelection,
       columnFilters,
       columnVisibility,
+      globalFilter: searchTerm,
     },
     enableRowSelection: true,
     onPaginationChange,
     onColumnFiltersChange,
+    onSortingChange,
+    onGlobalFilterChange,
     onRowSelectionChange: setRowSelection,
-    onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
-    getPaginationRowModel: getPaginationRowModel(),
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
     manualPagination: true,
+    manualFiltering: true,
+    manualSorting: true,
     pageCount: data?.meta.lastPage ?? 1,
+    getCoreRowModel: getCoreRowModel(),
   });
 
   if (isLoading) return <OnLoadItem isLoading={isLoading} />;
 
-  if (!data || tableData.length === 0) {
+  if (!data) {
     return (
       <Empty>
         <EmptyHeader>
@@ -182,8 +243,8 @@ export function ReturnedGoodsTable() {
           </EmptyMedia>
           <EmptyTitle>Belum Ada Barang Retur</EmptyTitle>
           <EmptyDescription>
-            Belum ada barang yang diretur. Silakan tambahkan supplier
-            terlebih dahulu.
+            Belum ada barang yang diretur. Silakan catat barang retur terlebih
+            dahulu.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
@@ -212,8 +273,7 @@ export function ReturnedGoodsTable() {
     <div className={cn("flex flex-1 flex-col gap-4")}>
       <DataTableToolbar
         table={table}
-        searchKey="finishedGoodId"
-        searchPlaceholder="Cari barang..."
+        searchPlaceholder="Cari nama barang..."
       />
 
       <Button onClick={() => setOpen("add")} size="lg">
@@ -283,10 +343,7 @@ export function ReturnedGoodsTable() {
           })
         }
         onPerPageChange={(perPage) =>
-          onPaginationChange({
-            pageIndex: 0,
-            pageSize: perPage,
-          })
+          onPaginationChange({ pageIndex: 0, pageSize: perPage })
         }
       />
 

@@ -314,8 +314,8 @@ export const saleRouter = createTRPCRouter({
   getFinishedGoodPaginated: protectedProcedure
     .input(
       z.object({
-        page: z.number().min(1).default(1),
-        perPage: z.number().min(1).max(50).default(10),
+        page: z.coerce.number().min(1).default(1),
+        perPage: z.coerce.number().min(1).max(50).default(10),
         search: z.string().optional().default(""),
         status: saleStatusEnum.optional(),
         customerId: z.string().optional(),

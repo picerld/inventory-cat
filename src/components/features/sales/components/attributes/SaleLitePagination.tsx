@@ -1,10 +1,16 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "~/components/ui/button";
 
+type Meta = {
+  currentPage: number;
+  lastPage: number;
+  perPage: number;
+  totalItems: number;
+};
+
 type SaleLitePaginationProps = {
-  meta: { page: number; perPage: number; total: number; totalPages: number };
+  meta: Meta;
   page: number;
-  totalPages: number;
   isFetching: boolean;
   setPage: (p: number) => void;
 };
@@ -12,10 +18,11 @@ type SaleLitePaginationProps = {
 export const SaleLitePagination = ({
   meta,
   page,
-  totalPages,
   setPage,
   isFetching,
 }: SaleLitePaginationProps) => {
+  const totalPages = meta.lastPage;
+
   return (
     <div className="bg-card flex items-center justify-between rounded-2xl border p-4">
       <div className="text-muted-foreground text-sm">
@@ -23,7 +30,7 @@ export const SaleLitePagination = ({
         dari <span className="text-foreground font-semibold">{totalPages}</span>{" "}
         • Total{" "}
         <span className="text-foreground font-semibold">
-          {meta?.total ?? 0}
+          {meta.totalItems ?? 0}
         </span>{" "}
         data
       </div>
@@ -37,6 +44,7 @@ export const SaleLitePagination = ({
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
+
         <Button
           variant="outline"
           size="sm"

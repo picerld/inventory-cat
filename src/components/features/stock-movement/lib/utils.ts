@@ -1,5 +1,9 @@
 import { Package, TrendingDown, TrendingUp } from "lucide-react";
-import type { ItemType, StockMovementRow, StockMovementType } from "~/types/stock-movement";
+import type {
+  ItemType,
+  StockMovementRow,
+  StockMovementType,
+} from "~/types/stock-movement";
 
 export const toNumber = (v: unknown) => {
   const n = Number(v as any);
@@ -25,90 +29,83 @@ export const itemTypeLabel = (t: ItemType) => {
   }
 };
 
-export const movementTypeLabel = (t: StockMovementType) => {
-  switch (t) {
-    case "PURCHASE_IN":
-      return "Pembelian Masuk";
-    case "SALE_OUT":
-      return "Penjualan Keluar";
-    case "PRODUCTION_IN":
-      return "Produksi Masuk";
-    case "PRODUCTION_OUT":
-      return "Produksi Keluar";
-    case "RETURN_IN":
-      return "Retur Masuk";
-    case "ADJUSTMENT":
-      return "Penyesuaian";
+const MOVEMENT_META: Record<
+  StockMovementType,
+  {
+    label: string;
+    badgeClass: string;
+    topBorderClass: string;
+    icon: typeof TrendingUp;
+    sign: "" | "+" | "-";
   }
+> = {
+  PURCHASE_IN: {
+    label: "Pembelian Masuk",
+    badgeClass: "bg-emerald-500 text-white",
+    topBorderClass: "border-t-emerald-500",
+    icon: TrendingUp,
+    sign: "+",
+  },
+  SALE_OUT: {
+    label: "Penjualan Keluar",
+    badgeClass: "bg-rose-500 text-white",
+    topBorderClass: "border-t-rose-500",
+    icon: TrendingDown,
+    sign: "-",
+  },
+  PRODUCTION_IN: {
+    label: "Produksi Masuk",
+    badgeClass: "bg-blue-500 text-white",
+    topBorderClass: "border-t-blue-500",
+    icon: TrendingUp,
+    sign: "+",
+  },
+  PRODUCTION_OUT: {
+    label: "Produksi Keluar",
+    badgeClass: "bg-orange-500 text-white",
+    topBorderClass: "border-t-orange-500",
+    icon: TrendingDown,
+    sign: "-",
+  },
+  RETURN_IN: {
+    label: "Retur Masuk",
+    badgeClass: "bg-purple-500 text-white",
+    topBorderClass: "border-t-purple-500",
+    icon: TrendingUp,
+    sign: "+",
+  },
+  ADJUSTMENT: {
+    label: "Penyesuaian",
+    badgeClass: "bg-muted text-foreground",
+    topBorderClass: "border-t-zinc-500",
+    icon: Package,
+    sign: "",
+  },
 };
+
+export const movementTypeLabel = (t: StockMovementType) =>
+  MOVEMENT_META[t].label;
 
 export function badgeClassByType(t: StockMovementType) {
-  switch (t) {
-    case "PURCHASE_IN":
-    case "PRODUCTION_IN":
-    case "RETURN_IN":
-      return "bg-emerald-500 text-white";
-    case "SALE_OUT":
-    case "PRODUCTION_OUT":
-      return "bg-rose-500 text-white";
-    case "ADJUSTMENT":
-      return "bg-muted text-foreground";
-  }
+  return MOVEMENT_META[t].badgeClass;
 }
 
-export function topBorderByType(type: string) {
-  switch (type) {
-    case "PURCHASE_IN":
-      return "border-t-emerald-500";
-    case "SALE_OUT":
-      return "border-t-rose-500";
-    case "PRODUCTION_IN":
-      return "border-t-blue-500";
-    case "PRODUCTION_OUT":
-      return "border-t-orange-500";
-    case "RETURN_IN":
-      return "border-t-purple-500";
-    case "ADJUSTMENT":
-      return "border-t-zinc-500";
-    default:
-      return "border-t-border";
-  }
+export function topBorderByType(t: StockMovementType) {
+  return MOVEMENT_META[t].topBorderClass;
 }
 
-export const movementTypeBadge = (t: StockMovementType) => {
-  switch (t) {
-    case "PURCHASE_IN":
-      return {
-        label: "Pembelian Masuk",
-        className: "bg-emerald-500 text-white",
-      };
-    case "SALE_OUT":
-      return {
-        label: "Penjualan Keluar",
-        className: "bg-rose-500 text-white",
-      };
-    case "PRODUCTION_IN":
-      return {
-        label: "Produksi Masuk",
-        className: "bg-blue-500 text-white",
-      };
-    case "PRODUCTION_OUT":
-      return {
-        label: "Produksi Keluar",
-        className: "bg-orange-500 text-white",
-      };
-    case "RETURN_IN":
-      return {
-        label: "Retur Masuk",
-        className: "bg-purple-500 text-white",
-      };
-    case "ADJUSTMENT":
-      return {
-        label: "Penyesuaian",
-        className: "bg-muted text-foreground",
-      };
-  }
-};
+export function getMovementIcon(t: StockMovementType) {
+  return MOVEMENT_META[t].icon;
+}
+
+export function qtySign(t: StockMovementType) {
+  return MOVEMENT_META[t].sign;
+}
+
+export const movementTypeBadge = (t: StockMovementType) => ({
+  label: MOVEMENT_META[t].label,
+  className: MOVEMENT_META[t].badgeClass,
+});
 
 export const getRefLabel = (m: StockMovementRow) => {
   if (m.refPurchase) return `PO: ${m.refPurchase.purchaseNo}`;
@@ -119,15 +116,3 @@ export const getRefLabel = (m: StockMovementRow) => {
     return `FG: ${m.refFinishedGood.productionCode} • ${m.refFinishedGood.name}`;
   return "-";
 };
-
-export function qtySign(type: string) {
-  if (type.endsWith("_OUT")) return "-";
-  if (type.endsWith("_IN")) return "+";
-  return "";
-}
-
-export function getMovementIcon(type: string) {
-  if (type.endsWith("_IN")) return TrendingUp;
-  if (type.endsWith("_OUT")) return TrendingDown;
-  return Package;
-}

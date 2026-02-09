@@ -11,37 +11,47 @@ import { SaleNotFound } from "../../components/attributes/SaleNotFound";
 import { SaleLitePagination } from "../../components/attributes/SaleLitePagination";
 import { SaleFinishedGoodCard } from "./SaleFinishedGoodCard";
 
+function safeInt(v: unknown, fallback: number) {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
 export default function SaleFinishedGoodListContainer() {
   const [page, setPage] = React.useState<number>(1);
   const [search, setSearch] = React.useState<string>("");
   const [status, setStatus] = React.useState<StatusFilter>("ALL");
+  const [customerId, setCustomerId] = React.useState<string | undefined>(
+    undefined,
+  );
 
   const debouncedSearch = useDebounce(search, 350);
 
   React.useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, status]);
+  }, [debouncedSearch, status, customerId]);
 
-  const queryInput = React.useMemo(
-    () => ({
-      page,
+  const queryInput = React.useMemo(() => {
+    const s = debouncedSearch.trim();
+
+    return {
+      page: safeInt(page, 1),
       perPage: 6,
-      search: debouncedSearch,
+      search: s.length ? s : "",
       ...(status !== "ALL" ? { status } : {}),
-    }),
-    [page, debouncedSearch, status],
-  );
+      ...(customerId ? { customerId } : {}),
+    };
+  }, [page, debouncedSearch, status, customerId]);
 
-  const query = trpc.sale.getFinishedGoodPaginated.useQuery(queryInput, {
-    placeholderData: (prev) => prev,
-    staleTime: 10_000,
-  });
-
-  const { data, isLoading, isFetching, isError } = query;
+  const { data, isLoading, isFetching, isError, error } =
+    trpc.sale.getFinishedGoodPaginated.useQuery(queryInput, {
+      placeholderData: (prev) => prev,
+      staleTime: 10_000,
+    });
 
   const resetFilter = () => {
     setSearch("");
     setStatus("ALL");
+    setCustomerId(undefined);
     setPage(1);
   };
 
@@ -54,15 +64,13 @@ export default function SaleFinishedGoodListContainer() {
   return (
     <div className="my-6 space-y-4">
       <div className="bg-card rounded-2xl border p-4 shadow-sm">
-        <div className="flex flex-col gap-3">
-          <SaleFilter
-            search={search}
-            status={status}
-            setSearch={setSearch}
-            setStatus={setStatus}
-            resetFilter={resetFilter}
-          />
-        </div>
+        <SaleFilter
+          search={search}
+          status={status}
+          setSearch={setSearch}
+          setStatus={setStatus}
+          resetFilter={resetFilter}
+        />
       </div>
 
       {showInitialSkeleton ? (
@@ -73,7 +81,10 @@ export default function SaleFinishedGoodListContainer() {
         </div>
       ) : isError ? (
         <div className="rounded-2xl border p-4 text-sm text-red-600">
-          Gagal memuat data. Coba lagi.
+          <div className="font-medium">Gagal memuat data.</div>
+          <div className="mt-1 text-xs opacity-80">
+            {error?.message ?? "Bad Request"}
+          </div>
         </div>
       ) : !rows.length ? (
         <SaleNotFound resetFilter={resetFilter} />
@@ -93,6 +104,7 @@ export default function SaleFinishedGoodListContainer() {
                   (acc: number, it: any) => acc + toNumber(it.qty),
                   0,
                 );
+
                 const revenue = items.reduce(
                   (acc: number, it: any) =>
                     acc + toNumber(it.qty) * toNumber(it.unitPrice),
@@ -128,7 +140,7 @@ export default function SaleFinishedGoodListContainer() {
             <SaleLitePagination
               meta={meta}
               page={page}
-              setPage={setPage}
+              setPage={(p) => setPage(safeInt(p, 1))}
               isFetching={isFetching}
             />
           )}

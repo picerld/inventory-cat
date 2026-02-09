@@ -1,24 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   type SortingState,
   type VisibilityState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
   useReactTable,
-  type ColumnFiltersState,
 } from "@tanstack/react-table";
-
 import { cn } from "~/lib/utils";
 import { useTableUrlState } from "~/hooks/use-table-url-state";
 import { trpc } from "~/utils/trpc";
-
 import {
   Table,
   TableBody,
@@ -27,17 +19,13 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-
 import { DataTablePagination } from "~/components/datatable/data-table-pagination";
 import { DataTableToolbar } from "~/components/datatable/data-table-toolbar";
 import { DataTableBulkActions } from "./data-table-bulk-action";
-
 import { accessoriesColumns as columns } from "./accessories-column";
 import { OnLoadItem } from "~/components/dialog/OnLoadItem";
-
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { NavigateFn } from "~/hooks/use-table-url-state";
-
 import {
   Empty,
   EmptyContent,
@@ -46,18 +34,32 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "~/components/ui/empty";
-
-import { ArrowUpRightIcon, CircleStar, Folder, Plus, UserCheck } from "lucide-react";
+import { ArrowUpRightIcon, Folder, Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { useAccessoriess } from "./accessories-provider";
 import type { PainAccessories } from "~/types/paint-accessories";
+
+function parseSortParam(sortParam: string | null): SortingState {
+  if (!sortParam) return [];
+  return sortParam
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => {
+      const [id, dir] = p.split(".");
+      return { id, desc: dir === "desc" };
+    });
+}
+function serializeSortParam(sorting: SortingState): string | undefined {
+  if (!sorting.length) return undefined;
+  return sorting.map((s) => `${s.id}.${s.desc ? "desc" : "asc"}`).join(",");
+}
 
 export function AccessoriesTable() {
   const { setOpen } = useAccessoriess();
 
   const [rowSelection, setRowSelection] = useState({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [sorting, setSorting] = useState<SortingState>([]);
 
   const router = useRouter();
   const pathName = usePathname();
@@ -67,18 +69,10 @@ export function AccessoriesTable() {
     const entries = Array.from(searchParams?.entries() ?? []).map(([k, v]) => {
       if (k === "supplierId") {
         if (v === "" || v === "all") return [k, undefined];
-        return [k, v.split(",")];
+        return [k, v.split(",").filter(Boolean)];
       }
 
-      if (k === "userId") {
-        if (v === "" || v === "all") return [k, undefined];
-        return [k, v.split(",")];
-      }
-
-      if (k === "paintGradeId") {
-        if (v === "" || v === "all") return [k, undefined];
-        return [k, v.split(",")];
-      }
+      if (k === "sort") return [k, v];
 
       const n = Number(v);
       return [k, !isNaN(n) && String(n) === v ? n : v];
@@ -90,36 +84,38 @@ export function AccessoriesTable() {
   const navigate: NavigateFn = ({ search, replace }) => {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
 
+    const go = (nextParams: URLSearchParams) => {
+      replace
+        ? router.replace(`${pathName}?${nextParams.toString()}`)
+        : router.push(`${pathName}?${nextParams.toString()}`);
+    };
+
     if (typeof search === "function") {
       const prev = Object.fromEntries(params.entries());
       const next = search(prev);
       const nextParams = new URLSearchParams();
 
       Object.entries(next).forEach(([k, v]) => {
-        if (v !== undefined && v !== null) nextParams.set(k, String(v));
+        if (v !== undefined && v !== null && String(v) !== "") {
+          nextParams.set(k, String(v));
+        }
       });
 
-      replace
-        ? router.replace(`${pathName}?${nextParams.toString()}`)
-        : router.push(`${pathName}?${nextParams.toString()}`);
-      return;
+      return go(nextParams);
     }
 
     if (typeof search === "object" && search !== null) {
       const nextParams = new URLSearchParams();
       Object.entries(search).forEach(([k, v]) => {
-        if (v !== undefined && v !== null) nextParams.set(k, String(v));
+        if (v !== undefined && v !== null && String(v) !== "") {
+          nextParams.set(k, String(v));
+        }
       });
 
-      replace
-        ? router.replace(`${pathName}?${nextParams.toString()}`)
-        : router.push(`${pathName}?${nextParams.toString()}`);
-      return;
+      return go(nextParams);
     }
 
-    replace
-      ? router.replace(`${pathName}?${params.toString()}`)
-      : router.push(`${pathName}?${params.toString()}`);
+    return go(params);
   };
 
   const {
@@ -129,6 +125,7 @@ export function AccessoriesTable() {
     onPaginationChange,
     ensurePageInRange,
     globalFilter,
+    onGlobalFilterChange,
   } = useTableUrlState({
     search: searchObj,
     navigate,
@@ -143,13 +140,55 @@ export function AccessoriesTable() {
   const searchTerm = typeof globalFilter === "string" ? globalFilter : "";
 
   const { data: suppliers } = trpc.supplier.getAll.useQuery();
-  const { data: users } = trpc.user.getAll.useQuery();
+
+  const [sorting, setSorting] = useState<SortingState>(() => {
+    const raw = searchObj.sort;
+    return typeof raw === "string" ? parseSortParam(raw) : [];
+  });
+
+  useEffect(() => {
+    const raw = searchObj.sort;
+    const next = typeof raw === "string" ? parseSortParam(raw) : [];
+    if (JSON.stringify(next) !== JSON.stringify(sorting)) setSorting(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchObj.sort]);
+
+  const onSortingChange = useCallback(
+    (updater: SortingState | ((prev: SortingState) => SortingState)) => {
+      setSorting((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        navigate({
+          search: (prevSearch) => ({
+            ...prevSearch,
+            page: undefined,
+            sort: serializeSortParam(next),
+          }),
+        });
+        return next;
+      });
+    },
+    [navigate],
+  );
+
+  const filterPayload = useMemo(() => {
+    const obj: Record<string, unknown> = {};
+    for (const f of columnFilters) obj[f.id] = f.value;
+
+    return {
+      name: typeof obj.name === "string" ? obj.name : undefined,
+      supplierId: Array.isArray(obj.supplierId)
+        ? (obj.supplierId as string[])
+        : undefined,
+    };
+  }, [columnFilters]);
 
   const { data, isLoading } = trpc.accessories.getPaginated.useQuery(
     {
       page: pagination.pageIndex + 1,
       perPage: pagination.pageSize,
       search: searchTerm,
+      filters: filterPayload,
+      sort: sorting.map((s) => ({ id: s.id, desc: s.desc })),
     },
     {
       refetchOnWindowFocus: false,
@@ -181,26 +220,45 @@ export function AccessoriesTable() {
       rowSelection,
       columnFilters,
       columnVisibility,
+      globalFilter: searchTerm,
     },
     enableRowSelection: true,
     onPaginationChange,
     onColumnFiltersChange,
+    onSortingChange,
+    onGlobalFilterChange,
     onRowSelectionChange: setRowSelection,
-    onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
-    getPaginationRowModel: getPaginationRowModel(),
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
+
+    // ✅ server-side
     manualPagination: true,
+    manualFiltering: true,
+    manualSorting: true,
+
     pageCount: data?.meta.lastPage ?? 1,
+    getCoreRowModel: getCoreRowModel(),
   });
 
   if (isLoading) return <OnLoadItem isLoading={isLoading} />;
 
-  if (!data || tableData.length === 0) {
+  if (!data) {
+    // fallback aman
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Folder />
+          </EmptyMedia>
+          <EmptyTitle>Belum Ada Aksesoris</EmptyTitle>
+          <EmptyDescription>
+            Belum ada aksesoris yang terdata. Silakan tambahkan aksesoris terlebih dahulu.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
+  }
+
+  if (!data) {
     return (
       <Empty>
         <EmptyHeader>
@@ -222,12 +280,7 @@ export function AccessoriesTable() {
           </div>
         </EmptyContent>
 
-        <Button
-          variant="link"
-          asChild
-          className="text-muted-foreground"
-          size="sm"
-        >
+        <Button variant="link" asChild className="text-muted-foreground" size="sm">
           <a href="#">
             Learn More <ArrowUpRightIcon />
           </a>
@@ -269,10 +322,7 @@ export function AccessoriesTable() {
                   <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                      : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
               </TableRow>
@@ -282,26 +332,17 @@ export function AccessoriesTable() {
           <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
+                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
+                <TableCell colSpan={columns.length} className="h-24 text-center">
                   No results.
                 </TableCell>
               </TableRow>

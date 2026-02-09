@@ -1,16 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   type SortingState,
   type VisibilityState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
   useReactTable,
 } from "@tanstack/react-table";
 
@@ -47,12 +42,28 @@ import { Button } from "~/components/ui/button";
 import { useGrades } from "./grade-provider";
 import type { PaintGrade } from "~/types/pain-grade";
 
+function parseSortParam(sortParam: string | null): SortingState {
+  if (!sortParam) return [];
+  return sortParam
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => {
+      const [id, dir] = p.split(".");
+      return { id, desc: dir === "desc" };
+    });
+}
+
+function serializeSortParam(sorting: SortingState): string | undefined {
+  if (!sorting.length) return undefined;
+  return sorting.map((s) => `${s.id}.${s.desc ? "desc" : "asc"}`).join(",");
+}
+
 export function GradesTable() {
   const { setOpen } = useGrades();
 
   const [rowSelection, setRowSelection] = useState({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [sorting, setSorting] = useState<SortingState>([]);
 
   const router = useRouter();
   const pathName = usePathname();
@@ -60,6 +71,7 @@ export function GradesTable() {
 
   const searchObj = useMemo<Record<string, unknown>>(() => {
     const entries = Array.from(searchParams?.entries() ?? []).map(([k, v]) => {
+      if (k === "sort") return [k, v];
       const n = Number(v);
       return [k, !isNaN(n) && String(n) === v ? n : v];
     });
@@ -70,9 +82,7 @@ export function GradesTable() {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
 
     const applyNavigate = (nextParams: URLSearchParams) => {
-      if (nextParams.toString() === params.toString()) {
-        return;
-      }
+      if (nextParams.toString() === params.toString()) return;
 
       replace
         ? router.replace(`${pathName}?${nextParams.toString()}`)
@@ -85,7 +95,9 @@ export function GradesTable() {
 
       const nextParams = new URLSearchParams();
       Object.entries(next).forEach(([k, v]) => {
-        if (v !== undefined && v !== null) nextParams.set(k, String(v));
+        if (v !== undefined && v !== null && String(v) !== "") {
+          nextParams.set(k, String(v));
+        }
       });
 
       return applyNavigate(nextParams);
@@ -94,7 +106,9 @@ export function GradesTable() {
     if (typeof search === "object" && search !== null) {
       const nextParams = new URLSearchParams();
       Object.entries(search).forEach(([k, v]) => {
-        if (v !== undefined && v !== null) nextParams.set(k, String(v));
+        if (v !== undefined && v !== null && String(v) !== "") {
+          nextParams.set(k, String(v));
+        }
       });
 
       return applyNavigate(nextParams);
@@ -110,6 +124,7 @@ export function GradesTable() {
     onPaginationChange,
     ensurePageInRange,
     globalFilter,
+    onGlobalFilterChange,
   } = useTableUrlState({
     search: searchObj,
     navigate,
@@ -120,11 +135,53 @@ export function GradesTable() {
 
   const searchTerm = typeof globalFilter === "string" ? globalFilter : "";
 
+  const [sorting, setSorting] = useState<SortingState>(() => {
+    const raw = searchObj.sort;
+    return typeof raw === "string" ? parseSortParam(raw) : [];
+  });
+
+  useEffect(() => {
+    const raw = searchObj.sort;
+    const next = typeof raw === "string" ? parseSortParam(raw) : [];
+    if (JSON.stringify(next) !== JSON.stringify(sorting)) setSorting(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchObj.sort]);
+
+  const onSortingChange = useCallback(
+    (updater: SortingState | ((prev: SortingState) => SortingState)) => {
+      setSorting((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+
+        navigate({
+          search: (prevSearch) => ({
+            ...prevSearch,
+            page: undefined,
+            sort: serializeSortParam(next),
+          }),
+        });
+
+        return next;
+      });
+    },
+    [navigate],
+  );
+
+  const filterPayload = useMemo(() => {
+    const obj: Record<string, unknown> = {};
+    for (const f of columnFilters) obj[f.id] = f.value;
+
+    return {
+      name: typeof obj.name === "string" ? obj.name : undefined,
+    };
+  }, [columnFilters]);
+
   const { data, isLoading } = trpc.paintGrade.getPaginated.useQuery(
     {
       page: pagination.pageIndex + 1,
       perPage: pagination.pageSize,
       search: searchTerm,
+      filters: filterPayload,
+      sort: sorting.map((s) => ({ id: s.id, desc: s.desc })),
     },
     {
       refetchOnWindowFocus: false,
@@ -154,26 +211,26 @@ export function GradesTable() {
       rowSelection,
       columnFilters,
       columnVisibility,
+      globalFilter: searchTerm,
     },
     enableRowSelection: true,
     onPaginationChange,
     onColumnFiltersChange,
+    onSortingChange,
+    onGlobalFilterChange,
     onRowSelectionChange: setRowSelection,
-    onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
-    getPaginationRowModel: getPaginationRowModel(),
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
     manualPagination: true,
+    manualFiltering: true,
+    manualSorting: true,
+
     pageCount: data?.meta.lastPage ?? 1,
+    getCoreRowModel: getCoreRowModel(),
   });
 
   if (isLoading) return <OnLoadItem isLoading={isLoading} />;
 
-  if (!data || tableData.length === 0) {
+  if (!data) {
     return (
       <Empty>
         <EmptyHeader>
@@ -182,8 +239,8 @@ export function GradesTable() {
           </EmptyMedia>
           <EmptyTitle>Belum Ada Grade</EmptyTitle>
           <EmptyDescription>
-            Belum ada supplier yang terdaftar. Silakan tambahkan grade
-            terlebih dahulu.
+            Belum ada grade yang terdaftar. Silakan tambahkan grade terlebih
+            dahulu.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>

@@ -4,29 +4,77 @@ import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { gradeFormSchema } from "~/components/features/grade/form/grade";
 
+const emptyToUndefined = z
+  .string()
+  .trim()
+  .transform((v) => (v === "" ? undefined : v))
+  .optional();
+
+const sortItemSchema = z.object({
+  id: z.string(),
+  desc: z.boolean().optional().default(false),
+});
+
 export const gradeRouter = createTRPCRouter({
   getPaginated: protectedProcedure
     .input(
       z.object({
         page: z.number().min(1).default(1),
         perPage: z.number().min(1).max(100).default(10),
-        search: z.string().optional().default(""),
+
+        // global search
+        search: emptyToUndefined,
+
+        // column filters
+        filters: z
+          .object({
+            name: emptyToUndefined,
+          })
+          .optional(),
+
+        // sorting
+        sort: z.array(sortItemSchema).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { page, perPage, search } = input;
+      const { page, perPage, search, filters, sort } = input;
 
-      const where: import("@prisma/client").Prisma.PaintGradeWhereInput = search
-        ? {
-            name: {
-              contains: search,
-              mode: "insensitive" as const,
-            },
-          }
-        : {};
+      const where: Prisma.PaintGradeWhereInput = {
+        ...(search
+          ? {
+              OR: [
+                { name: { contains: search, mode: "insensitive" } },
+                { description: { contains: search, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+
+        ...(filters?.name
+          ? { name: { contains: filters.name, mode: "insensitive" } }
+          : {}),
+      };
+
+      const ORDERABLE: Record<
+        string,
+        (dir: "asc" | "desc") => Prisma.PaintGradeOrderByWithRelationInput
+      > = {
+        createdAt: (dir) => ({ createdAt: dir }),
+        updatedAt: (dir) => ({ updatedAt: dir }),
+        name: (dir) => ({ name: dir }),
+      };
+
+      const orderBy: Prisma.PaintGradeOrderByWithRelationInput[] = sort?.length
+        ? (sort
+            .map((s) => {
+              const dir: "asc" | "desc" = s.desc ? "desc" : "asc";
+              const fn = ORDERABLE[s.id];
+              return fn ? fn(dir) : null;
+            })
+            .filter(Boolean) as Prisma.PaintGradeOrderByWithRelationInput[])
+        : [{ createdAt: "desc" }];
 
       const totalItems = await ctx.db.paintGrade.count({ where });
-      const lastPage = Math.ceil(totalItems / perPage);
+      const lastPage = Math.max(1, Math.ceil(totalItems / perPage));
 
       const data = await ctx.db.paintGrade.findMany({
         skip: (page - 1) * perPage,
@@ -35,7 +83,7 @@ export const gradeRouter = createTRPCRouter({
         include: {
           rawMaterials: true,
         },
-        orderBy: { createdAt: "desc" },
+        orderBy,
       });
 
       return {
@@ -75,9 +123,7 @@ export const gradeRouter = createTRPCRouter({
     });
 
     const growth =
-      totalGrades === 0
-        ? 0
-        : ((thisYearGrades / totalGrades) * 100).toFixed(1);
+      totalGrades === 0 ? 0 : ((thisYearGrades / totalGrades) * 100).toFixed(1);
 
     return {
       totalGrades,

@@ -26,31 +26,80 @@ import { toNumber } from "~/lib/utils";
  *   Kalau nama field ref-nya beda, sesuaikan.
  */
 
+const emptyToUndefined = z
+  .string()
+  .trim()
+  .transform((v) => (v === "" ? undefined : v))
+  .optional();
+
+const sortItemSchema = z.object({
+  id: z.string(),
+  desc: z.boolean().optional().default(false),
+});
+
 export const semiFinishedGoodRouter = createTRPCRouter({
   getPaginated: protectedProcedure
     .input(
       z.object({
         page: z.number().min(1).default(1),
         perPage: z.number().min(1).max(100).default(10),
-        search: z.string().optional().default(""),
+
+        search: emptyToUndefined,
+
+        filters: z
+          .object({
+            name: emptyToUndefined,
+            userId: z.array(z.string()).optional(),
+            // supplierId: z.array(z.string()).optional(),
+          })
+          .optional(),
+
+        sort: z.array(sortItemSchema).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { page, perPage, search } = input;
+      const { page, perPage, search, filters, sort } = input;
 
       const where: Prisma.SemiFinishedGoodWhereInput = {
         ...(search
           ? {
-              name: {
-                contains: search,
-                mode: "insensitive",
-              },
+              OR: [
+                { name: { contains: search, mode: "insensitive" } },
+              ],
             }
           : {}),
+        ...(filters?.name
+          ? { name: { contains: filters.name, mode: "insensitive" } }
+          : {}),
+        ...(filters?.userId?.length ? { userId: { in: filters.userId } } : {}),
       };
 
+      const ORDERABLE: Record<
+        string,
+        (dir: "asc" | "desc") => Prisma.SemiFinishedGoodOrderByWithRelationInput
+      > = {
+        createdAt: (dir) => ({ createdAt: dir }),
+        updatedAt: (dir) => ({ updatedAt: dir }),
+        name: (dir) => ({ name: dir }),
+        qty: (dir) => ({ qty: dir }),
+        // user: (dir) => ({ user: { name: dir } }), // if you have a "user" column id
+      };
+
+      const orderBy: Prisma.SemiFinishedGoodOrderByWithRelationInput[] =
+        sort?.length
+          ? (sort
+              .map((s) => {
+                const dir: "asc" | "desc" = s.desc ? "desc" : "asc";
+                const fn = ORDERABLE[s.id];
+                return fn ? fn(dir) : null;
+              })
+              .filter(
+                Boolean,
+              ) as Prisma.SemiFinishedGoodOrderByWithRelationInput[])
+          : [{ createdAt: "desc" }];
+
       const totalItems = await ctx.db.semiFinishedGood.count({ where });
-      const lastPage = Math.ceil(totalItems / perPage);
+      const lastPage = Math.max(1, Math.ceil(totalItems / perPage));
 
       const data = await ctx.db.semiFinishedGood.findMany({
         skip: (page - 1) * perPage,
@@ -61,7 +110,7 @@ export const semiFinishedGoodRouter = createTRPCRouter({
           paintGrade: { select: { id: true, name: true } },
           SemiFinishedGoodDetail: { include: { rawMaterial: true } },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy,
       });
 
       return {
