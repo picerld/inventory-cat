@@ -5,6 +5,7 @@ import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { saleFinishedGoodFormSchema } from "~/components/features/sales/finished-good/form/sale-finished-good";
 import { escapeHtml, formatDateID, toNumber, toRupiah } from "~/lib/utils";
 import { generateInvoiceNo } from "~/components/features/sales/lib/utils";
+import { saleAccessoriesFormSchema } from "~/components/features/sales/accessories/forms/sale-accessories";
 
 const saleStatusEnum = z.enum(["DRAFT", "ONGOING", "FINISHED", "CANCELED"]);
 type SaleStatus = z.infer<typeof saleStatusEnum>;
@@ -177,9 +178,7 @@ export const saleRouter = createTRPCRouter({
     .input(
       z.object({
         saleId: z.string(),
-        // kalau user sudah isi invoiceNo manual, boleh kirim ini
         invoiceNo: z.string().optional().nullable(),
-        // kalau true: paksa bikin nomor baru
         forceRegenerate: z.boolean().optional(),
       }),
     )
@@ -199,17 +198,12 @@ export const saleRouter = createTRPCRouter({
 
       if (!sale) throw new Error("Sale not found");
 
-      // Tentukan invoiceNo:
-      // - Prioritas: input.invoiceNo (kalau user isi)
-      // - Kalau belum ada: generate baru
-      // - Kalau sudah ada dan tidak force: pakai yang ada
       let nextInvoiceNo =
         (input.invoiceNo ?? "").trim() || (sale.invoiceNo ?? "").trim();
 
       const shouldGenerate = input.forceRegenerate === true || !nextInvoiceNo;
 
       if (shouldGenerate) {
-        // generate dan pastikan unik (karena invoiceNo @unique)
         for (let i = 0; i < 5; i++) {
           const candidate = generateInvoiceNo();
           const exists = await ctx.db.sale.findFirst({
@@ -224,7 +218,6 @@ export const saleRouter = createTRPCRouter({
         if (!nextInvoiceNo) throw new Error("Failed to generate invoiceNo");
       }
 
-      // ✅ Simpan ke DB (ini yang kamu mau)
       await ctx.db.sale.update({
         where: { id: sale.id },
         data: { invoiceNo: nextInvoiceNo },
@@ -381,6 +374,63 @@ export const saleRouter = createTRPCRouter({
       };
     }),
 
+  getAccessoriesPaginated: protectedProcedure
+    .input(
+      z.object({
+        page: z.coerce.number().min(1).default(1),
+        perPage: z.coerce.number().min(1).max(50).default(10),
+        search: z.string().optional().default(""),
+        status: saleStatusEnum.optional(),
+        customerId: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { page, perPage, search, status, customerId } = input;
+
+      const where: Prisma.SaleWhereInput = {
+        ...(status ? { status } : {}),
+        ...(customerId ? { customerId } : {}),
+        ...(search
+          ? {
+              OR: [
+                { saleNo: { contains: search, mode: "insensitive" } },
+                { orderNo: { contains: search, mode: "insensitive" } },
+                { invoiceNo: { contains: search, mode: "insensitive" } },
+                { notes: { contains: search, mode: "insensitive" } },
+                {
+                  customer: { name: { contains: search, mode: "insensitive" } },
+                },
+              ],
+            }
+          : {}),
+        items: { some: { itemType: "PAINT_ACCESSORIES" } },
+      };
+
+      const totalItems = await ctx.db.sale.count({ where });
+      const lastPage = Math.ceil(totalItems / perPage);
+
+      const data = await ctx.db.sale.findMany({
+        where,
+        skip: (page - 1) * perPage,
+        take: perPage,
+        orderBy: { soldAt: "desc" },
+        include: {
+          customer: true,
+          user: true,
+          items: {
+            where: { itemType: "PAINT_ACCESSORIES" },
+            include: { accessory: true },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      });
+
+      return {
+        data,
+        meta: { currentPage: page, lastPage, perPage, totalItems },
+      };
+    }),
+
   getByIdFinishedGood: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -422,12 +472,50 @@ export const saleRouter = createTRPCRouter({
       return { sale, summary: { totalAmount, totalQty } };
     }),
 
+  getByIdAccessories: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const sale = await ctx.db.sale.findUnique({
+        where: { id: input.id },
+        include: {
+          customer: true,
+          user: true,
+          items: {
+            where: { itemType: "PAINT_ACCESSORIES" },
+            include: { accessory: true },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      });
+
+      if (!sale) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Sale tidak ditemukan",
+        });
+      }
+
+      if (sale.items.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Sale ini bukan penjualan aksesoris (PAINT_ACCESSORIES).",
+        });
+      }
+
+      const totalAmount = sale.items.reduce(
+        (sum, it) => sum + (it.subtotal ?? 0),
+        0,
+      );
+      const totalQty = sale.items.reduce((sum, it) => sum + Number(it.qty), 0);
+
+      return { sale, summary: { totalAmount, totalQty } };
+    }),
+
   createFinishedGood: protectedProcedure
     .input(saleFinishedGoodFormSchema)
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.user?.id ?? "";
 
-      // unique saleNo
       const exists = await ctx.db.sale.findUnique({
         where: { saleNo: input.saleNo },
         select: { id: true },
@@ -439,7 +527,6 @@ export const saleRouter = createTRPCRouter({
         });
       }
 
-      // optional unique invoiceNo (your schema: invoiceNo String? @unique)
       if (input.invoiceNo) {
         const inv = await ctx.db.sale.findFirst({
           where: { invoiceNo: input.invoiceNo },
@@ -493,6 +580,63 @@ export const saleRouter = createTRPCRouter({
       });
     }),
 
+  createAccessories: protectedProcedure
+    .input(saleAccessoriesFormSchema)
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.user?.id ?? "";
+
+      const exists = await ctx.db.sale.findUnique({
+        where: { saleNo: input.saleNo },
+        select: { id: true },
+      });
+      if (exists) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Nomor penjualan sudah digunakan.",
+        });
+      }
+
+      if (input.invoiceNo) {
+        const inv = await ctx.db.sale.findFirst({
+          where: { invoiceNo: input.invoiceNo },
+          select: { id: true },
+        });
+        if (inv) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Invoice No sudah digunakan.",
+          });
+        }
+      }
+
+      return ctx.db.sale.create({
+        data: {
+          saleNo: input.saleNo,
+          customerId: input.customerId,
+          orderNo: input.orderNo ?? null,
+          invoiceNo: input.invoiceNo ?? null,
+          notes: input.notes ?? null,
+          status: "DRAFT",
+          userId,
+          items: {
+            create: input.items.map((it) => {
+              const qty = toNumber(it.qty);
+              const unitPrice = toNumber(it.unitPrice);
+              return {
+                itemType: "PAINT_ACCESSORIES",
+                finishedGoodId: null,
+                accessoryId: it.accessoryId,
+                qty,
+                unitPrice,
+                subtotal: qty * unitPrice,
+              };
+            }),
+          },
+        },
+        include: { customer: true, user: true, items: true },
+      });
+    }),
+
   updateFinishedGood: protectedProcedure
     .input(saleFinishedGoodFormSchema)
     .mutation(async ({ ctx, input }) => {
@@ -518,7 +662,6 @@ export const saleRouter = createTRPCRouter({
         });
       }
 
-      // unique invoiceNo if changed
       if (input.invoiceNo) {
         const inv = await ctx.db.sale.findFirst({
           where: { invoiceNo: input.invoiceNo, NOT: { id: input.id } },
@@ -573,6 +716,91 @@ export const saleRouter = createTRPCRouter({
             customer: true,
             user: true,
             items: { include: { finishedGood: true } },
+          },
+        });
+      });
+    }),
+
+  updateAccessories: protectedProcedure
+    .input(saleAccessoriesFormSchema)
+    .mutation(async ({ ctx, input }) => {
+      if (!input.id) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "ID sale wajib." });
+      }
+
+      const existing = await ctx.db.sale.findUnique({
+        where: { id: input.id },
+        select: { id: true, status: true, invoiceNo: true },
+      });
+
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Sale tidak ditemukan",
+        });
+      }
+
+      if (existing.status !== "DRAFT") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Hanya sale DRAFT yang boleh diedit.",
+        });
+      }
+
+      if (input.invoiceNo) {
+        const inv = await ctx.db.sale.findFirst({
+          where: { invoiceNo: input.invoiceNo, NOT: { id: input.id } },
+          select: { id: true },
+        });
+        if (inv) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Invoice No sudah digunakan.",
+          });
+        }
+      }
+
+      const accessoryIds = input.items.map((i) => i.accessoryId);
+      const accs = await ctx.db.paintAccessories.findMany({
+        where: { id: { in: accessoryIds } },
+        select: { id: true },
+      });
+      if (accs.length !== accessoryIds.length) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Ada accessory yang tidak valid / tidak ditemukan.",
+        });
+      }
+
+      return ctx.db.$transaction(async (tx) => {
+        await tx.saleItem.deleteMany({ where: { saleId: input.id! } });
+
+        return tx.sale.update({
+          where: { id: input.id! },
+          data: {
+            customerId: input.customerId,
+            orderNo: input.orderNo ?? null,
+            invoiceNo: input.invoiceNo ?? null,
+            notes: input.notes ?? null,
+            items: {
+              create: input.items.map((it) => {
+                const qty = toNumber(it.qty);
+                const unitPrice = toNumber(it.unitPrice);
+                return {
+                  itemType: "PAINT_ACCESSORIES",
+                  finishedGoodId: null,
+                  accessoryId: it.accessoryId,
+                  qty,
+                  unitPrice,
+                  subtotal: qty * unitPrice,
+                };
+              }),
+            },
+          },
+          include: {
+            customer: true,
+            user: true,
+            items: { include: { accessory: true } },
           },
         });
       });

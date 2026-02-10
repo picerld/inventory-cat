@@ -5,7 +5,7 @@ export const SaleNotFound = ({ resetFilter }: { resetFilter: () => void }) => {
   return (
     <div className="bg-card space-y-3 rounded-2xl border p-12 text-center">
       <div className="mx-auto w-fit rounded-full bg-slate-100 p-4">
-        <Package className="h-8 w-8 text-slate-400" />
+        <Package className="h-8 w-8 text-black" />
       </div>
       <div className="text-lg font-semibold">
         Data penjualan tidak ditemukan

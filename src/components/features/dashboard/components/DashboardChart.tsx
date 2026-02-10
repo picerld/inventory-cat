@@ -20,6 +20,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  Cell,
 } from "recharts";
 import { Skeleton } from "~/components/ui/skeleton";
 import { trpc } from "~/utils/trpc";
@@ -44,11 +45,26 @@ const categoryChartConfig = {
   },
 };
 
+const PIE_COLORS = [
+  "#2563EB",
+  "#06B6D4",
+  "#10B981",
+  "#84CC16",
+  "#F59E0B",
+  "#F97316",
+  "#EF4444",
+  "#EC4899",
+  "#A855F7",
+  "#6366F1",
+];
+
 const DashboardCharts = () => {
   const { data: revenueData, isLoading: revenueLoading } =
     trpc.dashboard.getMonthlyRevenue.useQuery();
   const { data: categoryData, isLoading: categoryLoading } =
     trpc.dashboard.getTopCategories.useQuery();
+
+    console.log(categoryData);
 
   if (revenueLoading || categoryLoading) {
     return (
@@ -110,12 +126,12 @@ const DashboardCharts = () => {
         </CardContent>
       </Card>
 
-      {/* Pie Chart */}
       <Card>
         <CardHeader>
           <CardTitle>Penjualan Bahan</CardTitle>
           <CardDescription>Penjualan bahan terbesar</CardDescription>
         </CardHeader>
+
         <CardContent>
           <ChartContainer
             config={categoryChartConfig}
@@ -123,17 +139,28 @@ const DashboardCharts = () => {
           >
             <PieChart>
               <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+
               <Pie
                 data={categoryData ?? []}
                 dataKey="value"
                 nameKey="name"
                 innerRadius={60}
                 strokeWidth={5}
-              />
+                labelLine={false}
+                label={({ name, value }) => `${name} (${value}%)`}
+              >
+                {(categoryData ?? []).map((_, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={PIE_COLORS[index % PIE_COLORS.length]}
+                  />
+                ))}
+              </Pie>
             </PieChart>
           </ChartContainer>
+
           <div className="mt-4 space-y-2">
-            {(categoryData ?? []).map((item) => (
+            {(categoryData ?? []).map((item, index) => (
               <div
                 key={item.name}
                 className="flex items-center justify-between text-sm"
@@ -141,7 +168,9 @@ const DashboardCharts = () => {
                 <div className="flex items-center gap-2">
                   <div
                     className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: item.fill }}
+                    style={{
+                      backgroundColor: PIE_COLORS[index % PIE_COLORS.length],
+                    }}
                   />
                   <span className="text-muted-foreground">{item.name}</span>
                 </div>
@@ -152,7 +181,6 @@ const DashboardCharts = () => {
         </CardContent>
       </Card>
 
-      {/* Bar Chart */}
       <Card className="lg:col-span-3">
         <CardHeader>
           <CardTitle>Order Statistics</CardTitle>

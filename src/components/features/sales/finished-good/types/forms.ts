@@ -12,6 +12,18 @@ export type Line = {
   lineTotal?: number | string;
 };
 
+export type LineAccessories = {
+  accessoryId: string;
+  qty: number | string;
+  name?: string;
+  stock?: number;
+  costPrice: number;
+  sellingPrice?: number;
+  marginPct: number;
+  unitPrice: number | string;
+  lineTotal?: number | string;
+};
+
 export type ActionKey =
   | "submit"
   | "set-ongoing"

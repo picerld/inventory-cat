@@ -1,12 +1,8 @@
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 
-/**
- * Aman untuk Prisma Decimal / number / string
- */
 function toNumber(val: unknown): number {
   if (val == null) return 0;
 
-  // Prisma.Decimal punya toNumber()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (typeof val === "object" && typeof (val as any).toNumber === "function") {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,46 +26,69 @@ function getTimeAgo(date: Date): string {
   return `${diffMinutes} minute${diffMinutes > 1 ? "s" : ""} ago`;
 }
 
+const SALE_COUNT_STATUSES = ["FINISHED"] as const;
+const PURCHASE_COUNT_STATUSES = ["FINISHED"] as const;
+
 export const dashboardRouter = createTRPCRouter({
   getStats: protectedProcedure.query(async ({ ctx }) => {
     const now = new Date();
 
     const startOfYear = new Date(now.getFullYear(), 0, 1);
     const startOfLastYear = new Date(now.getFullYear() - 1, 0, 1);
+    const startOfThisYear = startOfYear;
     const endOfLastYear = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59);
 
-    // ✅ schema kamu: Sale & Purchase
     const thisYearSelling = await ctx.db.sale.count({
-      where: { soldAt: { gte: startOfYear } },
+      where: {
+        status: { in: [...SALE_COUNT_STATUSES] },
+        soldAt: { gte: startOfThisYear },
+      },
     });
 
     const thisYearBuying = await ctx.db.purchase.count({
-      where: { purchasedAt: { gte: startOfYear } },
+      where: {
+        status: { in: [...PURCHASE_COUNT_STATUSES] },
+        purchasedAt: { gte: startOfThisYear },
+      },
     });
 
     const lastYearSelling = await ctx.db.sale.count({
-      where: { soldAt: { gte: startOfLastYear, lte: endOfLastYear } },
+      where: {
+        status: { in: [...SALE_COUNT_STATUSES] },
+        soldAt: { gte: startOfLastYear, lte: endOfLastYear },
+      },
     });
 
     const lastYearBuying = await ctx.db.purchase.count({
-      where: { purchasedAt: { gte: startOfLastYear, lte: endOfLastYear } },
+      where: {
+        status: { in: [...PURCHASE_COUNT_STATUSES] },
+        purchasedAt: { gte: startOfLastYear, lte: endOfLastYear },
+      },
     });
 
-    /**
-     * TOTAL REVENUE (lebih “bener”):
-     * ambil dari SaleItem.subtotal (Float) dan status POSTED
-     */
-    const salesAgg = await ctx.db.saleItem.aggregate({
+    const salesAggThisYear = await ctx.db.saleItem.aggregate({
       where: {
         sale: {
-          status: "POSTED",
-          soldAt: { gte: startOfYear },
+          status: { in: [...SALE_COUNT_STATUSES] },
+          soldAt: { gte: startOfThisYear },
         },
       },
       _sum: { subtotal: true },
     });
 
-    const totalRevenue = toNumber(salesAgg._sum.subtotal);
+    const totalRevenue = toNumber(salesAggThisYear._sum.subtotal);
+
+    const salesAggLastYear = await ctx.db.saleItem.aggregate({
+      where: {
+        sale: {
+          status: { in: [...SALE_COUNT_STATUSES] },
+          soldAt: { gte: startOfLastYear, lte: endOfLastYear },
+        },
+      },
+      _sum: { subtotal: true },
+    });
+
+    const lastYearRevenue = toNumber(salesAggLastYear._sum.subtotal);
 
     const sellingChange =
       lastYearSelling === 0
@@ -85,6 +104,13 @@ export const dashboardRouter = createTRPCRouter({
           : 0
         : ((thisYearBuying - lastYearBuying) / lastYearBuying) * 100;
 
+    const revenueChange =
+      lastYearRevenue === 0
+        ? totalRevenue > 0
+          ? 100
+          : 0
+        : ((totalRevenue - lastYearRevenue) / lastYearRevenue) * 100;
+
     const currentTotal = thisYearSelling + thisYearBuying;
     const lastYearTotal = lastYearSelling + lastYearBuying;
 
@@ -97,7 +123,7 @@ export const dashboardRouter = createTRPCRouter({
 
     return {
       totalRevenue,
-      revenueChange: sellingChange, // kamu pakai ini di UI "Total Revenue" change
+      revenueChange,
       thisYearSelling,
       sellingChange,
       thisYearBuying,
@@ -109,6 +135,9 @@ export const dashboardRouter = createTRPCRouter({
   getMonthlyRevenue: protectedProcedure.query(async ({ ctx }) => {
     const now = new Date();
     const currentYear = now.getFullYear();
+
+    const startOfYear = new Date(currentYear, 0, 1);
+    const startOfNextYear = new Date(currentYear + 1, 0, 1);
 
     const months = [
       "Jan",
@@ -125,90 +154,109 @@ export const dashboardRouter = createTRPCRouter({
       "Dec",
     ];
 
-    const monthlyData = await Promise.all(
-      months.map(async (month, index) => {
-        const startDate = new Date(currentYear, index, 1);
-        const endDate = new Date(currentYear, index + 1, 0, 23, 59, 59);
+    const buckets = months.map((m) => ({ month: m, revenue: 0, orders: 0 }));
 
-        // orders = jumlah sale (POSTED) per bulan
-        const orders = await ctx.db.sale.count({
-          where: {
-            status: "POSTED",
-            soldAt: { gte: startDate, lte: endDate },
-          },
-        });
-
-        // revenue = sum subtotal sale items per bulan
-        const agg = await ctx.db.saleItem.aggregate({
-          where: {
-            sale: {
-              status: "POSTED",
-              soldAt: { gte: startDate, lte: endDate },
-            },
-          },
-          _sum: { subtotal: true },
-        });
-
-        return {
-          month,
-          revenue: toNumber(agg._sum.subtotal),
-          orders,
-        };
-      }),
-    );
-
-    return monthlyData;
-  }),
-
-  /**
-   * Top Categories:
-   * Aku keep konsep kamu: pakai PaintGrade -> finishedGoods count.
-   * (ini bukan sales category, tapi “kategori produksi/produk”.)
-   */
-  getTopCategories: protectedProcedure.query(async ({ ctx }) => {
-    const paintGrades = await ctx.db.paintGrade.findMany({
-      include: { finishedGoods: true },
+    const sales = await ctx.db.sale.findMany({
+      where: {
+        status: { in: [...SALE_COUNT_STATUSES] },
+        soldAt: { gte: startOfYear, lt: startOfNextYear },
+      },
+      select: { soldAt: true },
     });
 
-    const categoryData = paintGrades.map((grade) => ({
-      name: grade.name,
-      value: grade.finishedGoods.length,
-    }));
+    for (const s of sales) {
+      const idx = s.soldAt.getMonth();
+      buckets[idx]!.orders += 1;
+    }
 
-    const topCategories = categoryData
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 4);
+    const items = await ctx.db.saleItem.findMany({
+      where: {
+        sale: {
+          status: { in: [...SALE_COUNT_STATUSES] },
+          soldAt: { gte: startOfYear, lt: startOfNextYear },
+        },
+      },
+      select: {
+        subtotal: true,
+        sale: { select: { soldAt: true } },
+      },
+    });
 
-    const total = topCategories.reduce((sum, cat) => sum + cat.value, 0);
+    for (const it of items) {
+      const idx = it.sale.soldAt.getMonth();
+      buckets[idx]!.revenue += toNumber(it.subtotal);
+    }
 
-    const colors = [
-      "hsl(var(--primary))",
-      "hsl(var(--primary) / 0.8)",
-      "hsl(var(--primary) / 0.6)",
-      "hsl(var(--primary) / 0.4)",
-    ];
+    return buckets;
+  }),
 
-    return topCategories.map((cat, index) => ({
-      name: cat.name,
-      value: total > 0 ? Math.round((cat.value / total) * 100) : 0,
-      fill: colors[index] ?? colors[0],
+  getTopCategories: protectedProcedure.query(async ({ ctx }) => {
+    const saleItems = await ctx.db.saleItem.findMany({
+      where: {
+        sale: { status: { in: [...SALE_COUNT_STATUSES] } },
+        itemType: "FINISHED_GOOD",
+        finishedGoodId: { not: null },
+      },
+      select: {
+        qty: true,
+        finishedGood: {
+          select: {
+            finishedGoodDetails: {
+              select: {
+                qty: true,
+                rawMaterial: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const map = new Map<string, number>();
+
+    for (const item of saleItems) {
+      const soldQty = toNumber(item.qty);
+
+      const details = item.finishedGood?.finishedGoodDetails ?? [];
+      for (const d of details) {
+        const rmName = d.rawMaterial?.name ?? "Unknown";
+        const usedPerProduct = toNumber(d.qty);
+
+        const totalUsed = soldQty * usedPerProduct;
+
+        map.set(rmName, (map.get(rmName) ?? 0) + totalUsed);
+      }
+    }
+
+    const rows = [...map.entries()].map(([name, value]) => ({ name, value }));
+    rows.sort((a, b) => b.value - a.value);
+
+    const top = rows.slice(0, 8);
+
+    const total = top.reduce((sum, r) => sum + r.value, 0);
+
+    return top.map((r) => ({
+      name: r.name,
+      value: total > 0 ? Math.round((r.value / total) * 100) : 0,
     }));
   }),
 
   getRecentOrders: protectedProcedure.query(async ({ ctx }) => {
-    // Recent activity yang lebih relevan: Sale terbaru (POSTED)
     const recentSales = await ctx.db.sale.findMany({
       take: 5,
       orderBy: { soldAt: "desc" },
-      where: { status: "POSTED" },
+      where: { status: { in: [...SALE_COUNT_STATUSES] } },
       include: {
         customer: true,
-        items: true, // SaleItem[] sudah punya subtotal
+        items: true,
       },
     });
 
     return recentSales.map((sale) => {
-      const amount = sale.items.reduce((sum, it) => sum + toNumber(it.subtotal), 0);
+      const amount = sale.items.reduce(
+        (sum, it) => sum + toNumber(it.subtotal),
+        0,
+      );
 
       return {
         id: sale.saleNo,
@@ -223,21 +271,22 @@ export const dashboardRouter = createTRPCRouter({
   getSalesStats: protectedProcedure.query(async ({ ctx }) => {
     const totalOrders = await ctx.db.sale.count();
     const completedOrders = await ctx.db.sale.count({
-      where: { status: "POSTED" },
+      where: { status: { in: [...SALE_COUNT_STATUSES] } },
     });
 
     const successRate =
-      totalOrders > 0 ? ((completedOrders / totalOrders) * 100).toFixed(1) : "0";
+      totalOrders > 0
+        ? ((completedOrders / totalOrders) * 100).toFixed(1)
+        : "0";
 
-    const totalPostedRevenueAgg = await ctx.db.saleItem.aggregate({
-      where: { sale: { status: "POSTED" } },
+    const totalRevenueAgg = await ctx.db.saleItem.aggregate({
+      where: { sale: { status: { in: [...SALE_COUNT_STATUSES] } } },
       _sum: { subtotal: true },
     });
 
-    const totalPostedRevenue = toNumber(totalPostedRevenueAgg._sum.subtotal);
-
-    // avg order value dari POSTED sales
-    const avgOrderValue = completedOrders > 0 ? totalPostedRevenue / completedOrders : 0;
+    const totalRevenue = toNumber(totalRevenueAgg._sum.subtotal);
+    const avgOrderValue =
+      completedOrders > 0 ? totalRevenue / completedOrders : 0;
 
     const pendingItems = await ctx.db.returnedItem.count();
 

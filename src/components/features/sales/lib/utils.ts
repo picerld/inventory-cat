@@ -1,5 +1,5 @@
 import { toNumber } from "~/lib/utils";
-import type { Line } from "../finished-good/types/forms";
+import type { Line, LineAccessories } from "../finished-good/types/forms";
 import type { SaleStatus } from "~/types/sale";
 
 export const getStatusConfig = (status?: SaleStatus) => {
@@ -23,6 +23,32 @@ export function generateInvoiceNo(date = new Date()) {
 }
 
 export function computeSummary(lines: Line[]) {
+  const totalCost = lines.reduce(
+    (acc, it) => acc + toNumber(it.qty) * Number(it.costPrice ?? 0),
+    0,
+  );
+
+  const revenue = lines.reduce(
+    (acc, it) => acc + toNumber(it.qty) * toNumber(it.unitPrice),
+    0,
+  );
+
+  const profit = revenue - totalCost;
+  const marginPct = totalCost ? (profit / totalCost) * 100 : 0;
+
+  const totalUnits = lines.reduce((acc, it) => acc + toNumber(it.qty), 0);
+
+  return {
+    totalLines: lines.length,
+    totalUnits,
+    totalCost,
+    revenue,
+    profit,
+    marginPct,
+  };
+}
+
+export function computeSummaryAccessories(lines: LineAccessories[]) {
   const totalCost = lines.reduce(
     (acc, it) => acc + toNumber(it.qty) * Number(it.costPrice ?? 0),
     0,

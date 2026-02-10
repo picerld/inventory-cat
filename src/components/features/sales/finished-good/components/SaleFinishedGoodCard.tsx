@@ -1,4 +1,5 @@
 import {
+  Calendar,
   ChevronRight,
   FileText,
   Info,
@@ -50,11 +51,23 @@ export const SaleFinishedGoodCard = ({
               <h3 className="group-hover:text-primary truncate text-base font-semibold transition-colors">
                 {sale.saleNo}
               </h3>
-              <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
-                <User className="h-3 w-3" />
-                <span className="text-foreground truncate font-medium">
-                  {sale.customer?.name ?? "Unknown"}
-                </span>
+              <div className="text-muted-foreground mt-0.5 flex items-center gap-3 text-xs">
+                <div className="flex gap-1">
+                  <User className="h-3 w-3" />
+                  <span className="text-foreground truncate font-medium">
+                    {sale.customer?.name ?? "Unknown"}
+                  </span>
+                </div>
+                <div className="flex gap-1">
+                  <Calendar className="h-3 w-3" />
+                  <span className="text-foreground truncate font-medium">
+                    {sale.createdAt.toLocaleDateString("id-ID", {
+                      day: "2-digit",
+                      month: "long",
+                      year: "numeric",
+                    }) ?? "Unknown"}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
