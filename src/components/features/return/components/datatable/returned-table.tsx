@@ -40,10 +40,18 @@ import {
   EmptyTitle,
 } from "~/components/ui/empty";
 
-import { ArrowUpRightIcon, Folder, Plus } from "lucide-react";
+import { ArrowUpRightIcon, ChevronDown, Folder, Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { useReturnedGoods } from "./returned-provider";
 import type { ReturnGood } from "~/types/return-good";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 
 function parseSortParam(sortParam: string | null): SortingState {
   if (!sortParam) return [];
@@ -271,10 +279,26 @@ export function ReturnedGoodsTable() {
 
   return (
     <div className={cn("flex flex-1 flex-col gap-4")}>
-      <DataTableToolbar
-        table={table}
-        searchPlaceholder="Cari nama barang..."
-      />
+      <DataTableToolbar table={table} searchPlaceholder="Cari nama barang...">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              className="border-dashed px-2 lg:px-3"
+              variant="outline"
+              size={"sm"}
+            >
+              <ChevronDown className="h-4 w-4" /> Export Data
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Format</DropdownMenuLabel>
+              <DropdownMenuItem>CSV</DropdownMenuItem>
+              <DropdownMenuItem>PDF</DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </DataTableToolbar>
 
       <Button onClick={() => setOpen("add")} size="lg">
         <Plus className="h-4 w-4" />

@@ -4,6 +4,7 @@ import { Header } from "~/components/container/Header";
 import { ChartNoAxesCombined, Plus } from "lucide-react";
 import { Button, buttonVariants } from "~/components/ui/button";
 import Link from "next/link";
+import SaleAccessoriesListContainer from "./components/SaleAccessoriesListContainer";
 
 export default function SaleAccessoriesPage() {
   return (
@@ -31,7 +32,8 @@ export default function SaleAccessoriesPage() {
           </Button>
         </div>
       </Header>
-      
+
+      <SaleAccessoriesListContainer />
     </GuardedLayout>
   );
 }

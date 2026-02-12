@@ -34,12 +34,26 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "~/components/ui/empty";
-import { ArrowUpRightIcon, Badge, Folder, Plus } from "lucide-react";
+import {
+  ArrowUpRightIcon,
+  Badge,
+  ChevronDown,
+  Folder,
+  Plus,
+} from "lucide-react";
 import { Button, buttonVariants } from "~/components/ui/button";
 import { useFinishedGoods } from "./finished-provider";
 import type { FinishedGood } from "~/types/finished-good";
 import Link from "next/link";
 import { DataNotFound } from "~/components/dialog/DataNotFound";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 
 function parseSortParam(sortParam: string | null): SortingState {
   if (!sortParam) return [];
@@ -303,7 +317,26 @@ export function FinishedGoodsTable() {
             })),
           },
         ]}
-      />
+      >
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              className="border-dashed px-2 lg:px-3"
+              variant="outline"
+              size={"sm"}
+            >
+              <ChevronDown className="h-4 w-4" /> Export Data
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Format</DropdownMenuLabel>
+              <DropdownMenuItem>CSV</DropdownMenuItem>
+              <DropdownMenuItem>PDF</DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </DataTableToolbar>
 
       <Link
         href="/items/finished/create"

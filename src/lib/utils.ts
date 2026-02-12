@@ -6,6 +6,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export const round = (n: number, dp = 2) => {
+  const f = 10 ** dp;
+  return Math.round((n + Number.EPSILON) * f) / f;
+};
+
 export function sleep(ms: number = 1000) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

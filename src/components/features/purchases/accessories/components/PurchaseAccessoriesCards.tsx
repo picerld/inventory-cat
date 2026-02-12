@@ -10,6 +10,16 @@ import { Skeleton } from "~/components/ui/skeleton";
 import { PurchaseNotFound } from "../../components/PurchaseNotFound";
 import { PurchaseLitePagination } from "../../components/PurchaseLitePagination";
 import { PurchaseAccessoriesList } from "./attributes/PurchaseAccessoriesList";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
+import { Button } from "~/components/ui/button";
 
 export default function PurchaseAccessoriesCards() {
   const [page, setPage] = React.useState<number>(1);
@@ -53,6 +63,20 @@ export default function PurchaseAccessoriesCards() {
             setStatus={setStatus}
             resetFilter={resetFilter}
           />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="rounded-xl">
+                <ChevronDown className="h-4 w-4" /> Export Data
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Format</DropdownMenuLabel>
+                <DropdownMenuItem>CSV</DropdownMenuItem>
+                <DropdownMenuItem>PDF</DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

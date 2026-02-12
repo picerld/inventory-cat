@@ -1,16 +1,23 @@
 "use client";
 
-import * as React from "react";
-import { trpc } from "~/utils/trpc";
-import { Skeleton } from "~/components/ui/skeleton";
+import React from "react";
 import useDebounce from "~/hooks/use-debounce";
-import { statusBadge, toNumber } from "~/lib/utils";
 import type { StatusFilter } from "~/types/sale";
+import { trpc } from "~/utils/trpc";
 import { SaleFilter } from "../../components/attributes/SaleFilter";
+import { Skeleton } from "~/components/ui/skeleton";
 import { SaleNotFound } from "../../components/attributes/SaleNotFound";
+import { SaleAccessoriesCard } from "./SaleAccessoriesCard";
+import { statusBadge, toNumber } from "~/lib/utils";
 import { SaleLitePagination } from "../../components/attributes/SaleLitePagination";
-import { SaleFinishedGoodCard } from "./SaleFinishedGoodCard";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 import { Button } from "~/components/ui/button";
 import { ChevronDown } from "lucide-react";
 
@@ -19,10 +26,10 @@ function safeInt(v: unknown, fallback: number) {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
-export default function SaleFinishedGoodListContainer() {
+export default function SaleAccessoriesListContainer() {
   const [page, setPage] = React.useState<number>(1);
   const [search, setSearch] = React.useState<string>("");
-  const [status, setStatus] = React.useState<StatusFilter>("ALL");
+  const [status, setStatus] = React.useState<StatusFilter | "ALL">("ALL");
   const [customerId, setCustomerId] = React.useState<string | undefined>(
     undefined,
   );
@@ -46,7 +53,7 @@ export default function SaleFinishedGoodListContainer() {
   }, [page, debouncedSearch, status, customerId]);
 
   const { data, isLoading, isFetching, isError, error } =
-    trpc.sale.getFinishedGoodPaginated.useQuery(queryInput, {
+    trpc.sale.getAccessoriesPaginated.useQuery(queryInput, {
       placeholderData: (prev) => prev,
       staleTime: 10_000,
     });
@@ -79,7 +86,7 @@ export default function SaleFinishedGoodListContainer() {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="rounded-xl mt-3">
+            <Button variant="outline" className="mt-3 rounded-xl">
               <ChevronDown className="h-4 w-4" /> Export Data
             </Button>
           </DropdownMenuTrigger>
@@ -134,7 +141,7 @@ export default function SaleFinishedGoodListContainer() {
                 const badge = statusBadge(sale.status);
 
                 return (
-                  <SaleFinishedGoodCard
+                  <SaleAccessoriesCard
                     key={sale.id}
                     sale={sale}
                     badge={badge}

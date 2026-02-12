@@ -10,6 +10,16 @@ import type { PurchaseStatus } from "../../config/purchase";
 import { PurchaseNotFound } from "../../components/PurchaseNotFound";
 import { statusBadge } from "~/lib/utils";
 import { PurchaseRawMaterialFilter } from "./attributes/PurchaseRawMaterialFilter";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
+import { Button } from "~/components/ui/button";
+import { ChevronDown } from "lucide-react";
 
 export default function PurchaseRawMaterialCards() {
   const [page, setPage] = React.useState<number>(1);
@@ -53,9 +63,26 @@ export default function PurchaseRawMaterialCards() {
             setStatus={setStatus}
             resetFilter={resetFilter}
           />
-          <div className="text-muted-foreground flex items-center justify-between text-sm md:justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="rounded-xl"
+              >
+                <ChevronDown className="h-4 w-4" /> Export Data
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Format</DropdownMenuLabel>
+                <DropdownMenuItem>CSV</DropdownMenuItem>
+                <DropdownMenuItem>PDF</DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {/* <div className="text-muted-foreground flex items-center justify-between text-sm md:justify-end">
             {isFetching ? <span>Memuat...</span> : <span>&nbsp;</span>}
-          </div>
+          </div> */}
         </div>
       </div>
 

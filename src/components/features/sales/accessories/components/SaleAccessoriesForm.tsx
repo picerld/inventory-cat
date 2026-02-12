@@ -20,6 +20,7 @@ import {
   formatRupiah,
   generateRandomCode,
   parseRupiah,
+  round,
   toNumber,
   toRupiah,
 } from "~/lib/utils";
@@ -75,13 +76,15 @@ import { SaleInvoicePreviewDialog } from "../../finished-good/components/SaleInv
 import { StockValidationAlert } from "../../components/StockValidationAlert";
 import { computeSummaryAccessories, getStatusConfig } from "../../lib/utils";
 
-// kalau komponen header/summary/actions kamu reusable, keep.
-// kalau khusus FG, boleh ganti nanti.
+// rusable from sale finished good
 import { SaleFinishedGoodHeader } from "../../finished-good/components/attributes/SaleFinishedGoodHeader";
-import { SaleFinishedGoodSummarySection } from "../../finished-good/components/attributes/actions/SaleFinishedGoodSummarySection";
 import { SaleFinishedGoodGeneratedInvoice } from "../../finished-good/components/attributes/SaleFinishedGoodGeneratedInvoice";
-import type { ActionKey, LineAccessories } from "../../finished-good/types/forms";
+import type {
+  ActionKey,
+  LineAccessories,
+} from "../../finished-good/types/forms";
 import { SaleAccessoriesActionsSection } from "./attributes/actions/SaleAccessoriesActionsSection";
+import { SaleAccessoriesSummarySection } from "./attributes/actions/SaleAccessoriesSummarySection";
 
 type SaleAccessoriesFormProps = {
   mode: "create" | "edit";
@@ -329,7 +332,6 @@ export function SaleAccessoriesForm({
 
   const statusConfig = getStatusConfig(currentStatus);
 
-  // hydrate base fields
   useEffect(() => {
     if (mode === "edit" && initialData) {
       form.setFieldValue("id", initialData.id);
@@ -365,7 +367,6 @@ export function SaleAccessoriesForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, initialData?.id]);
 
-  // hydrate display/cost/stock from accessories list
   useEffect(() => {
     if (mode !== "edit" || !initialData?.id) return;
     if (!accessories || accessories.length === 0) return;
@@ -385,7 +386,8 @@ export function SaleAccessoriesForm({
 
         const costPrice = Number(acc?.supplierPrice ?? 0);
         const stock = Number(acc?.qty ?? 0);
-        const marginPct = costPrice
+
+        const marginPctRaw = costPrice
           ? computeMarginFromPrices(costPrice, unitPrice)
           : 0;
 
@@ -397,7 +399,7 @@ export function SaleAccessoriesForm({
           sellingPrice: Number(acc?.sellingPrice ?? 0),
           qty,
           unitPrice,
-          marginPct: Number.isFinite(marginPct) ? marginPct : 0,
+          marginPct: Number.isFinite(marginPctRaw) ? round(marginPctRaw, 2) : 0,
           lineTotal: qty * unitPrice,
         };
       },
@@ -437,7 +439,7 @@ export function SaleAccessoriesForm({
     const qty = 1;
     const unitPrice = defaultSelling || 0;
 
-    const marginPct = costPrice
+    const marginPctRaw = costPrice
       ? computeMarginFromPrices(costPrice, unitPrice)
       : 0;
 
@@ -449,7 +451,7 @@ export function SaleAccessoriesForm({
         stock,
         costPrice,
         sellingPrice: defaultSelling,
-        marginPct: Number.isFinite(marginPct) ? marginPct : 0,
+        marginPct: Number.isFinite(marginPctRaw) ? round(marginPctRaw, 2) : 0,
         qty,
         unitPrice,
         lineTotal: qty * unitPrice,
@@ -459,7 +461,6 @@ export function SaleAccessoriesForm({
     setOpenPicker(false);
   };
 
-  // "lookup" by name contains (quick add first match)
   const lookupQuick = async () => {
     const q = barcode.trim().toLowerCase();
     if (!q) return;
@@ -542,7 +543,6 @@ export function SaleAccessoriesForm({
       >
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
-            {/* Informasi Penjualan */}
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -686,59 +686,77 @@ export function SaleAccessoriesForm({
                               )}
                             </Button>
 
-                            <SaleInvoicePreviewDialog
-                              trigger={
-                                <Button type="button" variant="outline">
-                                  Preview Invoice
-                                </Button>
-                              }
-                              sale={{
-                                id: initialData?.id ?? "TEMP",
-                                saleNo: form.state.values.saleNo,
-                                invoiceNo:
-                                  form.state.values.invoiceNo || "INV-TEMP",
-                                soldAt: new Date(),
-                                status: initialData?.status ?? "DRAFT",
-                                notes: form.state.values.notes || null,
-                                customer: {
-                                  name:
-                                    customers?.find(
-                                      (c) =>
-                                        c.id === form.state.values.customerId,
-                                    )?.name ?? "-",
-                                  phone: null,
-                                  address: null,
-                                },
-                                user: { name: user?.name ?? "-" },
-                                items: (form.state.values.items ?? []).map(
-                                  (l, idx) => {
-                                    const acc = accessories?.find(
-                                      (a: any) => a.id === l.accessoryId,
-                                    );
-                                    return {
-                                      id: `${l.accessoryId}-${idx}`,
-                                      name: acc?.name ?? l.name ?? "Aksesoris",
-                                      qty: toNumber(l.qty),
-                                      unitPrice: toNumber(l.unitPrice),
-                                      subtotal:
-                                        toNumber(l.qty) * toNumber(l.unitPrice),
-                                    };
-                                  },
-                                ),
+                            <form.Subscribe
+                              selector={(s) => ({
+                                saleNo: s.values.saleNo,
+                                invoiceNo: s.values.invoiceNo,
+                                notes: s.values.notes,
+                                customerId: s.values.customerId,
+                                items: s.values.items,
+                              })}
+                            >
+                              {(v) => {
+                                const customerName =
+                                  customers?.find((c) => c.id === v.customerId)
+                                    ?.name ?? "-";
+
+                                const items = (v.items ?? []).map((l, idx) => {
+                                  const acc = accessories?.find(
+                                    (a: any) => a.id === l.accessoryId,
+                                  );
+
+                                  const qty = toNumber(l.qty);
+                                  const unitPrice = toNumber(l.unitPrice);
+
+                                  return {
+                                    id: `${l.accessoryId}-${idx}`,
+                                    name: acc?.name ?? l.name ?? "Aksesoris",
+                                    qty,
+                                    unitPrice,
+                                    subtotal: qty * unitPrice,
+                                  };
+                                });
+
+                                const summary = {
+                                  totalQty: (v.items ?? []).reduce(
+                                    (a, b) => a + toNumber(b.qty),
+                                    0,
+                                  ),
+                                  totalAmount: (v.items ?? []).reduce(
+                                    (a, b) =>
+                                      a +
+                                      toNumber(b.qty) * toNumber(b.unitPrice),
+                                    0,
+                                  ),
+                                };
+
+                                return (
+                                  <SaleInvoicePreviewDialog
+                                    trigger={
+                                      <Button type="button" variant="outline">
+                                        Preview Invoice
+                                      </Button>
+                                    }
+                                    sale={{
+                                      id: initialData?.id ?? "TEMP",
+                                      saleNo: v.saleNo,
+                                      invoiceNo: v.invoiceNo || "INV-TEMP",
+                                      soldAt: initialData?.soldAt ?? new Date(),
+                                      status: initialData?.status ?? "DRAFT",
+                                      notes: v.notes || null,
+                                      customer: {
+                                        name: customerName,
+                                        phone: null,
+                                        address: null,
+                                      },
+                                      user: { name: user?.name ?? "-" },
+                                      items,
+                                    }}
+                                    summary={summary}
+                                  />
+                                );
                               }}
-                              summary={{
-                                totalQty: (
-                                  form.state.values.items ?? []
-                                ).reduce((a, b) => a + toNumber(b.qty), 0),
-                                totalAmount: (
-                                  form.state.values.items ?? []
-                                ).reduce(
-                                  (a, b) =>
-                                    a + toNumber(b.qty) * toNumber(b.unitPrice),
-                                  0,
-                                ),
-                              }}
-                            />
+                            </form.Subscribe>
                           </div>
                         </Field>
                       )}
@@ -763,7 +781,6 @@ export function SaleAccessoriesForm({
               </CardContent>
             </Card>
 
-            {/* Cart Accessories */}
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -814,8 +831,7 @@ export function SaleAccessoriesForm({
                   {(field) => {
                     const isInvalid =
                       field.state.meta.isTouched && !field.state.meta.isValid;
-                    const lines = (field.state.value ??
-                      []);
+                    const lines = field.state.value ?? [];
 
                     const updateLine = (
                       idx: number,
@@ -1041,6 +1057,7 @@ export function SaleAccessoriesForm({
                                         />
                                       </div>
 
+                                      {/* ✅ FIX: round + valueAsNumber */}
                                       <div className="space-y-2">
                                         <FieldLabel className="text-xs">
                                           Margin %
@@ -1049,19 +1066,22 @@ export function SaleAccessoriesForm({
                                           type="number"
                                           value={String(line.marginPct ?? 0)}
                                           onChange={(e) => {
-                                            const m = Number(
-                                              e.target.value || 0,
-                                            );
+                                            const mRaw = e.target.valueAsNumber;
+                                            const m = Number.isFinite(mRaw)
+                                              ? mRaw
+                                              : 0;
 
                                             if (!cost) {
-                                              updateLine(idx, { marginPct: m });
+                                              updateLine(idx, {
+                                                marginPct: round(m, 2),
+                                              });
                                               return;
                                             }
 
                                             const selling =
                                               computeSellingFromMargin(cost, m);
                                             updateLine(idx, {
-                                              marginPct: m,
+                                              marginPct: round(m, 2),
                                               unitPrice: selling,
                                               lineTotal: qtyNum * selling,
                                             });
@@ -1082,7 +1102,8 @@ export function SaleAccessoriesForm({
                                               0,
                                               parseRupiah(e.target.value),
                                             );
-                                            const m = cost
+
+                                            const mRaw = cost
                                               ? computeMarginFromPrices(
                                                   cost,
                                                   selling,
@@ -1091,8 +1112,8 @@ export function SaleAccessoriesForm({
 
                                             updateLine(idx, {
                                               unitPrice: selling,
-                                              marginPct: Number.isFinite(m)
-                                                ? m
+                                              marginPct: Number.isFinite(mRaw)
+                                                ? round(mRaw, 2)
                                                 : 0,
                                               lineTotal: qtyNum * selling,
                                             });
@@ -1128,7 +1149,8 @@ export function SaleAccessoriesForm({
                                               qtyNum || 1,
                                             );
                                             const unit = total / qtySafe;
-                                            const m = cost
+
+                                            const mRaw = cost
                                               ? computeMarginFromPrices(
                                                   cost,
                                                   unit,
@@ -1138,8 +1160,8 @@ export function SaleAccessoriesForm({
                                             updateLine(idx, {
                                               lineTotal: total,
                                               unitPrice: unit,
-                                              marginPct: Number.isFinite(m)
-                                                ? m
+                                              marginPct: Number.isFinite(mRaw)
+                                                ? round(mRaw, 2)
                                                 : 0,
                                             });
                                           }}
@@ -1207,7 +1229,7 @@ export function SaleAccessoriesForm({
               <form.Subscribe selector={(s) => s.values.items}>
                 {(items) => {
                   const summary = computeSummaryAccessories(items);
-                  return <SaleFinishedGoodSummarySection summary={summary} />;
+                  return <SaleAccessoriesSummarySection summary={summary} />;
                 }}
               </form.Subscribe>
 

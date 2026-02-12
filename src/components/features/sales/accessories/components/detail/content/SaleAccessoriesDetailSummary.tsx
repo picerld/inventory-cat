@@ -1,3 +1,5 @@
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
 import {
   Banknote,
   Calculator,
@@ -7,6 +9,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
+import { Badge } from "~/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -14,16 +17,13 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import { Badge } from "~/components/ui/badge";
 import { Separator } from "~/components/ui/separator";
 import { toRupiah } from "~/lib/utils";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
-import type { SaleFinishedGoodFull, SaleFinishedGoodItem } from "~/types/sale";
+import type { SaleAccessoriesFull, SaleAccessoriesItem } from "~/types/sale";
 
-type SaleFinishedGoodDetailSummaryProps = {
-  data: SaleFinishedGoodFull;
-  items: SaleFinishedGoodItem[];
+type SaleAccessoriesDetailSummaryProps = {
+  data: SaleAccessoriesFull;
+  items: SaleAccessoriesItem[];
   totalQty: number;
   totalRevenue: number;
   totalCost: number;
@@ -31,7 +31,7 @@ type SaleFinishedGoodDetailSummaryProps = {
   profitMargin: number;
 };
 
-export const SaleFinishedGoodDetailSummary = ({
+export const SaleAccessoriesDetailSummary = ({
   data,
   items,
   totalQty,
@@ -39,7 +39,7 @@ export const SaleFinishedGoodDetailSummary = ({
   totalCost,
   totalProfit,
   profitMargin,
-}: SaleFinishedGoodDetailSummaryProps) => {
+}: SaleAccessoriesDetailSummaryProps) => {
   return (
     <div className="lg:col-span-4">
       <div className="sticky top-20 space-y-6">

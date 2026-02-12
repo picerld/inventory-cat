@@ -41,10 +41,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "~/components/ui/empty";
-import { ArrowUpRightIcon, Folder, Plus, UserCheck } from "lucide-react";
+import { ArrowUpRightIcon, ChevronDown, Folder, Plus, UserCheck } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { useSemiFinishedGoods } from "./semi-finished-provider";
 import type { SemiFinishedGood } from "~/types/semi-finished-good";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
 
 /**
  * URL conventions:
@@ -313,7 +314,26 @@ export function SemiFinishedGoodsTable() {
             })),
           },
         ]}
-      />
+      >
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              className="border-dashed px-2 lg:px-3"
+              variant="outline"
+              size={"sm"}
+            >
+              <ChevronDown className="h-4 w-4" /> Export Data
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Format</DropdownMenuLabel>
+              <DropdownMenuItem>CSV</DropdownMenuItem>
+              <DropdownMenuItem>PDF</DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </DataTableToolbar>
 
       <Button onClick={() => setOpen("add")} size="lg">
         <Plus className="h-4 w-4" />

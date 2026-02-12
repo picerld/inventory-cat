@@ -4,9 +4,9 @@ import { useRouter } from "next/router";
 import { trpc } from "~/utils/trpc";
 import { Skeleton } from "~/components/ui/skeleton";
 import { SaleErrorsDialog } from "~/components/features/sales/components/SaleErrorsDialog";
-import { SaleFinishedGoodDetailContainer } from "~/components/features/sales/finished-good/components/detail/SaleFinishedGoodDetailContainer";
+import { SaleAccessoriesDetailContainer } from "~/components/features/sales/accessories/components/detail/SaleAccessoriesDetailContainer";
 
-export default function SaleFinishedGoodDetailPage() {
+export default function SaleAccessoriesDetailPage() {
   const router = useRouter();
   const { id: saleId } = router.query;
 
@@ -14,7 +14,7 @@ export default function SaleFinishedGoodDetailPage() {
     data: sale,
     isLoading,
     isError,
-  } = trpc.sale.getByIdFinishedGood.useQuery(
+  } = trpc.sale.getByIdAccessories.useQuery(
     { id: saleId as string },
     { enabled: !!saleId },
   );
@@ -22,7 +22,7 @@ export default function SaleFinishedGoodDetailPage() {
   if (isLoading) {
     return (
       <GuardedLayout>
-        <HeadMetaData title="Detail Penjualan Barang Jadi" />
+        <HeadMetaData title="Detail Penjualan Aksesoris" />
         <div className="space-y-6">
           <Skeleton className="h-10 w-32" />
           <Skeleton className="h-32 w-full" />
@@ -59,7 +59,7 @@ export default function SaleFinishedGoodDetailPage() {
     <GuardedLayout>
       <HeadMetaData title={`Detail Penjualan - ${data.saleNo}`} />
 
-      <SaleFinishedGoodDetailContainer data={data} items={items} />
+      <SaleAccessoriesDetailContainer data={data} items={items} />
     </GuardedLayout>
   );
 }

@@ -9,7 +9,7 @@ type SaleFinishedGoodDetailContainerProps = {
   items: SaleFinishedGoodItem[];
 };
 
-export const SaleFinishedGoodDetaiContainer = ({
+export const SaleFinishedGoodDetailContainer = ({
   data,
   items,
 }: SaleFinishedGoodDetailContainerProps) => {

@@ -482,7 +482,11 @@ export const saleRouter = createTRPCRouter({
           user: true,
           items: {
             where: { itemType: "PAINT_ACCESSORIES" },
-            include: { accessory: true },
+            include: {
+              accessory: {
+                include: { supplier: true },
+              },
+            },
             orderBy: { createdAt: "asc" },
           },
         },

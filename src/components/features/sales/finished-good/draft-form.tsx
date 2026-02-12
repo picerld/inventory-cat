@@ -419,8 +419,12 @@ export function SaleFinishedGoodForm({
             costPrice = await fetchCostPrice(it.finishedGoodId).catch(() => 0);
           }
 
+          // ✅ FIX: round margin hasil perhitungan agar tidak 49.999999
           const marginPctRaw = costPrice
             ? computeMarginFromPrices(costPrice, unitPrice)
+            : 0;
+          const marginPct = Number.isFinite(marginPctRaw)
+            ? round(marginPctRaw, 2)
             : 0;
 
           return {
@@ -435,9 +439,7 @@ export function SaleFinishedGoodForm({
             unitPrice,
 
             costPrice,
-            marginPct: Number.isFinite(marginPctRaw)
-              ? round(marginPctRaw, 2)
-              : 0,
+            marginPct,
             lineTotal: qty * unitPrice,
           };
         }),
@@ -547,6 +549,8 @@ export function SaleFinishedGoodForm({
       setIsLookingUp(false);
     }
   };
+
+  console.log(initialData);
 
   return (
     <div className="container space-y-6 pb-8">
@@ -719,7 +723,6 @@ export function SaleFinishedGoodForm({
                       {(field) => (
                         <Field>
                           <FieldLabel>Invoice No (opsional)</FieldLabel>
-
                           <div className="flex gap-2">
                             <Input
                               placeholder="INV-202602-XXXXXX"
@@ -729,7 +732,6 @@ export function SaleFinishedGoodForm({
                               }
                               disabled={disableFormInputs}
                             />
-
                             <Button
                               type="button"
                               variant="outline"
@@ -752,80 +754,61 @@ export function SaleFinishedGoodForm({
                               )}
                             </Button>
 
-                            <form.Subscribe
-                              selector={(s) => ({
-                                saleNo: s.values.saleNo,
-                                invoiceNo: s.values.invoiceNo,
-                                notes: s.values.notes,
-                                customerId: s.values.customerId,
-                                items: s.values.items,
-                              })}
-                            >
-                              {(v) => {
-                                const customerName =
-                                  customers?.find((c) => c.id === v.customerId)
-                                    ?.name ?? "-";
+                            <SaleInvoicePreviewDialog
+                              trigger={
+                                <Button type="button" variant="outline">
+                                  Preview Invoice
+                                </Button>
+                              }
+                              sale={{
+                                id: initialData?.id ?? "TEMP",
+                                saleNo: form.state.values.saleNo,
+                                invoiceNo:
+                                  form.state.values.invoiceNo || "INV-TEMP",
+                                soldAt: new Date(),
+                                status: initialData?.status ?? "DRAFT",
+                                notes: form.state.values.notes || null,
+                                customer: {
+                                  name:
+                                    customers?.find(
+                                      (c) =>
+                                        c.id === form.state.values.customerId,
+                                    )?.name ?? "-",
+                                  phone: null,
+                                  address: null,
+                                },
+                                user: { name: user?.name ?? "-" },
+                                items: (form.state.values.items ?? []).map(
+                                  (l, idx) => {
+                                    const fg = finishedGoods?.find(
+                                      (f: any) => f.id === l.finishedGoodId,
+                                    );
 
-                                const items = (v.items ?? []).map((l, idx) => {
-                                  const fg = finishedGoods?.find(
-                                    (f: any) => f.id === l.finishedGoodId,
-                                  );
-
-                                  const qty = toNumber(l.qty);
-                                  const unitPrice = toNumber(l.unitPrice);
-
-                                  return {
-                                    id: `${l.finishedGoodId}-${idx}`,
-                                    name:
-                                      fg?.name ??
-                                      l.name ??
-                                      "Barang tidak ditemukan",
-                                    qty,
-                                    unitPrice,
-                                    subtotal: qty * unitPrice,
-                                  };
-                                });
-
-                                const summary = {
-                                  totalQty: (v.items ?? []).reduce(
-                                    (a, b) => a + toNumber(b.qty),
-                                    0,
-                                  ),
-                                  totalAmount: (v.items ?? []).reduce(
-                                    (a, b) =>
-                                      a +
-                                      toNumber(b.qty) * toNumber(b.unitPrice),
-                                    0,
-                                  ),
-                                };
-
-                                return (
-                                  <SaleInvoicePreviewDialog
-                                    trigger={
-                                      <Button type="button" variant="outline">
-                                        Preview Invoice
-                                      </Button>
-                                    }
-                                    sale={{
-                                      id: initialData?.id ?? "TEMP",
-                                      saleNo: v.saleNo,
-                                      invoiceNo: v.invoiceNo || "INV-TEMP",
-                                      soldAt: initialData?.soldAt ?? new Date(),
-                                      status: initialData?.status ?? "DRAFT",
-                                      notes: v.notes || null,
-                                      customer: {
-                                        name: customerName,
-                                        phone: null,
-                                        address: null,
-                                      },
-                                      user: { name: user?.name ?? "-" },
-                                      items,
-                                    }}
-                                    summary={summary}
-                                  />
-                                );
+                                    return {
+                                      id: `${l.finishedGoodId}-${idx}`,
+                                      name:
+                                        fg?.name ?? "Barang tidak ditemukan",
+                                      qty: toNumber(l.qty),
+                                      unitPrice: toNumber(l.unitPrice),
+                                      subtotal:
+                                        toNumber(l.qty) * toNumber(l.unitPrice),
+                                    };
+                                  },
+                                ),
                               }}
-                            </form.Subscribe>
+                              summary={{
+                                totalQty: (
+                                  form.state.values.items ?? []
+                                ).reduce((a, b) => a + toNumber(b.qty), 0),
+                                totalAmount: (
+                                  form.state.values.items ?? []
+                                ).reduce(
+                                  (a, b) =>
+                                    a + toNumber(b.qty) * toNumber(b.unitPrice),
+                                  0,
+                                ),
+                              }}
+                            />
                           </div>
 
                           <div className="text-muted-foreground mt-1 text-xs">
@@ -1061,7 +1044,8 @@ export function SaleFinishedGoodForm({
                                             <Badge className="bg-emerald-100 text-emerald-700">
                                               <TrendingUp className="mr-1 h-3.5 w-3.5" />
                                               Profit: {toRupiah(profit)} (
-                                              {profitPct.toFixed(1)}%)
+                                              {profitPct.toFixed(1)}
+                                              %)
                                             </Badge>
                                           </div>
                                         </div>
@@ -1146,6 +1130,7 @@ export function SaleFinishedGoodForm({
                                         />
                                       </div>
 
+                                      {/* ✅ FIX: Margin % input */}
                                       <div className="space-y-2">
                                         <FieldLabel className="text-xs">
                                           Margin %
@@ -1166,8 +1151,14 @@ export function SaleFinishedGoodForm({
                                               return;
                                             }
 
-                                            const selling =
+                                            const sellingRaw =
                                               computeSellingFromMargin(cost, m);
+                                            const selling = Number.isFinite(
+                                              sellingRaw,
+                                            )
+                                              ? sellingRaw
+                                              : 0;
+
                                             const nextSubtotal =
                                               qtyNum * selling;
 
@@ -1196,11 +1187,17 @@ export function SaleFinishedGoodForm({
                                                   return;
                                                 }
 
-                                                const selling =
+                                                const sellingRaw =
                                                   computeSellingFromMargin(
                                                     cost,
                                                     m,
                                                   );
+                                                const selling = Number.isFinite(
+                                                  sellingRaw,
+                                                )
+                                                  ? sellingRaw
+                                                  : 0;
+
                                                 const nextSubtotal =
                                                   qtyNum * selling;
 
@@ -1241,6 +1238,7 @@ export function SaleFinishedGoodForm({
 
                                             updateLine(idx, {
                                               unitPrice: selling,
+                                              // ✅ FIX: round margin hasil hitung
                                               marginPct: Number.isFinite(m)
                                                 ? round(m, 2)
                                                 : 0,
@@ -1290,6 +1288,7 @@ export function SaleFinishedGoodForm({
                                             updateLine(idx, {
                                               lineTotal: total,
                                               unitPrice: unit,
+                                              // ✅ FIX: round margin hasil hitung
                                               marginPct: Number.isFinite(m)
                                                 ? round(m, 2)
                                                 : 0,

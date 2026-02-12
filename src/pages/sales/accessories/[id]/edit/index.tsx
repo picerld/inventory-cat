@@ -3,16 +3,16 @@ import { HeadMetaData } from "~/components/meta/HeadMetaData";
 import { ChevronLeft } from "lucide-react";
 import { buttonVariants } from "~/components/ui/button";
 import Link from "next/link";
-import { SaleFinishedGoodForm } from "~/components/features/sales/finished-good/components/SaleFinishedGoodForm";
 import { useRouter } from "next/router";
 import { trpc } from "~/utils/trpc";
 import { Skeleton } from "~/components/ui/skeleton";
+import { SaleAccessoriesForm } from "~/components/features/sales/accessories/components/SaleAccessoriesForm";
 
-export default function SaleFinishedGoodEditPage() {
+export default function SaleAccessoriesEditPage() {
   const router = useRouter();
   const id = router.query.id as string;
 
-  const { data, isLoading } = trpc.sale.getByIdFinishedGood.useQuery(
+  const { data, isLoading } = trpc.sale.getByIdAccessories.useQuery(
     { id },
     { enabled: !!id },
   );
@@ -21,15 +21,15 @@ export default function SaleFinishedGoodEditPage() {
 
   return (
     <GuardedLayout>
-      <HeadMetaData title="Penjualan Barang Jadi" />
+      <HeadMetaData title="Penjualan Aksesoris" />
       <Link
-        href="/sales/finished-goods"
+        href="/sales/accessories"
         className={buttonVariants({ variant: "outline", className: "mb-4" })}
       >
         <ChevronLeft className="mr-2 h-4 w-4" /> Kembali
       </Link>
 
-      <SaleFinishedGoodForm initialData={data?.sale} mode="edit" />
+      <SaleAccessoriesForm initialData={data?.sale} mode="edit" />
     </GuardedLayout>
   );
 }

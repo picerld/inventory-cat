@@ -53,7 +53,6 @@ export const SaleFinishedGoodGeneratedInvoice = ({
             Tutup
           </Button>
 
-          {/* OPTIONAL: kalau nanti kamu buat endpoint PDF */}
           <Button
             disabled
             title="Buat endpoint PDF kalau mau download PDF"

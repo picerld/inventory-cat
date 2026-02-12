@@ -35,9 +35,17 @@ export function middleware(req: NextRequest) {
   const url = req.nextUrl;
   const path = url.pathname;
 
-  const protectedPaths = ["/dashboard", "/suppliers"];
+  const protectedPaths = [
+    "/dashboard",
+    "/suppliers",
+    "/customers",
+    "/items",
+    "/purchases",
+    "/sales",
+    "/profile",
+  ];
 
-  const isProtected = protectedPaths.some(p => path.startsWith(p));
+  const isProtected = protectedPaths.some((p) => path.startsWith(p));
 
   if (isProtected && !token) {
     return NextResponse.redirect(new URL("/", req.url));
@@ -51,5 +59,14 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/dashboard/:path*", "/suppliers/:path*"],
+  matcher: [
+    "/",
+    "/dashboard/:path*",
+    "/suppliers/:path*",
+    "/customers/:path*",
+    "/items/:path*",
+    "/purchases/:path*",
+    "/sales/:path*",
+    "/profile/:path*",
+  ],
 };

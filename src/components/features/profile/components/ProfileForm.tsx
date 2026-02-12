@@ -97,7 +97,6 @@ export default function ProfileForm() {
         }}
       >
         <FieldGroup>
-          {/* BASIC INFO */}
           <div className="bg-card rounded-2xl border p-6">
             <h2 className="text-base font-semibold">Informasi Akun</h2>
             <p className="text-muted-foreground mt-1 text-sm">
@@ -151,7 +150,6 @@ export default function ProfileForm() {
             </div>
           </div>
 
-          {/* PASSWORD */}
           <div className="bg-card rounded-2xl border p-6">
             <h2 className="text-base font-semibold">Ubah Password</h2>
             <p className="text-muted-foreground mt-1 text-sm">

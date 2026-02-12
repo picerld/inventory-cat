@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useRouter } from "next/router";
+import GuardedLayout from "~/components/layout/GuardedLayout";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -8,5 +9,9 @@ export default function ProfilePage() {
     router.replace("/profile/general");
   }, [router]);
 
-  return null;
+  return (
+    <GuardedLayout>
+      <p>Loading...</p>
+    </GuardedLayout>
+  );
 }

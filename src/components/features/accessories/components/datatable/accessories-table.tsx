@@ -34,10 +34,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "~/components/ui/empty";
-import { ArrowUpRightIcon, Folder, Plus } from "lucide-react";
+import { ArrowUpRightIcon, ChevronDown, Folder, Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { useAccessoriess } from "./accessories-provider";
 import type { PainAccessories } from "~/types/paint-accessories";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
 
 function parseSortParam(sortParam: string | null): SortingState {
   if (!sortParam) return [];
@@ -229,8 +230,6 @@ export function AccessoriesTable() {
     onGlobalFilterChange,
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: setColumnVisibility,
-
-    // ✅ server-side
     manualPagination: true,
     manualFiltering: true,
     manualSorting: true,
@@ -242,7 +241,6 @@ export function AccessoriesTable() {
   if (isLoading) return <OnLoadItem isLoading={isLoading} />;
 
   if (!data) {
-    // fallback aman
     return (
       <Empty>
         <EmptyHeader>
@@ -251,7 +249,8 @@ export function AccessoriesTable() {
           </EmptyMedia>
           <EmptyTitle>Belum Ada Aksesoris</EmptyTitle>
           <EmptyDescription>
-            Belum ada aksesoris yang terdata. Silakan tambahkan aksesoris terlebih dahulu.
+            Belum ada aksesoris yang terdata. Silakan tambahkan aksesoris
+            terlebih dahulu.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -280,7 +279,12 @@ export function AccessoriesTable() {
           </div>
         </EmptyContent>
 
-        <Button variant="link" asChild className="text-muted-foreground" size="sm">
+        <Button
+          variant="link"
+          asChild
+          className="text-muted-foreground"
+          size="sm"
+        >
           <a href="#">
             Learn More <ArrowUpRightIcon />
           </a>
@@ -306,7 +310,26 @@ export function AccessoriesTable() {
             })),
           },
         ]}
-      />
+      >
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              className="border-dashed px-2 lg:px-3"
+              variant="outline"
+              size={"sm"}
+            >
+              <ChevronDown className="h-4 w-4" /> Export Data
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Format</DropdownMenuLabel>
+              <DropdownMenuItem>CSV</DropdownMenuItem>
+              <DropdownMenuItem>PDF</DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </DataTableToolbar>
 
       <Button onClick={() => setOpen("add")} size="lg">
         <Plus className="h-4 w-4" />
@@ -322,7 +345,10 @@ export function AccessoriesTable() {
                   <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -332,17 +358,26 @@ export function AccessoriesTable() {
           <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
                   No results.
                 </TableCell>
               </TableRow>
