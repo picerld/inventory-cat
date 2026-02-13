@@ -823,107 +823,190 @@ export const saleRouter = createTRPCRouter({
       const userId = ctx.user?.id ?? "";
       const { id, status, notes, shippedAt } = input;
 
-      return ctx.db.$transaction(async (tx) => {
-        const sale = await tx.sale.findUnique({
-          where: { id },
-          include: { items: true },
-        });
-
-        if (!sale)
-          throw new TRPCError({ code: "NOT_FOUND", message: "Sale not found" });
-
-        const from = sale.status as SaleStatus;
-
-        if (from === "FINISHED" || from === "CANCELED") {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Sale ${from} tidak bisa diubah lagi.`,
+      return ctx.db.$transaction(
+        async (tx) => {
+          const sale = await tx.sale.findUnique({
+            where: { id },
+            include: { items: true },
           });
-        }
 
-        const allowed: Record<SaleStatus, SaleStatus[]> = {
-          DRAFT: ["DRAFT", "ONGOING", "CANCELED"],
-          ONGOING: ["ONGOING", "FINISHED", "CANCELED"],
-          FINISHED: ["FINISHED"],
-          CANCELED: ["CANCELED"],
-        };
-
-        if (!allowed[from].includes(status)) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Transisi status tidak valid: ${from} -> ${status}`,
-          });
-        }
-
-        // ✅ when FINISHED: decrement finished good stock + create stock movement
-        if (status === "FINISHED") {
-          const lines = sale.items.filter(
-            (x) => x.itemType === "FINISHED_GOOD",
-          );
-
-          if (!lines.length) {
+          if (!sale) {
             throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: "Sale tidak memiliki item.",
+              code: "NOT_FOUND",
+              message: "Sale not found",
             });
           }
 
-          // validate stock first
-          const fgIds = lines
-            .map((l) => l.finishedGoodId)
-            .filter(Boolean) as string[];
-          const fgs = await tx.finishedGood.findMany({
-            where: { id: { in: fgIds } },
-            select: { id: true, qty: true },
-          });
+          const from = sale.status as SaleStatus;
 
-          const fgMap = new Map(fgs.map((x) => [x.id, Number(x.qty)]));
+          if (from === "FINISHED" || from === "CANCELED") {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Sale ${from} tidak bisa diubah lagi.`,
+            });
+          }
 
-          for (const l of lines) {
-            if (!l.finishedGoodId) continue;
-            const need = Number(l.qty);
-            const have = fgMap.get(l.finishedGoodId) ?? 0;
+          const allowed: Record<SaleStatus, SaleStatus[]> = {
+            DRAFT: ["DRAFT", "ONGOING", "CANCELED"],
+            ONGOING: ["ONGOING", "FINISHED", "CANCELED"],
+            FINISHED: ["FINISHED"],
+            CANCELED: ["CANCELED"],
+          };
 
-            if (have < need) {
+          if (!allowed[from].includes(status)) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Transisi status tidak valid: ${from} -> ${status}`,
+            });
+          }
+
+          // ====== WHEN FINISHED: APPLY STOCK OUT ======
+          if (status === "FINISHED") {
+            const fgLines = sale.items.filter(
+              (x) => x.itemType === "FINISHED_GOOD",
+            );
+            const accLines = sale.items.filter(
+              (x) => x.itemType === "PAINT_ACCESSORIES",
+            );
+
+            // ✅ Ini fix utama: jangan cuma cek FG doang
+            if (!fgLines.length && !accLines.length) {
               throw new TRPCError({
                 code: "BAD_REQUEST",
-                message: `Stok barang jadi tidak cukup untuk item ${l.finishedGoodId}. Stok: ${have}, butuh: ${need}`,
+                message: "Sale tidak memiliki item.",
               });
+            }
+
+            // -------- Finished Good stock validation + apply ----------
+            if (fgLines.length) {
+              const fgIds = fgLines
+                .map((l) => l.finishedGoodId)
+                .filter(Boolean) as string[];
+
+              const fgs = await tx.finishedGood.findMany({
+                where: { id: { in: fgIds } },
+                select: { id: true, qty: true },
+              });
+
+              const fgMap = new Map(fgs.map((x) => [x.id, Number(x.qty)]));
+
+              for (const l of fgLines) {
+                if (!l.finishedGoodId) continue;
+                const need = Number(l.qty ?? 0);
+                const have = fgMap.get(l.finishedGoodId) ?? 0;
+                if (have < need) {
+                  throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: `Stok barang jadi tidak cukup untuk item ${l.finishedGoodId}. Stok: ${have}, butuh: ${need}`,
+                  });
+                }
+              }
+
+              for (const l of fgLines) {
+                if (!l.finishedGoodId) continue;
+
+                // ✅ atomic guard
+                const res = await tx.finishedGood.updateMany({
+                  where: { id: l.finishedGoodId, qty: { gte: l.qty } },
+                  data: { qty: { decrement: l.qty } },
+                });
+
+                if (res.count !== 1) {
+                  throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message:
+                      "Stok finished good berubah/kurang saat diproses. Silakan refresh dan coba lagi.",
+                  });
+                }
+
+                await tx.stockMovement.create({
+                  data: {
+                    type: "SALE_OUT",
+                    itemType: "FINISHED_GOOD",
+                    itemId: l.finishedGoodId,
+                    qty: l.qty,
+                    refSaleId: sale.id,
+                    userId: userId || sale.userId,
+                    refFinishedGoodId: l.finishedGoodId,
+                  },
+                });
+              }
+            }
+
+            // -------- Accessories stock validation + apply ----------
+            if (accLines.length) {
+              const accIds = accLines
+                .map((l) => l.accessoryId)
+                .filter(Boolean) as string[];
+
+              // ⚠️ ganti model kalau punyamu bukan paintAccessories
+              const accs = await tx.paintAccessories.findMany({
+                where: { id: { in: accIds } },
+                select: { id: true, qty: true, name: true },
+              });
+
+              const accMap = new Map(
+                accs.map((x) => [x.id, { qty: Number(x.qty), name: x.name }]),
+              );
+
+              for (const l of accLines) {
+                if (!l.accessoryId) continue;
+                const need = Number(l.qty ?? 0);
+                const have = accMap.get(l.accessoryId)?.qty ?? 0;
+                const nm = accMap.get(l.accessoryId)?.name ?? l.accessoryId;
+
+                if (have < need) {
+                  throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: `Stok aksesoris tidak cukup untuk ${nm}. Stok: ${have}, butuh: ${need}`,
+                  });
+                }
+              }
+
+              for (const l of accLines) {
+                if (!l.accessoryId) continue;
+
+                // ✅ atomic guard
+                const res = await tx.paintAccessories.updateMany({
+                  where: { id: l.accessoryId, qty: { gte: l.qty } },
+                  data: { qty: { decrement: l.qty } },
+                });
+
+                if (res.count !== 1) {
+                  throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message:
+                      "Stok aksesoris berubah/kurang saat diproses. Silakan refresh dan coba lagi.",
+                  });
+                }
+
+                await tx.stockMovement.create({
+                  data: {
+                    type: "SALE_OUT",
+                    itemType: "PAINT_ACCESSORIES",
+                    itemId: l.accessoryId,
+                    qty: l.qty,
+                    refSaleId: sale.id,
+                    userId: userId || sale.userId,
+                    // optional: kalau punya field refAccessoryId, isi di sini
+                    // refAccessoryId: l.accessoryId,
+                  },
+                });
+              }
             }
           }
 
-          // apply stock decrement + movements
-          for (const l of lines) {
-            if (!l.finishedGoodId) continue;
-
-            await tx.finishedGood.update({
-              where: { id: l.finishedGoodId },
-              data: { qty: { decrement: l.qty } },
-            });
-
-            await tx.stockMovement.create({
-              data: {
-                type: "SALE_OUT",
-                itemType: "FINISHED_GOOD",
-                itemId: l.finishedGoodId,
-                qty: l.qty,
-                refSaleId: sale.id,
-                userId: userId || sale.userId,
-                refFinishedGoodId: l.finishedGoodId,
-              },
-            });
-          }
-        }
-
-        return tx.sale.update({
-          where: { id },
-          data: {
-            status,
-            ...(typeof notes !== "undefined" ? { notes } : {}),
-            ...(typeof shippedAt !== "undefined" ? { shippedAt } : {}),
-          },
-        });
-      });
+          return tx.sale.update({
+            where: { id },
+            data: {
+              status,
+              ...(typeof notes !== "undefined" ? { notes } : {}),
+              ...(typeof shippedAt !== "undefined" ? { shippedAt } : {}),
+            },
+          });
+        },
+        { maxWait: 10_000, timeout: 60_000 },
+      );
     }),
 
   cancel: protectedProcedure
