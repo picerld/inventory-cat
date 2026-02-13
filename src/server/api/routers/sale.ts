@@ -860,7 +860,6 @@ export const saleRouter = createTRPCRouter({
             });
           }
 
-          // ====== WHEN FINISHED: APPLY STOCK OUT ======
           if (status === "FINISHED") {
             const fgLines = sale.items.filter(
               (x) => x.itemType === "FINISHED_GOOD",
@@ -869,7 +868,6 @@ export const saleRouter = createTRPCRouter({
               (x) => x.itemType === "PAINT_ACCESSORIES",
             );
 
-            // ✅ Ini fix utama: jangan cuma cek FG doang
             if (!fgLines.length && !accLines.length) {
               throw new TRPCError({
                 code: "BAD_REQUEST",
@@ -877,7 +875,6 @@ export const saleRouter = createTRPCRouter({
               });
             }
 
-            // -------- Finished Good stock validation + apply ----------
             if (fgLines.length) {
               const fgIds = fgLines
                 .map((l) => l.finishedGoodId)
@@ -905,7 +902,6 @@ export const saleRouter = createTRPCRouter({
               for (const l of fgLines) {
                 if (!l.finishedGoodId) continue;
 
-                // ✅ atomic guard
                 const res = await tx.finishedGood.updateMany({
                   where: { id: l.finishedGoodId, qty: { gte: l.qty } },
                   data: { qty: { decrement: l.qty } },
@@ -933,13 +929,11 @@ export const saleRouter = createTRPCRouter({
               }
             }
 
-            // -------- Accessories stock validation + apply ----------
             if (accLines.length) {
               const accIds = accLines
                 .map((l) => l.accessoryId)
                 .filter(Boolean) as string[];
 
-              // ⚠️ ganti model kalau punyamu bukan paintAccessories
               const accs = await tx.paintAccessories.findMany({
                 where: { id: { in: accIds } },
                 select: { id: true, qty: true, name: true },
@@ -966,7 +960,6 @@ export const saleRouter = createTRPCRouter({
               for (const l of accLines) {
                 if (!l.accessoryId) continue;
 
-                // ✅ atomic guard
                 const res = await tx.paintAccessories.updateMany({
                   where: { id: l.accessoryId, qty: { gte: l.qty } },
                   data: { qty: { decrement: l.qty } },
@@ -988,8 +981,6 @@ export const saleRouter = createTRPCRouter({
                     qty: l.qty,
                     refSaleId: sale.id,
                     userId: userId || sale.userId,
-                    // optional: kalau punya field refAccessoryId, isi di sini
-                    // refAccessoryId: l.accessoryId,
                   },
                 });
               }
