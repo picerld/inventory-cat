@@ -200,7 +200,7 @@ export const semiFinishedGoodRouter = createTRPCRouter({
         ? `${process.env.NEXT_PUBLIC_APP_URL}`
         : "http://localhost:3000";
 
-      const previewLink = `${baseUrl}/qr/semi-finished/${item.id}`;
+      const previewLink = `${baseUrl}/qr/semi-finished/${item?.id}`;
 
       return { item, qrValue: previewLink, previewLink };
     }),
@@ -252,9 +252,9 @@ export const semiFinishedGoodRouter = createTRPCRouter({
             const rm = rmMap.get(m.rawMaterialId);
             if (!rm) notFound("Raw material not found");
 
-            if (toNumber(rm.qty) < toNumber(m.qty)) {
+            if (toNumber(rm?.qty) < toNumber(m.qty)) {
               badRequest(
-                `Stok ${rm.name} tidak cukup. Tersedia ${rm.qty}, butuh ${m.qty}`,
+                `Stok ${rm?.name} tidak cukup. Tersedia ${rm?.qty}, butuh ${m.qty}`,
               );
             }
           }
@@ -357,8 +357,8 @@ export const semiFinishedGoodRouter = createTRPCRouter({
                 itemType: "RAW_MATERIAL",
                 itemId: d.rawMaterialId,
                 qty: d.qty,
-                userId: userId || existing.userId,
-                refSemiFinishedGoodId: existing.id,
+                userId: userId || existing?.userId,
+                refSemiFinishedGoodId: existing?.id,
               },
             });
           }
@@ -367,10 +367,10 @@ export const semiFinishedGoodRouter = createTRPCRouter({
             data: {
               type: "ADJUSTMENT",
               itemType: "SEMI_FINISHED_GOOD",
-              itemId: existing.id,
-              qty: existing.qty,
-              userId: userId || existing.userId,
-              refSemiFinishedGoodId: existing.id,
+              itemId: existing?.id,
+              qty: existing?.qty,
+              userId: userId || existing?.userId,
+              refSemiFinishedGoodId: existing?.id,
             },
           });
 
